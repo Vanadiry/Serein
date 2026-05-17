@@ -39,6 +39,15 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/check/ids", s.handleCheckIDs)
 	s.mux.HandleFunc("/api/check/tracker", s.handleCheckTracker)
 	s.mux.HandleFunc("/api/check/confirm", s.handleCheckConfirm)
+
+	s.mux.HandleFunc("/api/rules/sync", s.handleRulesSync)
+	s.mux.HandleFunc("/api/rules/list/all", s.handleRulesListAll)
+	s.mux.HandleFunc("/api/rules/list/search", s.handleRulesListSearch)
+	s.mux.HandleFunc("/api/rules/list/", s.handleRulesListBySource)
+}
+
+func (s *Server) Addr() string {
+	return fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
 }
 
 func (s *Server) Run() error {

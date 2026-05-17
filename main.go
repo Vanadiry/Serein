@@ -93,7 +93,7 @@ func main() {
 	}
 
 	// 无参数：启动 Web 服务 + 打开浏览器
-	startServer(home)
+	startServer(home, true)
 }
 
 func sereinHome() string {
@@ -123,11 +123,17 @@ func initDirs(home string) error {
 	return nil
 }
 
-func startServer(home string) {
+func startServer(home string, openBrowser_ bool) {
 	s, err := server.New(home)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
 		os.Exit(1)
+	}
+	if openBrowser_ {
+		go func() {
+			addr := "http://" + s.Addr()
+			openBrowser(addr)
+		}()
 	}
 	if err := s.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
