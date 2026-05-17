@@ -76,7 +76,7 @@ func main() {
 			return
 		case "tracker":
 			if len(os.Args) < 3 {
-				fmt.Fprintf(os.Stderr, "Usage: serein tracker <rule_id>\n")
+				fmt.Fprintf(os.Stderr, "Usage: serein tracker <id>\n")
 				os.Exit(1)
 			}
 			if err := cmd.RunTracker(home, os.Args[2]); err != nil {

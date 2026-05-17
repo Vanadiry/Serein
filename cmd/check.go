@@ -1,4 +1,4 @@
-// serein check：加载配置 → 规则 → tracker → 逐个检查 → 打印结果 → 退出
+// serein check [id]：检查更新
 package cmd
 
 import (
@@ -14,28 +14,24 @@ func RunCheck(home, id string) error {
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
-
 	rules, err := store.LoadRules(home)
 	if err != nil {
 		return fmt.Errorf("load rules: %w", err)
 	}
-
 	trackerList, err := store.LoadTracker(home)
 	if err != nil {
 		return fmt.Errorf("load tracker: %w", err)
 	}
-
 	userData, err := store.LoadUserData(home)
 	if err != nil {
 		return fmt.Errorf("load user data: %w", err)
 	}
 
 	if len(trackerList) == 0 {
-		fmt.Println("No software tracked. Use serein tracker <rule_id> to add.")
+		fmt.Println("No software tracked. Use serein tracker <id> to add.")
 		return nil
 	}
 
-	// 若指定了 id，只过滤匹配的
 	if id != "" {
 		var filtered []store.TrackerEntry
 		for _, e := range trackerList {
@@ -43,16 +39,20 @@ func RunCheck(home, id string) error {
 				filtered = append(filtered, e)
 			}
 		}
-		if len(filtered) == 0 {
-			fmt.Printf("No tracker found for %s\n", id)
-			return nil
+		if len(filtered) > 0 {
+			trackerList = filtered
 		}
-		trackerList = filtered
+		// 未找到该 rule_id → 检查全部（trackerList 不变）
 	}
 
+	return runChecks(home, trackerList, cfg, rules, userData)
+}
+
+// runChecks 共享的检查逻辑，供 check、tracker 等命令复用。
+func runChecks(home string, entries []store.TrackerEntry, cfg store.Config, rules map[string]store.Rule, userData store.UserData) error {
 	checker.ClearURLCache()
 
-	for _, entry := range trackerList {
+	for _, entry := range entries {
 		rule, ok := rules[entry.RuleID]
 		if !ok {
 			fmt.Printf("[%s] rule not found\n", entry.RuleID)

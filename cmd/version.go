@@ -24,26 +24,13 @@ func RunVersion(home, id, version string) error {
 		return fmt.Errorf("load rules: %w", err)
 	}
 
-	trackerList, err := store.LoadTracker(home)
-	if err != nil {
-		return fmt.Errorf("load tracker: %w", err)
-	}
-
 	rule, ok := rules[id]
 	if !ok {
 		return fmt.Errorf("rule %s not found", id)
 	}
 
-	var entry *store.TrackerEntry
-	for i := range trackerList {
-		if trackerList[i].RuleID == id {
-			entry = &trackerList[i]
-			break
-		}
-	}
-
 	platforms := rule.Info.Platforms
-	if entry != nil {
+	if entry := store.FindTrackerEntry(home, id); entry != nil {
 		platforms = store.PlatformsFor(*entry, cfg.Platforms)
 	}
 

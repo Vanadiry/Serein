@@ -10,3 +10,13 @@ platforms = ["macos", "windows"]
 # [[rule_sources]]
 # url = "https://raw.githubusercontent.com/Vanadiry/SereinRulesList/refs/heads/main/source.json"
 `
+
+// tracker/*.toml 格式说明，每个文件可含多条 [[tracker]]
+const DefaultTrackerTOML = `# tracker
+# [[tracker]]
+# rule_id = "abc-123"
+# platforms = ["macos"]   # 未指定则使用 config.toml 中的 platforms
+
+# [[tracker]]
+# rule_id = "def-456"
+`
