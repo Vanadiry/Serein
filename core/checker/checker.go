@@ -76,6 +76,8 @@ func extractValue(body []byte, typ string, pos any, join, baseURL string) (any, 
 	switch typ {
 	case "json":
 		return extractJSONValue(body, pos, join)
+	case "xml":
+		return extractXMLValue(body, pos, join)
 	default:
 		return nil, nil
 	}
