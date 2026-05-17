@@ -133,9 +133,11 @@ paths:
             schema:
               type: object
               required: [app_id]
-              additionalProperties: true
               properties:
                 app_id: { type: string }
+              additionalProperties:
+                type: string
+              description: "其他 key 为平台名，value 为版本号，如 \"macos\": \"1.0.0\""
       responses:
         "200":
           description: OK
