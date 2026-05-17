@@ -12,9 +12,10 @@ import (
 	"strings"
 )
 
+
 // SourceJSON 规则源的元信息（完整 source.json 内容）
 type SourceJSON struct {
-	ID          string   `json:"id"`
+	ID          string   `json:"source_id"`
 	Name        string   `json:"name,omitempty"`
 	Description string   `json:"description,omitempty"`
 	Mode        string   `json:"mode"`
