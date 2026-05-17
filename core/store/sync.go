@@ -1,8 +1,6 @@
 package store
 
 import (
-	"archive/zip"
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,15 +10,14 @@ import (
 	"strings"
 )
 
-
 // SourceJSON 规则源的元信息（完整 source.json 内容）
 type SourceJSON struct {
 	ID          string   `json:"source_id"`
 	Name        string   `json:"name,omitempty"`
 	Description string   `json:"description,omitempty"`
-	Mode        string   `json:"mode"`
+	Mode        string   `json:"mode,omitempty"`  // "web" 或 "local"，默认 web
 	BaseURL     string   `json:"baseurl,omitempty"`
-	Files       []string `json:"files,omitempty"`
+	Files       []string `json:"files"`
 }
 
 // SyncResult 同步结果
@@ -50,6 +47,15 @@ func SyncAllSources(home string, sources []RuleSource) SyncResult {
 			result.Errors = append(result.Errors, SyncError{
 				URL:    src.URL,
 				Reason: fmt.Sprintf("获取 source.json 失败: %v", err),
+			})
+			continue
+		}
+
+		if len(srcJSON.Files) == 0 {
+			result.Errors = append(result.Errors, SyncError{
+				ID:     srcJSON.ID,
+				URL:    src.URL,
+				Reason: "source.json 缺少 files 字段",
 			})
 			continue
 		}
@@ -101,24 +107,28 @@ func fetchSourceJSON(url string) (*SourceJSON, []byte, error) {
 		return nil, nil, fmt.Errorf("解析 source.json: %w", err)
 	}
 	if s.ID == "" {
-		return nil, nil, fmt.Errorf("source.json 缺少 id")
+		return nil, nil, fmt.Errorf("source.json 缺少 source_id")
 	}
 	return &s, body, nil
 }
 
 func syncSource(s *SourceJSON, rawBody []byte, sourceURL string, destDir string) error {
-	var err error
-	switch s.Mode {
-	case "github":
-		err = syncGitHub(sourceURL, destDir)
-	case "web":
-		err = syncFileList(s.BaseURL, s.Files, destDir, true)
-	case "local":
-		err = syncFileList(s.BaseURL, s.Files, destDir, false)
-	default:
-		return fmt.Errorf("未知 mode: %s", s.Mode)
+	isLocal := s.Mode == "local"
+	baseURL := s.BaseURL
+
+	// 未指定 baseurl → 取 source.json 同级目录
+	if baseURL == "" {
+		baseURL = filepath.Dir(sourceURL)
+		if !isLocal {
+			// web 模式：去掉末尾文件名，保留 scheme + 路径
+			idx := strings.LastIndex(sourceURL, "/")
+			if idx >= 0 {
+				baseURL = sourceURL[:idx]
+			}
+		}
 	}
-	if err != nil {
+
+	if err := syncFileList(baseURL, s.Files, destDir, !isLocal); err != nil {
 		return err
 	}
 
@@ -126,90 +136,6 @@ func syncSource(s *SourceJSON, rawBody []byte, sourceURL string, destDir string)
 	infoPath := filepath.Join(destDir, "info.json")
 	if writeErr := os.WriteFile(infoPath, rawBody, 0644); writeErr != nil {
 		return fmt.Errorf("write info.json: %w", writeErr)
-	}
-	return nil
-}
-
-// ── GitHub ──
-
-func syncGitHub(rawURL, destDir string) error {
-	owner, repo, err := parseGitHubOwnerRepo(rawURL)
-	if err != nil {
-		return err
-	}
-
-	zipURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/zipball", owner, repo)
-	resp, err := http.Get(zipURL)
-	if err != nil {
-		return fmt.Errorf("下载 zip: %w", err)
-	}
-	defer resp.Body.Close()
-
-	zipBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("读取 zip: %w", err)
-	}
-
-	return extractZipFlat(zipBody, destDir)
-}
-
-func parseGitHubOwnerRepo(url string) (string, string, error) {
-	// https://raw.githubusercontent.com/{owner}/{repo}/...
-	prefix := "raw.githubusercontent.com/"
-	idx := strings.Index(url, prefix)
-	if idx < 0 {
-		return "", "", fmt.Errorf("不是 raw.githubusercontent.com URL")
-	}
-	rest := url[idx+len(prefix):]
-	parts := strings.SplitN(rest, "/", 3)
-	if len(parts) < 2 {
-		return "", "", fmt.Errorf("无法解析 owner/repo")
-	}
-	return parts[0], parts[1], nil
-}
-
-func extractZipFlat(zipBody []byte, destDir string) error {
-	r, err := zip.NewReader(bytes.NewReader(zipBody), int64(len(zipBody)))
-	if err != nil {
-		return fmt.Errorf("解压 zip: %w", err)
-	}
-
-	os.RemoveAll(destDir)
-
-	// GitHub zip 内第一层是 {repo}-{commit}/，去掉这一层
-	var prefix string
-	for _, f := range r.File {
-		parts := strings.SplitN(f.Name, "/", 2)
-		if len(parts) == 2 {
-			prefix = parts[0] + "/"
-			break
-		}
-	}
-
-	for _, f := range r.File {
-		relPath := strings.TrimPrefix(f.Name, prefix)
-		if relPath == "" || strings.HasSuffix(relPath, "/") {
-			continue
-		}
-		target := filepath.Join(destDir, relPath)
-		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
-			return err
-		}
-		rc, err := f.Open()
-		if err != nil {
-			return err
-		}
-		out, err := os.Create(target)
-		if err != nil {
-			rc.Close()
-			return err
-		}
-		_, err = io.Copy(out, rc)
-		rc.Close()
-		out.Close()
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
