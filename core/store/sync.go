@@ -12,12 +12,14 @@ import (
 	"strings"
 )
 
-// SourceJSON 规则源的元信息
+// SourceJSON 规则源的元信息（完整 source.json 内容）
 type SourceJSON struct {
-	ID      string   `json:"id"`
-	Mode    string   `json:"mode"`
-	BaseURL string   `json:"baseurl,omitempty"`
-	Files   []string `json:"files,omitempty"`
+	ID          string   `json:"id"`
+	Name        string   `json:"name,omitempty"`
+	Description string   `json:"description,omitempty"`
+	Mode        string   `json:"mode"`
+	BaseURL     string   `json:"baseurl,omitempty"`
+	Files       []string `json:"files,omitempty"`
 }
 
 // SyncResult 同步结果
@@ -39,7 +41,7 @@ func SyncAllSources(home string, sources []RuleSource) SyncResult {
 	usedIDs := make(map[string]bool)
 
 	for _, src := range sources {
-		srcJSON, _, err := fetchSourceJSON(src.URL)
+		srcJSON, rawBody, err := fetchSourceJSON(src.URL)
 		if err != nil {
 			result.Errors = append(result.Errors, SyncError{
 				URL:    src.URL,
@@ -59,7 +61,7 @@ func SyncAllSources(home string, sources []RuleSource) SyncResult {
 		usedIDs[srcJSON.ID] = true
 
 		destDir := filepath.Join(home, "rules", srcJSON.ID)
-		if err := syncSource(srcJSON, src.URL, destDir); err != nil {
+		if err := syncSource(srcJSON, rawBody, src.URL, destDir); err != nil {
 			result.Errors = append(result.Errors, SyncError{
 				ID:     srcJSON.ID,
 				URL:    src.URL,
@@ -100,17 +102,28 @@ func fetchSourceJSON(url string) (*SourceJSON, []byte, error) {
 	return &s, body, nil
 }
 
-func syncSource(s *SourceJSON, sourceURL string, destDir string) error {
+func syncSource(s *SourceJSON, rawBody []byte, sourceURL string, destDir string) error {
+	var err error
 	switch s.Mode {
 	case "github":
-		return syncGitHub(sourceURL, destDir)
+		err = syncGitHub(sourceURL, destDir)
 	case "web":
-		return syncFileList(s.BaseURL, s.Files, destDir, true)
+		err = syncFileList(s.BaseURL, s.Files, destDir, true)
 	case "local":
-		return syncFileList(s.BaseURL, s.Files, destDir, false)
+		err = syncFileList(s.BaseURL, s.Files, destDir, false)
 	default:
 		return fmt.Errorf("未知 mode: %s", s.Mode)
 	}
+	if err != nil {
+		return err
+	}
+
+	// 写入完整 source.json 到 info.json
+	infoPath := filepath.Join(destDir, "info.json")
+	if writeErr := os.WriteFile(infoPath, rawBody, 0644); writeErr != nil {
+		return fmt.Errorf("write info.json: %w", writeErr)
+	}
+	return nil
 }
 
 // ── GitHub ──
