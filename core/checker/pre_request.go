@@ -225,12 +225,12 @@ func extractFromHTMLXPath(body []byte, pos any, baseURL string) (string, error) 
 // ── 辅助 ──
 
 func applyBaseURL(val, baseURL string) string {
-	if baseURL == "" || strings.HasPrefix(val, "http://") || strings.HasPrefix(val, "https://") {
+	if baseURL == "" || !strings.HasPrefix(val, "/") {
 		return val
 	}
-	if strings.HasPrefix(val, "/") {
-		baseURL = strings.TrimSuffix(baseURL, "/")
+	if strings.HasPrefix(val, "http://") || strings.HasPrefix(val, "https://") {
+		return val
 	}
-	return baseURL + val
+	return strings.TrimSuffix(baseURL, "/") + val
 }
 

@@ -49,9 +49,9 @@ func RunPlatformCheck(cfg CheckConfig, client *http.Client) (PlatformResult, err
 
 	var vr PlatformResult
 
-	// 提取版本号
+	// 提取版本号（不受 baseURL 影响）
 	if cfg.VPosition != nil {
-		ver, err := extractValue(body, cfg.Type, cfg.VPosition, cfg.VJoin, cfg.BaseURL)
+		ver, err := extractValue(body, cfg.Type, cfg.VPosition, cfg.VJoin, "")
 		if err != nil {
 			return vr, err
 		}
@@ -60,9 +60,13 @@ func RunPlatformCheck(cfg CheckConfig, client *http.Client) (PlatformResult, err
 
 	// 提取下载链接
 	if cfg.DPosition != nil {
-		dl, err := extractValue(body, cfg.Type, cfg.DPosition, cfg.DJoin, cfg.BaseURL)
+		dl, err := extractValue(body, cfg.Type, cfg.DPosition, cfg.DJoin, "")
 		if err != nil {
 			return vr, err
+		}
+		// baseURL 直接与 d_position 结果拼接
+		if s, ok := dl.(string); ok && cfg.BaseURL != "" {
+			dl = cfg.BaseURL + s
 		}
 		vr.URL = dl
 	}
