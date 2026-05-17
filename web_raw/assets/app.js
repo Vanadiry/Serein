@@ -41,10 +41,14 @@ function renderTopbar(current) {
         <div class="flex-1"></div>
         ${isIndex ? `
         <nav class="flex gap-1 items-center">
-          <button id="btn-tracker-check" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-[#30303b] hover:text-white cursor-pointer border-0 bg-transparent">当前 Tracker</button>
-          <button id="btn-check-all" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-[#30303b] hover:text-white cursor-pointer border-0 bg-transparent">全部更新</button>
+          <button id="btn-tracker-check" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-[#30303b] hover:text-white cursor-pointer border-0 bg-transparent">检查当前Tracker</button>
+          <button id="btn-check-all" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-[#30303b] hover:text-white cursor-pointer border-0 bg-transparent">检查全部</button>
           <button id="btn-read-cache" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-[#30303b] hover:text-white cursor-pointer border-0 bg-transparent">读取缓存</button>
-        </nav>` : ""}
+        </nav>` : `
+        <nav class="flex gap-1 items-center">
+          <button id="btn-search-mode" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-[#30303b] hover:text-white cursor-pointer border-0 bg-transparent">搜索规则</button>
+          <button id="btn-sync" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-[#30303b] hover:text-white cursor-pointer border-0 bg-transparent">同步规则</button>
+        </nav>`}
       </div>
     </div>`;
 }

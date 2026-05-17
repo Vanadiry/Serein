@@ -9,13 +9,9 @@
 <body class="text-[rgba(255,255,255,.88)] font-[system-ui] min-h-screen">
 <div id="topbar"></div>
 
-<div class="max-w-[1200px] mx-auto p-6 flex gap-6">
+<div class="max-w-[1200px] mx-auto p-6 flex gap-6 min-h-[calc(100vh-48px)]">
   <!-- 侧栏 -->
-  <aside class="w-[200px] shrink-0">
-    <div class="flex gap-1 mb-3">
-      <button id="btn-search-mode" class="flex-1 text-center text-xs text-sub hover:text-white border border-dashed border-[rgba(255,255,255,.15)] rounded-lg py-1.5 cursor-pointer hover:border-[#FE8A95] transition-colors"><img src="/assets/search.svg" class="w-3.5 h-3.5 inline-block mr-1">搜索</button>
-      <button id="btn-sync" class="flex-1 text-center text-xs text-sub hover:text-white border border-dashed border-[rgba(255,255,255,.15)] rounded-lg py-1.5 cursor-pointer hover:border-[#FE8A95] transition-colors">↻ 同步</button>
-    </div>
+  <aside class="w-[200px] shrink-0 pr-4 border-r border-[rgba(255,255,255,.08)]">
     <div class="text-sm text-sub font-semibold mb-2">规则源</div>
     <nav id="source-nav" class="flex flex-col gap-0.5"></nav>
   </aside>
@@ -37,12 +33,16 @@
       <div id="search-placeholder" class="text-center py-16 text-sub text-sm">输入关键词搜索规则</div>
     </div>
     <!-- 卡片视图 -->
-    <div id="card-view">
+    <div id="card-view" class="hidden">
       <div class="flex items-center gap-2 mb-4">
         <span class="w-[3px] h-[18px] bg-[#FE8A95] rounded-sm"></span>
         <span id="source-title" class="font-bold text-sm"></span>
       </div>
       <div id="card-grid" class="grid grid-cols-5 gap-3"></div>
+    </div>
+    <!-- 初始占位 -->
+    <div id="placeholder" class="text-center py-20 text-sub text-sm">
+      在右上角搜索和同步规则<br>在左侧栏选择已拉取的规则源<br><br>若是你第一次启动，请点击右上角的同步规则<br>来拉取内置的规则表
     </div>
   </main>
 </div>
@@ -58,13 +58,14 @@
     const btn = document.getElementById("btn-sync");
     btn.textContent = "同步中…";
     await apiPost("/api/rules/sync");
-    btn.textContent = "↻ 同步";
+    btn.textContent = "同步规则";
     loadSources();
   };
 
   document.getElementById("btn-search-mode").onclick = () => {
     currentSource = null;
     loadSources();
+    document.getElementById("placeholder").classList.add("hidden");
     document.getElementById("search-view").classList.remove("hidden");
     document.getElementById("card-view").classList.add("hidden");
     document.getElementById("search-results-grid").innerHTML = "";
@@ -84,6 +85,7 @@
   async function selectSource(id) {
     currentSource = id;
     loadSources();
+    document.getElementById("placeholder").classList.add("hidden");
     document.getElementById("search-view").classList.add("hidden");
     document.getElementById("card-view").classList.remove("hidden");
     document.getElementById("source-title").textContent = id;
@@ -110,13 +112,13 @@
   function renderCards(rules) {
     return rules.map(r => {
       const platforms = r.platforms || [];
-      return `<div class="bg-[#2a2a2a] border border-[rgba(255,255,255,.08)] rounded-xl p-4 flex flex-col card-h hover:border-[rgba(255,255,255,.12)] transition-colors">
+      return `<div class="bg-[#2a2a2a] border border-[rgba(255,255,255,.08)] rounded-xl p-3 flex flex-col card-h hover:border-[rgba(255,255,255,.12)] transition-colors">
         <div class="text-sm font-semibold truncate" title="${r.app_id + (r.description ? '\n' + r.description : '') + (r.official_website ? '\n' + r.official_website : '')}">${r.name || r.app_id}</div>
         <div class="text-xs text-sub mt-1 truncate">${r.app_id}</div>
-        <div class="flex-1 mt-3 flex flex-col gap-1">
-          ${platforms.map(p => `<label class="flex items-center gap-2 text-xs text-sub cursor-pointer"><input type="checkbox" class="rule-cb" data-os="${p}" checked onchange="event.stopPropagation()"> ${p}</label>`).join("")}
+        <div class="flex-1 mt-3 flex flex-col gap-1 pl-2">
+          ${platforms.map(p => `<label class="flex items-center gap-2 text-xs text-sub cursor-pointer"><input type="checkbox" class="rule-cb" data-os="${p}" onchange="event.stopPropagation()"> ${p}</label>`).join("")}
         </div>
-        <button onclick="event.stopPropagation(); addToTracker('${r.app_id}', this)" class="mt-3 w-full text-center text-xs text-sub hover:text-white border border-dashed border-[rgba(255,255,255,.15)] rounded-lg py-1 cursor-pointer hover:border-[#FE8A95] transition-colors">+</button>
+        <button onclick="event.stopPropagation(); addToTracker('${r.app_id}', this)" class="mt-3 w-full text-center text-xs text-sub hover:text-white border border-[rgba(255,255,255,.12)] rounded-lg py-1 cursor-pointer hover:border-[#FE8A95] transition-colors">添加到默认Tracker</button>
       </div>`;
     }).join("");
   }
