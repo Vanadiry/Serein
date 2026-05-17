@@ -12,7 +12,8 @@ platforms = ["macos", "windows"]
 `
 
 // tracker/*.toml 格式说明，每个文件可含多条 [[tracker]]
-const DefaultTrackerTOML = `# tracker
+const DefaultTrackerTOML = `# display_name = "我的追踪列表"   # 可选，前端展示用
+
 # [[tracker]]
 # rule_id = "abc-123"
 # platforms = ["macos"]   # 未指定则使用 config.toml 中的 platforms

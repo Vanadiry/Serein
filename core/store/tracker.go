@@ -13,9 +13,47 @@ type TrackerEntry struct {
 	Platforms []string `toml:"platforms,omitempty"`
 }
 
+// TrackerInfo tracker 文件元信息（前端侧栏用）
+type TrackerInfo struct {
+	ID          string `json:"id"`
+	DisplayName string `json:"display_name"`
+}
+
 // trackerFile 一个 tracker 文件，可含多条 [[tracker]]
 type trackerFile struct {
-	Trackers []TrackerEntry `toml:"tracker"`
+	DisplayName string         `toml:"display_name,omitempty"`
+	Trackers    []TrackerEntry `toml:"tracker"`
+}
+
+// LoadAllTrackerInfo 扫描 tracker/ 下所有 .toml，返回文件元信息列表。
+func LoadAllTrackerInfo(home string) ([]TrackerInfo, error) {
+	dir := filepath.Join(home, "tracker")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read tracker dir: %w", err)
+	}
+
+	var list []TrackerInfo
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".toml") {
+			continue
+		}
+		id := strings.TrimSuffix(e.Name(), ".toml")
+		path := filepath.Join(dir, e.Name())
+		var tf trackerFile
+		if err := decodeTOML(path, &tf); err != nil {
+			continue
+		}
+		name := tf.DisplayName
+		if name == "" {
+			name = id
+		}
+		list = append(list, TrackerInfo{ID: id, DisplayName: name})
+	}
+	return list, nil
 }
 
 // LoadTracker 扫描 tracker/ 下所有 .toml，合并所有 [[tracker]] 条目。
