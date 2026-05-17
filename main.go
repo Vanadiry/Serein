@@ -53,7 +53,7 @@ func initDirs(home string) error {
 		home,
 		filepath.Join(home, "rule", "builtin"),
 		filepath.Join(home, "rule", "_auto"),
-		filepath.Join(home, "data"),
+		filepath.Join(home, "user"),
 	}
 	for _, d := range dirs {
 		if err := os.MkdirAll(d, 0755); err != nil {
