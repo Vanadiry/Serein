@@ -2,10 +2,12 @@ package store
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -63,9 +65,10 @@ type PreRequestStep struct {
 // Rule 解析后的完整规则
 type Rule struct {
 	Info        RuleInfo
-	Config      PlatConfig                          // 共享配置
-	Platforms   map[string]PlatConfig               // 各平台特有配置
-	PreRequests map[string]map[string]PreRequestStep // id → platform(空串=通用) → step
+	SourceID    string                                          // 所属规则源 id
+	Config      PlatConfig                                      // 共享配置
+	Platforms   map[string]PlatConfig                           // 各平台特有配置
+	PreRequests map[string]map[string]PreRequestStep             // id → platform(空串=通用) → step
 }
 
 // ── 解析 ──
@@ -81,11 +84,15 @@ func LoadRules(home string) (map[string]Rule, error) {
 		if d.IsDir() || filepath.Ext(path) != ".toml" {
 			return nil
 		}
+		// 提取 source_id：rules/ 下的第一级子目录名
+		rel, _ := filepath.Rel(ruleDir, path)
+		sourceID := strings.SplitN(rel, string(filepath.Separator), 2)[0]
+
 		rule, parseErr := ParseRuleFile(path)
 		if parseErr != nil {
-			return nil // 跳过无法解析的
+			return nil
 		}
-		// 同 UUID 先到先得
+		rule.SourceID = sourceID
 		if _, exists := rules[rule.Info.UUID]; !exists {
 			rules[rule.Info.UUID] = rule
 		}
@@ -247,6 +254,20 @@ func (r Rule) PreRequestChain(os string) []PreRequestStep {
 		}
 	}
 	return chain
+}
+
+// LoadSourceInfo 读取 rules/{id}/info.json，返回源元信息。
+func LoadSourceInfo(home, sourceID string) (*SourceJSON, error) {
+	path := filepath.Join(home, "rules", sourceID, "info.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var s SourceJSON
+	if err := json.Unmarshal(data, &s); err != nil {
+		return nil, err
+	}
+	return &s, nil
 }
 
 // ── 辅助 ──
