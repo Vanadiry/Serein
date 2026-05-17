@@ -1,9 +1,17 @@
 # Dev
+.vscode/
+TODO.md
 Dev/
-
-# macOS Shit
-.DS_Store
+node_modules/
+pnpm-workspace.yaml
 
 # Build
 scripts/build_dev.py
 build/
+web/assets/app.min.js
+web/index.html
+web/rules.html
+web/api/index.html
+
+# macOS Shit
+.DS_Store

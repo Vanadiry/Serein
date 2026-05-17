@@ -9,23 +9,23 @@ TARGETS = [
     ("windows", "amd64"),
 ]
 
-
 def get_version():
     return subprocess.check_output(["git", "describe", "--tags", "--abbrev=0"], text=True).strip()
 
-
+def build_frontend():
+    subprocess.run(["pnpm", "run", "build"], check=True, cwd=".")
 def main():
     version = get_version()
     os.makedirs("./build", exist_ok=True)
+    build_frontend()
 
     for goos, goarch in TARGETS:
         ext = ".exe" if goos == "windows" else ""
-        out = f"./build/serein-{version}-{goos}-{goarch}{ext}"
+        out = f"./build/seshat-{version}-{goos}-{goarch}{ext}"
         env = {**os.environ, "GOOS": goos, "GOARCH": goarch}
         args = ["go", "build", "-ldflags=-s -w", "-o", out]
         subprocess.run(args + ["."], env=env, check=True)
-        print(f"OK  {goos}/{goarch}  →  {out}")
-
+        print(f"OK. {goos} {goarch}")
 
 if __name__ == "__main__":
     main()
