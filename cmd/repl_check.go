@@ -193,13 +193,21 @@ func runAutoMode(home string, items []autoItem) error {
 
 	for i, item := range items {
 		// 显示
-		fmt.Printf("\n[%d/%d] %s (%s)\n", i+1, len(items), item.Name, item.AppID)
+		fmt.Printf("\n%s %s (%s)\n",
+			colorCyan(fmt.Sprintf("[%d/%d]", i+1, len(items))),
+			colorBold(item.Name),
+			colorGray(item.AppID))
 		for _, p := range item.Platforms {
 			urlStr := formatAutoURL(p.URL)
-			fmt.Printf("  %s: %s → %s  %s\n", p.OS, p.Current, p.Latest, urlStr)
+			fmt.Printf("  %s: %s %s %s  %s\n",
+				colorBlue(p.OS),
+				colorRed(p.Current),
+				colorYellow("→"),
+				colorGreen(p.Latest),
+				colorGray(urlStr))
 		}
 
-		fmt.Print("AUTO >>> ")
+		fmt.Print(colorBold("AUTO >>> "))
 		if !scanner.Scan() {
 			break
 		}
@@ -235,14 +243,14 @@ func runAutoMode(home string, items []autoItem) error {
 			}
 			confirmAutoItem(home, item, okSet)
 		default:
-			fmt.Println("? (ok, ok <platforms>, stop, skip, exit, or Enter to wait)")
+			fmt.Println(colorGray("? (ok, ok <platforms>, stop, skip, exit, or Enter to wait)"))
 			waitList = append(waitList, formatWaitItem(item))
 		}
 	}
 
 done:
 	if len(waitList) > 0 {
-		fmt.Println("\n── Wait list ──")
+		fmt.Println("\n" + colorYellow("── Wait list ──"))
 		for _, w := range waitList {
 			fmt.Println(w)
 		}
@@ -272,7 +280,7 @@ func confirmAutoItem(home string, item autoItem, okPlatforms []string) {
 	}
 	for _, p := range item.Platforms {
 		if len(okPlatforms) == 0 || contains(okPlatforms, p.OS) {
-			fmt.Printf("  %s: %s ✓\n", p.OS, p.Latest)
+			fmt.Printf("  %s: %s %s\n", colorBlue(p.OS), colorGreen(p.Latest), colorGreen("✓"))
 		}
 	}
 }

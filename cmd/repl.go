@@ -9,12 +9,12 @@ import (
 )
 
 func RunREPL(home string) error {
-	fmt.Println("Serein REPL")
-	fmt.Println("Type help for commands, exit to quit.")
+	fmt.Println(colorBold("Serein REPL"))
+	fmt.Println(colorGray("Type help for commands, exit to quit."))
 	scanner := bufio.NewScanner(os.Stdin)
 
 	for {
-		fmt.Print(">>> ")
+		fmt.Print(colorCyan(">>> "))
 		if !scanner.Scan() {
 			break
 		}

@@ -28,24 +28,22 @@ func dispatch(home, line string) error {
 }
 
 func printHelp() {
-	fmt.Println(strings.TrimSpace(`
-Commands:
-  check all [-auto]              Check all tracked software
-  check app <ids...> [-auto]     Check specific apps
-  check tracker <id> [-auto]     Check tracker entries
-  check confirm <id> <version>   Set version for app
-  check confirm <id> <os:ver>    Set version per platform
-  check all|app|tracker -temp    Show last check result
-  rule sync                       Sync rule sources
-  rule list                       List all rule sources
-  rule list <source_id>           List rules in source
-  rule list -s <query>            Search rules
-  tracker add <id> [platforms...] Add to _serein tracker
-  tracker new <id>                Create new tracker
-  tracker list <id>               List tracker details
-  tracker list                    List all tracked software
-  help                            Show this message
-  exit                            Quit REPL
-`))
+	fmt.Println(colorBold("Commands:"))
+	fmt.Println(`  ` + colorGreen("check all [-auto]") + `              Check all tracked software`)
+	fmt.Println(`  ` + colorGreen("check app <ids...> [-auto]") + `     Check specific apps`)
+	fmt.Println(`  ` + colorGreen("check tracker <id> [-auto]") + `     Check tracker entries`)
+	fmt.Println(`  ` + colorGreen("check confirm <id> <version>") + `   Set version for app`)
+	fmt.Println(`  ` + colorGreen("check confirm <id> <os:ver>") + `    Set version per platform`)
+	fmt.Println(`  ` + colorGreen("check all|app|tracker -temp") + `    Show last check result`)
+	fmt.Println(`  ` + colorCyan("rule sync") + `                       Sync rule sources`)
+	fmt.Println(`  ` + colorCyan("rule list") + `                       List all rule sources`)
+	fmt.Println(`  ` + colorCyan("rule list <source_id>") + `           List rules in source`)
+	fmt.Println(`  ` + colorCyan("rule list -s <query>") + `            Search rules`)
+	fmt.Println(`  ` + colorYellow("tracker add <id> [platforms...]") + ` Add to _serein tracker`)
+	fmt.Println(`  ` + colorYellow("tracker new <id>") + `              Create new tracker`)
+	fmt.Println(`  ` + colorYellow("tracker list <id>") + `             List tracker details`)
+	fmt.Println(`  ` + colorYellow("tracker list") + `                  List all tracked software`)
+	fmt.Println(`  ` + colorGray("help") + `                            Show this message`)
+	fmt.Println(`  ` + colorGray("exit") + `                            Quit REPL`)
 }
 
