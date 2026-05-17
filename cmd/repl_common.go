@@ -24,6 +24,15 @@ func loadCfg(home string) (store.Config, error) {
 	return cfg, nil
 }
 
+func apiGetRaw(home, path string) ([]byte, error) {
+	resp, err := http.Get(apiAddr(home) + path)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	return io.ReadAll(resp.Body)
+}
+
 func printJSON(resp *http.Response) error {
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {

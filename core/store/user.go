@@ -23,6 +23,10 @@ func LoadUserData(home string) (UserData, error) {
 	}
 	defer f.Close()
 
+	info, _ := f.Stat()
+	if info.Size() == 0 {
+		return ud, nil // 空文件 → 返回空数据
+	}
 	if err := json.NewDecoder(f).Decode(&ud); err != nil {
 		return nil, fmt.Errorf("decode user data: %w", err)
 	}

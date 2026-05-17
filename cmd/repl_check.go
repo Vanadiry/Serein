@@ -143,10 +143,16 @@ func checkAuto(home string, args []string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
-	raw, _ := io.ReadAll(resp.Body)
+	io.ReadAll(resp.Body)
+	resp.Body.Close()
 
+	// 从缓存读取（含 current_version）
+	typ := args[0]
+	if typ == "app" {
+		typ = "ids"
+	}
 	var results []store.TempCheckResult
+	raw, _ := apiGetRaw(home, "/api/check/temp/"+typ)
 	json.Unmarshal(raw, &results)
 
 	// 过滤有更新的
@@ -245,20 +251,28 @@ done:
 }
 
 func confirmAutoItem(home string, item autoItem, okPlatforms []string) {
+	body := map[string]string{"app_id": item.AppID}
 	for _, p := range item.Platforms {
 		if len(okPlatforms) == 0 || contains(okPlatforms, p.OS) {
-			body, _ := json.Marshal(map[string]string{
-				"app_id": item.AppID,
-				p.OS:     p.Latest,
-			})
-			addr := apiAddr(home)
-			resp, err := http.Post(addr+"/api/check/confirm", "application/json", strings.NewReader(string(body)))
-			if err != nil {
-				fmt.Printf("  %s: confirm failed - %v\n", p.OS, err)
-			} else {
-				resp.Body.Close()
-				fmt.Printf("  %s: %s ✓\n", p.OS, p.Latest)
-			}
+			body[p.OS] = p.Latest
+		}
+	}
+	b, _ := json.Marshal(body)
+	addr := apiAddr(home)
+	resp, err := http.Post(addr+"/api/check/confirm", "application/json", strings.NewReader(string(b)))
+	if err != nil {
+		fmt.Printf("  confirm failed - %v\n", err)
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		raw, _ := io.ReadAll(resp.Body)
+		fmt.Printf("  confirm error (%d): %s\n", resp.StatusCode, string(raw))
+		return
+	}
+	for _, p := range item.Platforms {
+		if len(okPlatforms) == 0 || contains(okPlatforms, p.OS) {
+			fmt.Printf("  %s: %s ✓\n", p.OS, p.Latest)
 		}
 	}
 }

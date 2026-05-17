@@ -119,7 +119,11 @@ func (s *Server) handleCheckConfirm(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, userData[appID])
+	writeJSON(w, http.StatusOK, map[string]any{
+		"app_id":   appID,
+		"status":   "ok",
+		"platforms": userData[appID],
+	})
 }
 
 // ── 共享检查逻辑 ──
