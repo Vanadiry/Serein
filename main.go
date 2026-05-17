@@ -8,6 +8,7 @@ import (
 	"runtime"
 
 	"github.com/vanadiry/serein/cmd"
+	"github.com/vanadiry/serein/server"
 )
 
 // openBrowser 打开浏览器
@@ -123,6 +124,13 @@ func initDirs(home string) error {
 }
 
 func startServer(home string) {
-	// TODO: 阶段五
-	fmt.Println("Serein: server not implemented yet")
+	s, err := server.New(home)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
+		os.Exit(1)
+	}
+	if err := s.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
+		os.Exit(1)
+	}
 }

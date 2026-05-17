@@ -108,6 +108,19 @@ func CreateTrackerFile(home, name string) error {
 	return os.WriteFile(path, []byte(DefaultTrackerTOML), 0644)
 }
 
+// AddToTracker 追加 [[tracker]] 条目到指定 tracker 文件，保留 display_name。
+func AddToTracker(home, name string, entry TrackerEntry) error {
+	path := filepath.Join(home, "tracker", name+".toml")
+
+	var tf trackerFile
+	if _, err := os.Stat(path); err == nil {
+		_ = decodeTOML(path, &tf)
+	}
+
+	tf.Trackers = append(tf.Trackers, entry)
+	return encodeTOML(path, tf)
+}
+
 // FindTrackerEntry 在所有 tracker 文件中查找 rule_id。
 func FindTrackerEntry(home, ruleID string) *TrackerEntry {
 	list, _ := LoadTracker(home)
