@@ -153,7 +153,7 @@ paths:
   /api/rules/list/all:
     get:
       tags: [Rules]
-      summary: 列出全部规则
+      summary: 列出全部规则源
       responses:
         "200":
           description: OK
@@ -162,7 +162,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/RuleItem"
+                  $ref: "#/components/schemas/SourceItem"
   /api/rules/list/{source_id}:
     get:
       tags: [Rules]
@@ -248,6 +248,12 @@ components:
           items: { type: string }
         source_id: { type: string }
         source_name: { type: string }
+    SourceItem:
+      type: object
+      properties:
+        source_id: { type: string }
+        name: { type: string }
+        app_count: { type: integer }
     SyncResult:
       type: object
       properties:

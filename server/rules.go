@@ -33,8 +33,38 @@ func (s *Server) handleRulesListAll(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusMethodNotAllowed, "GET required")
 		return
 	}
+	// 遍历 rules/ 子目录，读取 info.json 获取源元信息
+	type sourceItem struct {
+		SourceID   string `json:"source_id"`
+		Name       string `json:"name"`
+		AppCount   int    `json:"app_count"`
+	}
+
 	rules, _ := store.LoadRules(s.home)
-	writeJSON(w, http.StatusOK, formatRuleList(s.home, toSlice(rules)))
+	// 统计每个 source 下的规则数
+	counts := make(map[string]int)
+	sourceNames := make(map[string]string)
+	for _, rule := range rules {
+		counts[rule.SourceID]++
+		if _, ok := sourceNames[rule.SourceID]; !ok {
+			if si, err := store.LoadSourceInfo(s.home, rule.SourceID); err == nil && si != nil {
+				sourceNames[rule.SourceID] = si.Name
+			}
+		}
+	}
+
+	var result []sourceItem
+	for id, count := range counts {
+		result = append(result, sourceItem{
+			SourceID: id,
+			Name:     sourceNames[id],
+			AppCount: count,
+		})
+	}
+	if result == nil {
+		result = []sourceItem{}
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 // ── GET /api/rules/list/{source_id} ──
@@ -91,14 +121,6 @@ type ruleListItem struct {
 	Platforms       []string `json:"platforms"`
 	SourceID        string   `json:"source_id"`
 	SourceName      string   `json:"source_name,omitempty"`
-}
-
-func toSlice(rules map[string]store.Rule) []store.Rule {
-	var s []store.Rule
-	for _, r := range rules {
-		s = append(s, r)
-	}
-	return s
 }
 
 func formatRuleList(home string, rules []store.Rule) []ruleListItem {
