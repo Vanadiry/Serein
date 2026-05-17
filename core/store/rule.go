@@ -13,10 +13,11 @@ import (
 // ── 基础类型 ──
 
 type RuleInfo struct {
-	UUID        string   `toml:"uuid"`
-	Name        string   `toml:"name"`
-	Description string   `toml:"description,omitempty"`
-	Platforms   []string `toml:"platforms"`
+	UUID            string   `toml:"uuid"`
+	Name            string   `toml:"name"`
+	Description     string   `toml:"description,omitempty"`
+	OfficialWebsite string   `toml:"official_website,omitempty"`
+	Platforms       []string `toml:"platforms"`
 }
 
 // Position 在 TOML 中可为 []any（层级数组）、[][]any（多路径）、

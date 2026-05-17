@@ -65,8 +65,9 @@ func RunVersion(home, id, version string) error {
 		req := checker.CheckRequest{
 			UUID:     rule.Info.UUID,
 			Name:     rule.Info.Name,
-			RuleType: platCfg.Type,
-			Owner:    platCfg.Owner,
+			OfficialWebsite: rule.Info.OfficialWebsite,
+			RuleType:        platCfg.Type,
+			Owner:           platCfg.Owner,
 			Repo:     platCfg.Repo,
 			Platforms: []checker.PlatformCheckConfig{{
 				OS:             os,

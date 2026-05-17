@@ -11,12 +11,13 @@ func CheckGitHub(cfg CheckConfig, client *http.Client) (PlatformResult, error) {
 
 // CheckRequest 一次检查的请求参数
 type CheckRequest struct {
-	UUID      string
-	Name      string
-	RuleType  string // github / json / xml / ...
-	Owner     string
-	Repo      string
-	Platforms []PlatformCheckConfig
+	UUID            string
+	Name            string
+	OfficialWebsite string
+	RuleType        string // github / json / xml / ...
+	Owner           string
+	Repo            string
+	Platforms       []PlatformCheckConfig
 }
 
 // PlatformCheckConfig 单个平台的检查配置（已合并）
@@ -36,9 +37,10 @@ type PlatformCheckConfig struct {
 
 // CheckResponse API 返回的检查结果
 type CheckResponse struct {
-	UUID      string                   `json:"uuid"`
-	Name      string                   `json:"name"`
-	Platforms map[string]CheckPlatform `json:"platforms"`
+	UUID            string                   `json:"uuid"`
+	Name            string                   `json:"name"`
+	OfficialWebsite string                   `json:"official_website,omitempty"`
+	Platforms       map[string]CheckPlatform `json:"platforms"`
 }
 
 // CheckPlatform 检查结果中单个平台的数据
@@ -51,9 +53,10 @@ type CheckPlatform struct {
 // RunCheck 对一个软件执行检查，返回统一的 CheckResponse。
 func RunCheck(req CheckRequest) (CheckResponse, error) {
 	resp := CheckResponse{
-		UUID:      req.UUID,
-		Name:      req.Name,
-		Platforms: make(map[string]CheckPlatform),
+		UUID:            req.UUID,
+		Name:            req.Name,
+		OfficialWebsite: req.OfficialWebsite,
+		Platforms:       make(map[string]CheckPlatform),
 	}
 
 	client := NewClient()
@@ -93,9 +96,10 @@ func RunCheck(req CheckRequest) (CheckResponse, error) {
 
 func runGitHubCheck(req CheckRequest, client *http.Client) (CheckResponse, error) {
 	resp := CheckResponse{
-		UUID:      req.UUID,
-		Name:      req.Name,
-		Platforms: make(map[string]CheckPlatform),
+		UUID:            req.UUID,
+		Name:            req.Name,
+		OfficialWebsite: req.OfficialWebsite,
+		Platforms:       make(map[string]CheckPlatform),
 	}
 
 	if len(req.Platforms) == 0 {
