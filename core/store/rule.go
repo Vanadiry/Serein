@@ -256,9 +256,12 @@ func (r Rule) PreRequestChain(os string) []PreRequestStep {
 	return chain
 }
 
-// LoadSourceInfo 读取 rules/{id}/info.json，返回源元信息。
+// LoadSourceInfo 读取 rules 下 _source.json，返回源元信息。
 func LoadSourceInfo(home, sourceID string) (*SourceJSON, error) {
-	path := filepath.Join(home, "rules", sourceID, "info.json")
+	path := findSourceJSON(home, sourceID)
+	if path == "" {
+		return nil, fmt.Errorf("_source.json not found for %s", sourceID)
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -268,6 +271,77 @@ func LoadSourceInfo(home, sourceID string) (*SourceJSON, error) {
 		return nil, err
 	}
 	return &s, nil
+}
+
+// findSourceJSON 在 rules/ 下查找指定 source_id 的 _source.json
+func findSourceJSON(home, sourceID string) string {
+	ruleDir := filepath.Join(home, "rules")
+	entries, err := os.ReadDir(ruleDir)
+	if err != nil {
+		return ""
+	}
+	// 先查 rules/{source_id}/_source.json（子源位于 list 源之下）
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		candidate := filepath.Join(ruleDir, e.Name(), sourceID, "_source.json")
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	// 再查 rules/{source_id}/_source.json（顶层源）
+	candidate := filepath.Join(ruleDir, sourceID, "_source.json")
+	if _, err := os.Stat(candidate); err == nil {
+		return candidate
+	}
+	return ""
+}
+
+// ListAllSourceInfos 遍历 rules/ 下所有 _source.json，跳过 type=list。
+// 返回叶子源（type=rules）的元信息。
+func ListAllSourceInfos(home string) ([]SourceWithID, error) {
+	ruleDir := filepath.Join(home, "rules")
+	var result []SourceWithID
+
+	err := filepath.WalkDir(ruleDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		if filepath.Base(path) != "_source.json" {
+			return nil
+		}
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil
+		}
+		var s SourceJSON
+		if json.Unmarshal(data, &s) != nil {
+			return nil
+		}
+		if s.Type == "list" {
+			return nil
+		}
+		result = append(result, SourceWithID{
+			SourceID:    s.ID,
+			Name:        s.Name,
+			Description: s.Description,
+			AppCount:    len(s.Files),
+		})
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("walk rules: %w", err)
+	}
+	return result, nil
+}
+
+// SourceWithID 源的汇总信息
+type SourceWithID struct {
+	SourceID    string `json:"source_id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	AppCount    int    `json:"app_count"`
 }
 
 // ── 辅助 ──

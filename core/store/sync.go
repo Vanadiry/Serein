@@ -10,12 +10,13 @@ import (
 	"strings"
 )
 
-// SourceJSON 规则源的元信息（完整 source.json 内容）
+// SourceJSON 规则源的元信息（完整 _source.json 内容）
 type SourceJSON struct {
 	ID          string   `json:"source_id"`
 	Name        string   `json:"name,omitempty"`
 	Description string   `json:"description,omitempty"`
-	Mode        string   `json:"mode,omitempty"`  // "web" 或 "local"，默认 web
+	Type        string   `json:"type,omitempty"`    // "rules"（默认）或 "list"
+	Mode        string   `json:"mode,omitempty"`    // "web" 或 "local"，默认 web
 	BaseURL     string   `json:"baseurl,omitempty"`
 	Files       []string `json:"files"`
 }
@@ -46,7 +47,7 @@ func SyncAllSources(home string, sources []RuleSource) SyncResult {
 		if err != nil {
 			result.Errors = append(result.Errors, SyncError{
 				URL:    src.URL,
-				Reason: fmt.Sprintf("获取 source.json 失败: %v", err),
+				Reason: fmt.Sprintf("获取 _source.json 失败: %v", err),
 			})
 			continue
 		}
@@ -55,7 +56,7 @@ func SyncAllSources(home string, sources []RuleSource) SyncResult {
 			result.Errors = append(result.Errors, SyncError{
 				ID:     srcJSON.ID,
 				URL:    src.URL,
-				Reason: "source.json 缺少 files 字段",
+				Reason: "_source.json 缺少 files 字段",
 			})
 			continue
 		}
@@ -104,10 +105,10 @@ func fetchSourceJSON(url string) (*SourceJSON, []byte, error) {
 
 	var s SourceJSON
 	if err := json.Unmarshal(body, &s); err != nil {
-		return nil, nil, fmt.Errorf("解析 source.json: %w", err)
+		return nil, nil, fmt.Errorf("解析 _source.json: %w", err)
 	}
 	if s.ID == "" {
-		return nil, nil, fmt.Errorf("source.json 缺少 source_id")
+		return nil, nil, fmt.Errorf("_source.json 缺少 source_id")
 	}
 	return &s, body, nil
 }
@@ -116,11 +117,9 @@ func syncSource(s *SourceJSON, rawBody []byte, sourceURL string, destDir string)
 	isLocal := s.Mode == "local"
 	baseURL := s.BaseURL
 
-	// 未指定 baseurl → 取 source.json 同级目录
 	if baseURL == "" {
 		baseURL = filepath.Dir(sourceURL)
 		if !isLocal {
-			// web 模式：去掉末尾文件名，保留 scheme + 路径
 			idx := strings.LastIndex(sourceURL, "/")
 			if idx >= 0 {
 				baseURL = sourceURL[:idx]
@@ -128,19 +127,89 @@ func syncSource(s *SourceJSON, rawBody []byte, sourceURL string, destDir string)
 		}
 	}
 
+	if s.Type == "list" {
+		return syncList(s, rawBody, baseURL, destDir, isLocal)
+	}
+
+	// type=rules（默认）：直接下载文件
 	if err := syncFileList(baseURL, s.Files, destDir, !isLocal); err != nil {
 		return err
 	}
 
-	// 写入完整 source.json 到 info.json
-	infoPath := filepath.Join(destDir, "info.json")
+	infoPath := filepath.Join(destDir, "_source.json")
 	if writeErr := os.WriteFile(infoPath, rawBody, 0644); writeErr != nil {
-		return fmt.Errorf("write info.json: %w", writeErr)
+		return fmt.Errorf("write _source.json: %w", writeErr)
 	}
 	return nil
 }
 
-// ── Web / Local ──
+// syncList 递归处理 type=list 的源
+func syncList(s *SourceJSON, rawBody []byte, baseURL string, destDir string, isLocal bool) error {
+	os.RemoveAll(destDir)
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return err
+	}
+
+	// 写入 list 源自身的 _source.json
+	infoPath := filepath.Join(destDir, "_source.json")
+	if err := os.WriteFile(infoPath, rawBody, 0644); err != nil {
+		return err
+	}
+
+	for _, f := range s.Files {
+		// f 格式: "vanadiry/_source.json"
+		subDir := filepath.Dir(f) // "vanadiry"
+		expectedID := subDir
+
+		// 获取子源
+		var subURL string
+		if isLocal {
+			subURL = filepath.Join(baseURL, f)
+		} else {
+			subURL = strings.TrimSuffix(baseURL, "/") + "/" + f
+		}
+
+		subJSON, subRaw, err := fetchSourceJSON(subURL)
+		if err != nil {
+			return fmt.Errorf("子源 %s: %w", f, err)
+		}
+
+		if subJSON.ID != expectedID {
+			return fmt.Errorf("子源 %s 的 source_id 必须为 %q，实际为 %q", f, expectedID, subJSON.ID)
+		}
+
+		subDest := filepath.Join(destDir, subDir)
+
+		// 递归处理子源
+		subBaseURL := baseURL
+		if !isLocal {
+			idx := strings.LastIndex(subURL, "/")
+			if idx >= 0 {
+				subBaseURL = subURL[:idx]
+			}
+		} else {
+			subBaseURL = filepath.Dir(subURL)
+		}
+
+		if subJSON.Type == "list" {
+			if err := syncList(subJSON, subRaw, subBaseURL, subDest, isLocal); err != nil {
+				return err
+			}
+		} else {
+			if err := syncFileList(subBaseURL, subJSON.Files, subDest, !isLocal); err != nil {
+				return err
+			}
+			// 写入子源的 _source.json
+			subInfoPath := filepath.Join(subDest, "_source.json")
+			if writeErr := os.WriteFile(subInfoPath, subRaw, 0644); writeErr != nil {
+				return fmt.Errorf("write _source.json: %w", writeErr)
+			}
+		}
+	}
+	return nil
+}
+
+// ── Web / Local 文件下载 ──
 
 func syncFileList(baseURL string, files []string, destDir string, isWeb bool) error {
 	os.RemoveAll(destDir)
