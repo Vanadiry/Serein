@@ -46,6 +46,24 @@ func main() {
 				os.Exit(1)
 			}
 			return
+		case "version":
+			id := ""
+			ver := ""
+			if len(os.Args) > 2 {
+				id = os.Args[2]
+			}
+			if len(os.Args) > 3 {
+				ver = os.Args[3]
+			}
+			if id == "" {
+				fmt.Fprintf(os.Stderr, "用法: serein version <rule_id> [version]\n")
+				os.Exit(1)
+			}
+			if err := cmd.RunVersion(home, id, ver); err != nil {
+				fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
+				os.Exit(1)
+			}
+			return
 		case "serve":
 			startServer(home)
 		default:

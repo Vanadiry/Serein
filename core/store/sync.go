@@ -73,13 +73,19 @@ func SyncAllSources(home string, sources []RuleSource) SyncResult {
 }
 
 func fetchSourceJSON(url string) (*SourceJSON, []byte, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer resp.Body.Close()
+	var body []byte
+	var err error
 
-	body, err := io.ReadAll(resp.Body)
+	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
+		resp, reqErr := http.Get(url)
+		if reqErr != nil {
+			return nil, nil, reqErr
+		}
+		defer resp.Body.Close()
+		body, err = io.ReadAll(resp.Body)
+	} else {
+		body, err = os.ReadFile(url)
+	}
 	if err != nil {
 		return nil, nil, err
 	}
