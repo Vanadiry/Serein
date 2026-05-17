@@ -1,3 +1,5 @@
+// 前置请求链执行器。按编号升序执行，上一步提取 URL 自动传入下一步。
+// 支持 UA/headers/baseurl 注入，最后一步输出作为 config 的请求 URL。
 package checker
 
 import (

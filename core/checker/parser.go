@@ -1,3 +1,4 @@
+// 响应体解析器：JSON/XML 转 tree、HTML 转 goquery、正则捕获、XPath。
 package checker
 
 import (

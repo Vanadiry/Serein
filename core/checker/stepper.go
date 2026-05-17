@@ -1,3 +1,5 @@
+// 通用步进引擎，JSON 和 XML 共用。
+// 支持对象 key、数组下标、正负索引、= 精确筛选、~ 正则筛选。
 package checker
 
 import (
