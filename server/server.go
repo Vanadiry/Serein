@@ -34,6 +34,11 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/tracker/list/", s.handleTrackerListByID)
 	s.mux.HandleFunc("/api/tracker/new", s.handleTrackerNew)
 	s.mux.HandleFunc("/api/tracker/add", s.handleTrackerAdd)
+
+	s.mux.HandleFunc("/api/check/all", s.handleCheckAll)
+	s.mux.HandleFunc("/api/check/ids", s.handleCheckIDs)
+	s.mux.HandleFunc("/api/check/tracker", s.handleCheckTracker)
+	s.mux.HandleFunc("/api/check/confirm", s.handleCheckConfirm)
 }
 
 func (s *Server) Run() error {
