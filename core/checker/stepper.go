@@ -120,7 +120,16 @@ func StepMulti(root any, paths [][]any, join string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		parts = append(parts, fmt.Sprintf("%v", v))
+		parts = append(parts, toString(v))
 	}
 	return strings.Join(parts, join), nil
+}
+
+func toString(v any) string {
+	if m, ok := v.(map[string]any); ok {
+		if t, ok := m["#text"]; ok {
+			return fmt.Sprintf("%v", t)
+		}
+	}
+	return fmt.Sprintf("%v", v)
 }
