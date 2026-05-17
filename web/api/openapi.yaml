@@ -141,6 +141,26 @@ paths:
       responses:
         "200":
           description: OK
+  /api/check/temp/{type}:
+    get:
+      tags: [Check]
+      summary: 获取最新检查结果缓存
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [ids, all, tracker]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TempCheckResult"
   /api/rules/sync:
     post:
       tags: [Rules]
@@ -256,6 +276,22 @@ components:
         source_id: { type: string }
         name: { type: string }
         app_count: { type: integer }
+    TempCheckResult:
+      type: object
+      properties:
+        app_id: { type: string }
+        name: { type: string }
+        platforms:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              latest_version: { type: string }
+              url:
+                oneOf:
+                  - type: string
+                  - type: array
+                    items: { type: string }
     SyncResult:
       type: object
       properties:

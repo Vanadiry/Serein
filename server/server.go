@@ -32,6 +32,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/check/ids", s.handleCheckIDs)
 	s.mux.HandleFunc("/api/check/tracker", s.handleCheckTracker)
 	s.mux.HandleFunc("/api/check/confirm", s.handleCheckConfirm)
+	s.mux.HandleFunc("GET /api/check/temp/{type}", s.handleCheckTemp)
 
 	s.mux.HandleFunc("/api/rules/sync", s.handleRulesSync)
 	s.mux.HandleFunc("/api/rules/list/all", s.handleRulesListAll)

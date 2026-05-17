@@ -24,6 +24,7 @@ func (s *Server) handleCheckAll(w http.ResponseWriter, r *http.Request) {
 	}
 	checker.ClearURLCache()
 	result := runTrackerChecks(s.home, entries)
+	saveCheckTemp(s.home, "all", result)
 	writeJSON(w, http.StatusOK, result)
 }
 
@@ -54,6 +55,7 @@ func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	result := runTrackerChecks(s.home, entries)
+	saveCheckTemp(s.home, "ids", result)
 	writeJSON(w, http.StatusOK, result)
 }
 
@@ -77,6 +79,7 @@ func (s *Server) handleCheckTracker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	result := runTrackerChecks(s.home, entries)
+	saveCheckTemp(s.home, "tracker", result)
 	writeJSON(w, http.StatusOK, result)
 }
 
@@ -227,4 +230,47 @@ func runTrackerChecks(home string, entries []store.TrackerEntry) []checker.Check
 		results = []checker.CheckResponse{}
 	}
 	return results
+}
+
+// saveCheckTemp 将检查结果转为 TempCheckResult 并写入缓存。
+func saveCheckTemp(home, typ string, results []checker.CheckResponse) {
+	var temp []store.TempCheckResult
+	for _, r := range results {
+		platforms := make(map[string]store.TempCheckPlatform)
+		for os, p := range r.Platforms {
+			platforms[os] = store.TempCheckPlatform{
+				LatestVersion: p.LatestVersion,
+				URL:           p.URL,
+			}
+		}
+		temp = append(temp, store.TempCheckResult{
+			AppID:     r.AppID,
+			Name:      r.Name,
+			Platforms: platforms,
+		})
+	}
+	_ = store.SaveCheckTemp(home, typ, temp)
+}
+
+// ── GET /api/check/temp/{type} ──
+
+func (s *Server) handleCheckTemp(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "GET required")
+		return
+	}
+	typ := r.PathValue("type")
+	if typ != "ids" && typ != "all" && typ != "tracker" {
+		writeError(w, http.StatusBadRequest, "invalid type: must be ids, all, or tracker")
+		return
+	}
+	results, err := store.LoadLatestCheckTemp(s.home, typ)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if results == nil {
+		results = []store.TempCheckResult{}
+	}
+	writeJSON(w, http.StatusOK, results)
 }
