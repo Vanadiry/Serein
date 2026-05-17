@@ -80,6 +80,10 @@ func extractValue(body []byte, typ string, pos any, join, baseURL string) (any, 
 		return extractXMLValue(body, pos, join)
 	case "regex":
 		return extractRegexValue(body, pos)
+	case "html_selector":
+		return extractSelectorValue(body, pos, baseURL)
+	case "html_xpath":
+		return extractXPathValue(body, pos, baseURL)
 	default:
 		return nil, nil
 	}
