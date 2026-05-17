@@ -7,10 +7,23 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 // defaultUA 程序默认 User-Agent
 const defaultUA = "Serein/0.1"
+
+var (
+	urlCache = make(map[string][]byte)
+	cacheMu  sync.Mutex
+)
+
+// ClearURLCache 清空 URL 请求缓存。check-all 调用前清一次，批量内共享去重。
+func ClearURLCache() {
+	cacheMu.Lock()
+	urlCache = make(map[string][]byte)
+	cacheMu.Unlock()
+}
 
 // PreStep 前置请求的一个步骤（checker 内部类型）
 type PreStep struct {
@@ -71,6 +84,13 @@ func extractURL(body []byte, typ string, pos any, baseURL string) (string, error
 }
 
 func doRequest(client *http.Client, url, ua string, headers map[string]string) ([]byte, error) {
+	cacheMu.Lock()
+	if body, ok := urlCache[url]; ok {
+		cacheMu.Unlock()
+		return body, nil
+	}
+	cacheMu.Unlock()
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -94,6 +114,11 @@ func doRequest(client *http.Client, url, ua string, headers map[string]string) (
 	if err != nil {
 		return nil, err
 	}
+
+	cacheMu.Lock()
+	urlCache[url] = body
+	cacheMu.Unlock()
+
 	return body, nil
 }
 

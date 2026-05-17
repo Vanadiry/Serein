@@ -39,8 +39,8 @@ func NewClient() *http.Client {
 	}
 }
 
-// CheckPlatform 对单个平台执行检查
-func CheckPlatform(cfg CheckConfig, client *http.Client) (PlatformResult, error) {
+// RunPlatformCheck 对单个平台执行检查
+func RunPlatformCheck(cfg CheckConfig, client *http.Client) (PlatformResult, error) {
 	// 前置请求链由外部执行，此处 cfg.URL 已是最终请求地址
 	body, err := doRequest(client, cfg.URL, cfg.UA, cfg.Headers)
 	if err != nil {
