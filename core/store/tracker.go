@@ -109,12 +109,34 @@ func CreateTrackerFile(home, name string) error {
 }
 
 // AddToTracker 追加 [[tracker]] 条目到指定 tracker 文件，保留 display_name。
+// 若 app_id 已存在则合并平台（去重追加），否则新增条目。
 func AddToTracker(home, name string, entry TrackerEntry) error {
 	path := filepath.Join(home, "tracker", name+".toml")
 
 	var tf trackerFile
 	if _, err := os.Stat(path); err == nil {
 		_ = decodeTOML(path, &tf)
+	}
+
+	// 查找已存在的 app_id
+	for i := range tf.Trackers {
+		if tf.Trackers[i].AppID == entry.AppID {
+			// 合并平台
+			existing := tf.Trackers[i].Platforms
+			for _, p := range entry.Platforms {
+				found := false
+				for _, ep := range existing {
+					if ep == p {
+						found = true
+						break
+					}
+				}
+				if !found {
+					tf.Trackers[i].Platforms = append(tf.Trackers[i].Platforms, p)
+				}
+			}
+			return encodeTOML(path, tf)
+		}
 	}
 
 	tf.Trackers = append(tf.Trackers, entry)
