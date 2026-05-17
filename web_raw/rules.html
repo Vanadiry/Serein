@@ -55,11 +55,10 @@
   loadSources();
 
   document.getElementById("btn-sync").onclick = async () => {
-    const btn = document.getElementById("btn-sync");
-    btn.textContent = "同步中…";
+    const ld = showLoading("正在同步规则…");
     await apiPost("/api/rules/sync");
-    btn.textContent = "同步规则";
     loadSources();
+    ld.done("同步完成");
   };
 
   document.getElementById("btn-search-mode").onclick = () => {

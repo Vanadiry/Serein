@@ -17,16 +17,16 @@
   </aside>
 
   <main class="flex-1 min-w-0">
-    <div id="empty-hint" class="text-center py-20 text-sub hidden">
-      请添加需要追踪的应用到 Tracker。
+    <div id="placeholder" class="text-center py-20 text-sub text-sm">
+      在左侧栏选择 Tracker 来查看对应列表中追踪的软件<br /><br />若是首次运行，请前往规则页面，在右上角执行同步规则
     </div>
-    <div id="software-list" class="flex flex-col gap-0"></div>
+    <div id="software-list" class="flex flex-col gap-0 hidden"></div>
   </main>
 </div>
 
 <script src="/assets/app.min.js"></script>
 <script>
-  var currentTracker = "_serein";
+  var currentTracker = null;
   var checkResults = {};
 
   renderTopbar("应用");
@@ -58,7 +58,7 @@
     if (!hasSerein) list.unshift({ id: "_serein", display_name: "_serein" });
     const nav = document.getElementById("tracker-nav");
     nav.innerHTML = list.map(t => {
-      const active = t.id === currentTracker ? "text-white bg-[#202028] border-l-[2px] border-l-[#FE8A95]" : "text-sub hover:text-white border-l-[2px] border-l-transparent hover:border-l-[rgba(255,255,255,.12)]";
+      const active = t.id === currentTracker && currentTracker ? "text-white bg-[#202028] border-l-[2px] border-l-[#FE8A95]" : "text-sub hover:text-white border-l-[2px] border-l-transparent hover:border-l-[rgba(255,255,255,.12)]";
       return `<button onclick="selectTracker('${t.id}')" class="text-left px-3 py-2 text-sm rounded-r-md transition-colors ${active}">${t.display_name || t.id}</button>`;
     }).join("");
   }
@@ -66,15 +66,22 @@
   async function selectTracker(id) {
     currentTracker = id;
     loadTrackers();
+    document.getElementById("placeholder").classList.add("hidden");
     await loadTrackerDetail(id);
   }
 
   async function loadTrackerDetail(id) {
     const data = await api("/api/tracker/list/" + id) || [];
     const list = document.getElementById("software-list");
-    const hint = document.getElementById("empty-hint");
-    if (!data.length) { hint.classList.remove("hidden"); list.innerHTML = ""; return; }
-    hint.classList.add("hidden");
+    const placeholder = document.getElementById("placeholder");
+    if (!data.length) {
+      placeholder.classList.remove("hidden");
+      placeholder.innerHTML = '这是一个空的 Tracker';
+      list.classList.add("hidden");
+      return;
+    }
+    placeholder.classList.add("hidden");
+    list.classList.remove("hidden");
     list.innerHTML = data.map(d => renderSoftwareRow(d)).join("");
   }
 
@@ -179,22 +186,28 @@
   }
 
   async function checkTracker() {
+    const ld = showLoading("正在检查当前Tracker…");
     const data = await apiPost("/api/check/tracker", { tracker_id: currentTracker });
     mergeCheckResults(data);
     loadTrackerDetail(currentTracker);
+    ld.done("检查完成");
   }
 
   async function checkAll() {
+    const ld = showLoading("正在检查全部更新…");
     const data = await apiPost("/api/check/all");
     mergeCheckResults(data);
     loadTrackerDetail(currentTracker);
+    ld.done("检查完成");
   }
 
   async function readCache() {
+    const ld = showLoading("正在读取缓存…");
     for (const t of ["all", "ids", "tracker"]) {
       mergeCheckResults(await api("/api/check/temp/" + t));
     }
     loadTrackerDetail(currentTracker);
+    ld.done("读取完成");
   }
 
   function mergeCheckResults(data) {
@@ -207,7 +220,6 @@
     }
   }
 
-  selectTracker("_serein");
 </script>
 </body>
 </html>

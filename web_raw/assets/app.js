@@ -89,6 +89,26 @@ function formatURL(u) {
   return "";
 }
 
+// ── 通知 ──
+function showToast(msg, bg) {
+  const el = document.createElement("div");
+  el.className = `fixed bottom-4 right-4 z-[100] px-4 py-2 rounded-lg text-sm text-white font-semibold shadow-lg ${bg}`;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  return el;
+}
+
+function showLoading(msg) {
+  var el = showToast(msg, "bg-[#e8a040]");
+  return {
+    done: function(okMsg) {
+      el.className = el.className.replace("bg-[#e8a040]", "bg-[#68a868]");
+      el.textContent = okMsg;
+      setTimeout(function() { el.style.opacity = "0"; setTimeout(function() { el.remove(); }, 300); }, 3000);
+    }
+  };
+}
+
 // ── 弹窗 ──
 function showModal(html) {
   const el = document.createElement("div");
