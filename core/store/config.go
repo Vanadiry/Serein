@@ -8,10 +8,15 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
+type RuleSource struct {
+	URL string `toml:"url"`
+}
+
 type Config struct {
-	Host      string   `toml:"host"`
-	Port      int      `toml:"port"`
-	Platforms []string `toml:"platforms"`
+	Host        string       `toml:"host"`
+	Port        int          `toml:"port"`
+	Platforms   []string     `toml:"platforms"`
+	RuleSources []RuleSource `toml:"rule_sources"`
 }
 
 func DefaultConfig() Config {

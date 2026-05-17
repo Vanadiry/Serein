@@ -73,30 +73,25 @@ func LoadRules(home string) (map[string]Rule, error) {
 	rules := make(map[string]Rule)
 	ruleDir := filepath.Join(home, "rule")
 
-	entries, err := os.ReadDir(ruleDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return rules, nil
-		}
-		return nil, fmt.Errorf("read rule dir: %w", err)
-	}
-
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		subDir := filepath.Join(ruleDir, entry.Name())
-		tomlFiles, err := filepath.Glob(filepath.Join(subDir, "*.toml"))
+	err := filepath.WalkDir(ruleDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
-			continue
+			return nil
 		}
-		for _, f := range tomlFiles {
-			rule, err := ParseRuleFile(f)
-			if err != nil {
-				return nil, fmt.Errorf("parse %s: %w", f, err)
-			}
+		if d.IsDir() || filepath.Ext(path) != ".toml" {
+			return nil
+		}
+		rule, parseErr := ParseRuleFile(path)
+		if parseErr != nil {
+			return nil // 跳过无法解析的
+		}
+		// 同 UUID 先到先得
+		if _, exists := rules[rule.Info.UUID]; !exists {
 			rules[rule.Info.UUID] = rule
 		}
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("walk rule dir: %w", err)
 	}
 	return rules, nil
 }
