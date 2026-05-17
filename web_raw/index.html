@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="zh-CN" class="bg-[#1d1d1d]">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Serein</title>
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="text-[rgba(255,255,255,.88)] font-[system-ui] min-h-screen">
+<div id="topbar"></div>
+
+<div class="max-w-[1200px] mx-auto p-6 flex gap-6">
+  <!-- 侧栏 -->
+  <aside class="w-[200px] shrink-0">
+    <div class="text-xs text-sub font-semibold mb-2">Tracker</div>
+    <nav id="tracker-nav" class="flex flex-col gap-0.5"></nav>
+    <button id="btn-new-tracker" class="mt-3 w-full text-center text-xs text-sub hover:text-white border border-dashed border-[rgba(255,255,255,.15)] rounded-lg py-1.5 cursor-pointer hover:border-[#FE8A95] transition-colors">+</button>
+  </aside>
+
+  <!-- 主区域 -->
+  <main class="flex-1 min-w-0">
+    <div id="empty-hint" class="text-center py-20 text-sub hidden">
+      请添加需要追踪的应用到 Tracker。
+    </div>
+    <div id="software-list" class="flex flex-col gap-0.5"></div>
+  </main>
+</div>
+
+<script src="/assets/app.min.js"></script>
+<script>
+  // ── 状态 ──
+  var currentTracker = "_serein";
+  var checkResults = {}; // app_id → { platforms: { os: { latest_version, url } } }
+
+  // ── 初始化 ──
+  renderTopbar("应用");
+  loadTrackers();
+
+  // 顶栏按钮
+  document.getElementById("btn-tracker-check").onclick = () => checkTracker();
+  document.getElementById("btn-check-all").onclick = () => checkAll();
+  document.getElementById("btn-read-cache").onclick = () => readCache();
+  document.getElementById("btn-new-tracker").onclick = () => {
+    showModal(`
+      <div class="text-sm font-semibold mb-4">新建 Tracker</div>
+      <input id="new-tracker-name" class="w-full bg-[#202028] border border-[rgba(255,255,255,.12)] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#FE8A95] mb-3" placeholder="Tracker 名称">
+      <div class="flex justify-end gap-2">
+        <button onclick="this.closest('.fixed').remove()" class="px-3 py-1 rounded-lg border border-[rgba(255,255,255,.12)] bg-transparent text-sub text-xs cursor-pointer hover:text-white">取消</button>
+        <button id="btn-create-tracker" class="px-3 py-1 rounded-lg bg-[#FE8A95] text-white text-xs font-semibold cursor-pointer hover:opacity-90">创建</button>
+      </div>`);
+    document.getElementById("btn-create-tracker").onclick = async () => {
+      const name = document.getElementById("new-tracker-name").value.trim();
+      if (!name) return;
+      await apiPost("/api/tracker/new", { id: name });
+      document.querySelector(".fixed")?.remove();
+      loadTrackers();
+    };
+  };
+
+  // ── 侧栏 ──
+  async function loadTrackers() {
+    const list = await api("/api/tracker/list/all") || [];
+    // 确保 _serein 在第一位
+    const hasSerein = list.some(t => t.id === "_serein");
+    if (!hasSerein) list.unshift({ id: "_serein", display_name: "_serein" });
+
+    const nav = document.getElementById("tracker-nav");
+    nav.innerHTML = list.map(t => {
+      const active = t.id === currentTracker ? "text-white bg-[#202028] border-l-[2px] border-l-[#FE8A95]" : "text-sub hover:text-white border-l-[2px] border-l-transparent hover:border-l-[rgba(255,255,255,.12)]";
+      return `<button onclick="selectTracker('${t.id}')" class="text-left px-3 py-1.5 text-xs rounded-r-md transition-colors ${active}">${t.display_name || t.id}</button>`;
+    }).join("");
+  }
+
+  async function selectTracker(id) {
+    currentTracker = id;
+    loadTrackers();
+    await loadTrackerDetail(id);
+  }
+
+  async function loadTrackerDetail(id) {
+    const data = await api("/api/tracker/list/" + id) || [];
+    const list = document.getElementById("software-list");
+    const hint = document.getElementById("empty-hint");
+
+    if (!data.length) {
+      hint.classList.remove("hidden");
+      list.innerHTML = "";
+      return;
+    }
+    hint.classList.add("hidden");
+
+    list.innerHTML = data.map(d => renderSoftwareRow(d)).join("");
+  }
+
+  // ── 软件行渲染 ──
+  function renderSoftwareRow(d) {
+    const checked = checkResults[d.app_id];
+    const hasUpdate = checked && Object.values(checked.platforms || {}).some(p => p.latest_version && p.latest_version !== p.current_version);
+
+    // 版本行
+    let versionHTML = "";
+    if (d.rule_missing) {
+      versionHTML = `<span class="text-yellow-500 text-xs">⚠ 规则缺失</span>`;
+    } else if (hasUpdate) {
+      const parts = [];
+      for (const [os, p] of Object.entries(checked.platforms)) {
+        if (p.latest_version && p.latest_version !== p.current_version) {
+          parts.push(`${os}: <span class="text-err">${p.current_version || "-"}</span> <span class="text-sub">→</span> <span class="text-ok">${p.latest_version}</span>`);
+        } else {
+          parts.push(`${os}: <span class="text-sub">${p.current_version || "-"}</span>`);
+        }
+      }
+      versionHTML = `<span class="text-xs text-sub">${parts.join(" &nbsp;")}</span>`;
+    } else {
+      const versions = Object.entries(d.current_version || {}).map(([os, v]) => `${os}: ${v || "-"}`).join(" &nbsp;");
+      versionHTML = `<span class="text-xs text-sub">${versions || "未记录版本"}</span>`;
+    }
+
+    // 右侧图标：刷新、编辑、地球
+    let rightIcons = `<span class="flex items-center gap-2 shrink-0">`;
+    rightIcons += `<span onclick="event.stopPropagation(); refreshApp('${d.app_id}')" title="检查更新">${iconImg("refresh", "检查更新", "w-4 h-4")}</span>`;
+    rightIcons += `<span onclick="event.stopPropagation(); editVersion('${d.app_id}')" title="编辑版本">${iconImg("edit", "编辑版本", "w-4 h-4")}</span>`;
+    if (d.official_website) {
+      rightIcons += `<a href="${d.official_website}" target="_blank" onclick="event.stopPropagation()" title="官网">${iconImg("earth", "官网", "w-4 h-4")}</a>`;
+    }
+
+    // 对钩 + 平台下载图标
+    if (hasUpdate) {
+      rightIcons += `<span class="mx-3"></span>`; // 间隔
+      rightIcons += `<span onclick="event.stopPropagation(); confirmUpdate('${d.app_id}')" title="应用更新" class="cursor-pointer text-ok font-bold text-lg">✓</span>`;
+      for (const [os, p] of Object.entries(checked.platforms)) {
+        if (p.url) {
+          const urls = typeof p.url === "string" ? [p.url] : (p.url || []);
+          urls.forEach((url, i) => {
+            rightIcons += `<a href="${url}" target="_blank" onclick="event.stopPropagation()" title="${os}下载">${platformIcon(os)}</a>`;
+          });
+        }
+      }
+    }
+
+    rightIcons += `</span>`;
+
+    return `<div class="flex items-center gap-4 bg-[#2a2a2a] border border-[rgba(255,255,255,.08)] rounded-lg px-4 py-3 hover:border-[rgba(255,255,255,.12)] transition-colors">
+      <div class="flex-1 min-w-0">
+        <div class="text-sm font-semibold truncate" title="${d.app_id + (d.official_website ? '\n' + d.official_website : '')}">${d.name || d.app_id}</div>
+        <div class="mt-0.5">${versionHTML}</div>
+      </div>
+      ${rightIcons}
+    </div>`;
+  }
+
+  // ── 操作函数 ──
+  async function refreshApp(appId) {
+    const data = await apiPost("/api/check/ids", [appId]);
+    if (data && data.length) {
+      for (const r of data) {
+        checkResults[r.app_id] = r;
+      }
+      loadTrackerDetail(currentTracker);
+    }
+  }
+
+  async function confirmUpdate(appId) {
+    const cr = checkResults[appId];
+    if (!cr) return;
+    const body = { app_id: appId };
+    for (const [os, p] of Object.entries(cr.platforms || {})) {
+      if (p.latest_version) body[os] = p.latest_version;
+    }
+    await apiPost("/api/check/confirm", body);
+    delete checkResults[appId];
+    loadTrackerDetail(currentTracker);
+  }
+
+  async function editVersion(appId) {
+    showModal(`
+      <div class="text-sm font-semibold mb-4">编辑版本 — ${appId}</div>
+      <div id="edit-platforms" class="flex flex-col gap-2 mb-4"></div>
+      <div class="flex justify-end gap-2">
+        <button onclick="this.closest('.fixed').remove()" class="px-3 py-1 rounded-lg border border-[rgba(255,255,255,.12)] bg-transparent text-sub text-xs cursor-pointer hover:text-white">取消</button>
+        <button id="btn-save-version" class="px-3 py-1 rounded-lg bg-[#FE8A95] text-white text-xs font-semibold cursor-pointer hover:opacity-90">保存</button>
+      </div>`);
+    // 加载 tracker 细节获取平台信息
+    const detail = await api("/api/tracker/list/" + currentTracker);
+    const entry = (detail || []).find(e => e.app_id === appId);
+    const platforms = entry ? Object.keys(entry.current_version || {}) : [];
+    if (!platforms.length) platforms.push("macos", "windows");
+
+    document.getElementById("edit-platforms").innerHTML = platforms.map(os => {
+      const cur = (entry && entry.current_version && entry.current_version[os]) || "";
+      return `<div class="flex items-center gap-2"><span class="text-xs text-sub w-16">${os}</span><input class="flex-1 bg-[#202028] border border-[rgba(255,255,255,.12)] rounded-lg px-3 py-1.5 text-sm outline-none focus:border-[#FE8A95]" value="${cur}" data-os="${os}"></div>`;
+    }).join("");
+
+    document.getElementById("btn-save-version").onclick = async () => {
+      const body = { app_id: appId };
+      document.querySelectorAll("#edit-platforms input").forEach(inp => {
+        body[inp.dataset.os] = inp.value.trim();
+      });
+      await apiPost("/api/check/confirm", body);
+      document.querySelector(".fixed")?.remove();
+      loadTrackerDetail(currentTracker);
+    };
+  }
+
+  // ── 顶栏批量操作 ──
+  async function checkTracker() {
+    const data = await apiPost("/api/check/tracker", { tracker_id: currentTracker });
+    mergeCheckResults(data);
+    loadTrackerDetail(currentTracker);
+  }
+
+  async function checkAll() {
+    const data = await apiPost("/api/check/all");
+    mergeCheckResults(data);
+    loadTrackerDetail(currentTracker);
+  }
+
+  async function readCache() {
+    const types = ["all", "ids", "tracker"];
+    for (const t of types) {
+      const data = await api("/api/check/temp/" + t);
+      mergeCheckResults(data);
+    }
+    loadTrackerDetail(currentTracker);
+  }
+
+  function mergeCheckResults(data) {
+    if (!Array.isArray(data)) return;
+    for (const r of data) {
+      if (!checkResults[r.app_id]) {
+        checkResults[r.app_id] = r;
+      } else {
+        // 合并平台
+        const existing = checkResults[r.app_id];
+        for (const [os, p] of Object.entries(r.platforms || {})) {
+          existing.platforms[os] = p;
+        }
+      }
+    }
+  }
+
+  // 初始加载
+  selectTracker("_serein");
+</script>
+</body>
+</html>

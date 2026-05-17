@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN" class="bg-[#1d1d1d]">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>规则 | Serein</title>
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="text-[rgba(255,255,255,.88)] font-[system-ui] min-h-screen">
+<div id="topbar"></div>
+
+<div class="max-w-[1200px] mx-auto p-6 flex gap-6">
+  <!-- 侧栏 -->
+  <aside class="w-[200px] shrink-0">
+    <div class="flex gap-1 mb-3">
+      <button id="btn-search-mode" class="flex-1 text-center text-xs text-sub hover:text-white border border-dashed border-[rgba(255,255,255,.15)] rounded-lg py-1.5 cursor-pointer hover:border-[#FE8A95] transition-colors">🔍 搜索</button>
+      <button id="btn-sync" class="flex-1 text-center text-xs text-sub hover:text-white border border-dashed border-[rgba(255,255,255,.15)] rounded-lg py-1.5 cursor-pointer hover:border-[#FE8A95] transition-colors">↻ 同步</button>
+    </div>
+    <div class="text-xs text-sub font-semibold mb-2">规则源</div>
+    <nav id="source-nav" class="flex flex-col gap-0.5"></nav>
+  </aside>
+
+  <!-- 主区域 -->
+  <main class="flex-1 min-w-0">
+    <!-- 搜索视图 -->
+    <div id="search-view" class="hidden">
+      <div class="flex items-center gap-2 mb-4">
+        <span class="w-[3px] h-[18px] bg-[#FE8A95] rounded-sm"></span>
+        <span class="font-bold text-sm">搜索规则</span>
+      </div>
+      <div class="relative mb-4">
+        <input id="search-input" type="text" placeholder="输入关键词搜索…"
+          class="w-full bg-[#202028] border border-[rgba(255,255,255,.12)] rounded-lg px-4 py-2 text-sm outline-none focus:border-[#FE8A95] placeholder:text-sub"
+          onkeydown="if(event.key==='Enter') doSearch()">
+      </div>
+      <div id="search-results-grid" class="grid grid-cols-5 gap-3"></div>
+      <div id="search-placeholder" class="text-center py-16 text-sub text-sm">输入关键词搜索规则</div>
+    </div>
+    <!-- 卡片视图 -->
+    <div id="card-view">
+      <div class="flex items-center gap-2 mb-4">
+        <span class="w-[3px] h-[18px] bg-[#FE8A95] rounded-sm"></span>
+        <span id="source-title" class="font-bold text-sm"></span>
+      </div>
+      <div id="card-grid" class="grid grid-cols-5 gap-3"></div>
+    </div>
+  </main>
+</div>
+
+<script src="/assets/app.min.js"></script>
+<script>
+  var currentSource = null;
+
+  renderTopbar("规则");
+  loadSources();
+
+  document.getElementById("btn-sync").onclick = async () => {
+    const btn = document.getElementById("btn-sync");
+    btn.textContent = "同步中…";
+    await apiPost("/api/rules/sync");
+    btn.textContent = "↻ 同步";
+    loadSources();
+  };
+
+  document.getElementById("btn-search-mode").onclick = () => {
+    currentSource = null;
+    loadSources();
+    document.getElementById("search-view").classList.remove("hidden");
+    document.getElementById("card-view").classList.add("hidden");
+    document.getElementById("search-results-grid").innerHTML = "";
+    document.getElementById("search-placeholder").classList.remove("hidden");
+    document.getElementById("search-input").value = "";
+  };
+
+  async function loadSources() {
+    const sources = await api("/api/rules/list/all") || [];
+    const nav = document.getElementById("source-nav");
+    nav.innerHTML = sources.map(s => {
+      const active = s.source_id === currentSource ? "text-white bg-[#202028] border-l-[2px] border-l-[#FE8A95]" : "text-sub hover:text-white border-l-[2px] border-l-transparent hover:border-l-[rgba(255,255,255,.12)]";
+      return `<button onclick="selectSource('${s.source_id}')" class="text-left px-3 py-1.5 text-xs rounded-r-md transition-colors ${active}">${s.name || s.source_id} <span class="text-sub">(${s.app_count})</span></button>`;
+    }).join("");
+  }
+
+  async function selectSource(id) {
+    currentSource = id;
+    loadSources();
+    document.getElementById("search-view").classList.add("hidden");
+    document.getElementById("card-view").classList.remove("hidden");
+    document.getElementById("source-title").textContent = id;
+
+    const rules = await api("/api/rules/list/" + id) || [];
+    document.getElementById("card-grid").innerHTML = renderCards(rules);
+  }
+
+  async function doSearch() {
+    const q = document.getElementById("search-input").value.trim();
+    if (!q) return;
+    document.getElementById("search-placeholder").classList.add("hidden");
+    const grid = document.getElementById("search-results-grid");
+    grid.innerHTML = '<div class="col-span-full text-center py-10 text-sub text-sm">搜索中…</div>';
+
+    const rules = await api("/api/rules/list/search?q=" + encodeURIComponent(q)) || [];
+    if (!rules.length) {
+      grid.innerHTML = '<div class="col-span-full text-center py-10 text-sub text-sm">未找到结果</div>';
+      return;
+    }
+    grid.innerHTML = renderCards(rules);
+  }
+
+  function renderCards(rules) {
+    return rules.map(r => {
+      const platforms = r.platforms || [];
+      return `<div class="bg-[#2a2a2a] border border-[rgba(255,255,255,.08)] rounded-xl p-4 flex flex-col card-h hover:border-[rgba(255,255,255,.12)] transition-colors">
+        <div class="text-sm font-semibold truncate" title="${r.app_id + (r.description ? '\n' + r.description : '') + (r.official_website ? '\n' + r.official_website : '')}">${r.name || r.app_id}</div>
+        <div class="text-xs text-sub mt-1 truncate">${r.app_id}</div>
+        <div class="flex-1 mt-3 flex flex-col gap-1">
+          ${platforms.map(p => `<label class="flex items-center gap-2 text-xs text-sub cursor-pointer"><input type="checkbox" class="rule-cb" data-os="${p}" checked onchange="event.stopPropagation()"> ${p}</label>`).join("")}
+        </div>
+        <button onclick="event.stopPropagation(); addToTracker('${r.app_id}', this)" class="mt-3 w-full text-center text-xs text-sub hover:text-white border border-dashed border-[rgba(255,255,255,.15)] rounded-lg py-1 cursor-pointer hover:border-[#FE8A95] transition-colors">+</button>
+      </div>`;
+    }).join("");
+  }
+
+  async function addToTracker(appId, btn) {
+    const cbs = btn.closest(".card-h").querySelectorAll(".rule-cb:checked");
+    const platforms = Array.from(cbs).map(cb => cb.dataset.os);
+    await apiPost("/api/tracker/add", { app_id: appId, platforms });
+    btn.textContent = "✓";
+    btn.classList.add("text-ok");
+  }
+</script>
+</body>
+</html>

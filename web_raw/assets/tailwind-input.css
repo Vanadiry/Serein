@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+.text-sub { color: rgba(255,255,255,.52); }
+.text-err { color: #f87171; }
+.text-ok  { color: #68a868; }
+.card-h { min-height: 160px; }
