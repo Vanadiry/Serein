@@ -1,0 +1,264 @@
+openapi: "3.0.3"
+info:
+  title: Serein API
+  version: "0.1.0"
+servers:
+  - url: http://127.0.0.1:12510
+paths:
+  /api/tracker/list/all:
+    get:
+      tags: [Tracker]
+      summary: 列出所有 tracker
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TrackerInfo"
+  /api/tracker/list/{id}:
+    get:
+      tags: [Tracker]
+      summary: 列出 tracker 详情
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TrackerDetail"
+  /api/tracker/new:
+    post:
+      tags: [Tracker]
+      summary: 新建 tracker
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id: { type: string }
+      responses:
+        "201":
+          description: Created
+        "409":
+          description: Already exists
+  /api/tracker/add:
+    post:
+      tags: [Tracker]
+      summary: 追加条目到 tracker
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [app_id]
+              properties:
+                tracker_id: { type: string, default: "_serein" }
+                app_id: { type: string }
+                platforms: { type: array, items: { type: string } }
+      responses:
+        "200":
+          description: OK
+  /api/check/all:
+    post:
+      tags: [Check]
+      summary: 检查全部软件更新
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CheckResponse"
+  /api/check/ids:
+    post:
+      tags: [Check]
+      summary: 检查指定软件
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CheckResponse"
+  /api/check/tracker:
+    post:
+      tags: [Check]
+      summary: 检查指定 tracker 内条目
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tracker_id]
+              properties:
+                tracker_id: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CheckResponse"
+  /api/check/confirm:
+    post:
+      tags: [Check]
+      summary: 确认更新，写入版本号
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [app_id]
+              additionalProperties: true
+              properties:
+                app_id: { type: string }
+      responses:
+        "200":
+          description: OK
+  /api/rules/sync:
+    post:
+      tags: [Rules]
+      summary: 拉取规则源更新
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SyncResult"
+  /api/rules/list/all:
+    get:
+      tags: [Rules]
+      summary: 列出全部规则
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RuleItem"
+  /api/rules/list/{source_id}:
+    get:
+      tags: [Rules]
+      summary: 列出指定源的规则
+      parameters:
+        - name: source_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RuleItem"
+  /api/rules/list/search:
+    get:
+      tags: [Rules]
+      summary: 搜索规则
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RuleItem"
+components:
+  schemas:
+    TrackerInfo:
+      type: object
+      properties:
+        id: { type: string }
+        display_name: { type: string }
+    TrackerDetail:
+      type: object
+      properties:
+        app_id: { type: string }
+        name: { type: string }
+        official_website: { type: string }
+        source_id: { type: string }
+        source_name: { type: string }
+        current_version:
+          type: object
+          additionalProperties: { type: string }
+        rule_missing: { type: boolean }
+    CheckResponse:
+      type: object
+      properties:
+        app_id: { type: string }
+        name: { type: string }
+        official_website: { type: string }
+        platforms:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              current_version: { type: string }
+              latest_version: { type: string }
+              url:
+                oneOf:
+                  - type: string
+                  - type: array
+                    items: { type: string }
+    RuleItem:
+      type: object
+      properties:
+        app_id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        official_website: { type: string }
+        platforms:
+          type: array
+          items: { type: string }
+        source_id: { type: string }
+        source_name: { type: string }
+    SyncResult:
+      type: object
+      properties:
+        synced:
+          type: array
+          items: { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              url: { type: string }
+              reason: { type: string }
