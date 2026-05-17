@@ -40,6 +40,12 @@ func main() {
 				os.Exit(1)
 			}
 			return
+		case "sync":
+			if err := cmd.RunSync(home); err != nil {
+				fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
+				os.Exit(1)
+			}
+			return
 		case "serve":
 			startServer(home)
 		default:
