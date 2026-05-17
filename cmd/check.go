@@ -9,42 +9,53 @@ import (
 	"github.com/vanadiry/serein/core/store"
 )
 
-func RunCheck(home string) error {
-	// 加载配置
+func RunCheck(home, id string) error {
 	cfg, err := store.LoadConfig(home)
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
 
-	// 加载规则
 	rules, err := store.LoadRules(home)
 	if err != nil {
 		return fmt.Errorf("load rules: %w", err)
 	}
 
-	// 加载 tracker
-	tracker, err := store.LoadTracker(home)
+	trackerList, err := store.LoadTracker(home)
 	if err != nil {
 		return fmt.Errorf("load tracker: %w", err)
 	}
 
-	// 加载用户数据
 	userData, err := store.LoadUserData(home)
 	if err != nil {
 		return fmt.Errorf("load user data: %w", err)
 	}
 
-	if len(tracker.Entries) == 0 {
-		fmt.Println("没有追踪的软件。请在 tracker.toml 中添加。")
+	if len(trackerList) == 0 {
+		fmt.Println("No software tracked. Use serein tracker <rule_id> to add.")
 		return nil
+	}
+
+	// 若指定了 id，只过滤匹配的
+	if id != "" {
+		var filtered []store.TrackerEntry
+		for _, e := range trackerList {
+			if e.RuleID == id {
+				filtered = append(filtered, e)
+			}
+		}
+		if len(filtered) == 0 {
+			fmt.Printf("No tracker found for %s\n", id)
+			return nil
+		}
+		trackerList = filtered
 	}
 
 	checker.ClearURLCache()
 
-	for _, entry := range tracker.Entries {
+	for _, entry := range trackerList {
 		rule, ok := rules[entry.RuleID]
 		if !ok {
-			fmt.Printf("[%s] 规则未找到\n", entry.RuleID)
+			fmt.Printf("[%s] rule not found\n", entry.RuleID)
 			continue
 		}
 
@@ -54,7 +65,7 @@ func RunCheck(home string) error {
 		for _, os := range platforms {
 			platCfg := rule.MergedConfig(os)
 			if platCfg.URL == "" && platCfg.Type != "github" {
-				fmt.Printf("  %s: 未配置 URL\n", os)
+				fmt.Printf("  %s: no URL configured\n", os)
 				continue
 			}
 
@@ -86,7 +97,7 @@ func RunCheck(home string) error {
 
 			resp, err := checker.RunCheck(req)
 			if err != nil {
-				fmt.Printf("  %s: 检查失败 - %v\n", os, err)
+				fmt.Printf("  %s: check failed - %v\n", os, err)
 				continue
 			}
 			if p, ok := resp.Platforms[os]; ok {
@@ -102,23 +113,23 @@ func printResult(os, current string, p checker.CheckPlatform) {
 	urlStr := formatURL(p.URL)
 
 	if ver == "" {
-		fmt.Printf("  %s: 无法获取版本号\n", os)
+		fmt.Printf("  %s: unable to get version\n", os)
 		if urlStr != "" {
-			fmt.Printf("    下载: %s\n", urlStr)
+			fmt.Printf("    download: %s\n", urlStr)
 		}
 		return
 	}
 
 	if current == "" {
-		fmt.Printf("  %s: 最新 %s\n", os, ver)
+		fmt.Printf("  %s: %s\n", os, ver)
 	} else if current != ver {
-		fmt.Printf("  %s: %s → %s [更新]\n", os, current, ver)
+		fmt.Printf("  %s: %s → %s [update]\n", os, current, ver)
 	} else {
-		fmt.Printf("  %s: %s [已是最新]\n", os, current)
+		fmt.Printf("  %s: %s [up to date]\n", os, current)
 	}
 
 	if urlStr != "" {
-		fmt.Printf("    下载: %s\n", urlStr)
+		fmt.Printf("    download: %s\n", urlStr)
 	}
 }
 

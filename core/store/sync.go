@@ -52,7 +52,7 @@ func SyncAllSources(home string, sources []RuleSource) SyncResult {
 			result.Errors = append(result.Errors, SyncError{
 				ID:     srcJSON.ID,
 				URL:    src.URL,
-				Reason: "ID 重复，已被先处理的规则源占用",
+				Reason: "duplicate ID, already claimed by an earlier source",
 			})
 			continue
 		}

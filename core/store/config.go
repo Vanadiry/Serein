@@ -32,7 +32,7 @@ func LoadConfig(home string) (Config, error) {
 	cfg := DefaultConfig()
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		if err := SaveConfig(home, cfg); err != nil {
+		if err := os.WriteFile(path, []byte(DefaultConfigTOML), 0644); err != nil {
 			return cfg, fmt.Errorf("create default config: %w", err)
 		}
 		return cfg, nil

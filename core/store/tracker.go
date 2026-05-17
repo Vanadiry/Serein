@@ -4,41 +4,72 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
+// TrackerEntry 单条追踪记录
 type TrackerEntry struct {
-	RuleID    string   `toml:"rule_id"`
+	RuleID    string   `toml:"rule_id,omitempty"`
 	Platforms []string `toml:"platforms,omitempty"`
 }
 
-type Tracker struct {
-	Entries []TrackerEntry `toml:"tracker"`
+// trackerFile 单个 tracker 文件的 TOML 结构（rule_id 来自文件名）
+type trackerFile struct {
+	Platforms []string `toml:"platforms,omitempty"`
 }
 
-func LoadTracker(home string) (Tracker, error) {
-	path := filepath.Join(home, "tracker.toml")
-	var t Tracker
-
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		return t, nil
+// LoadTracker 扫描 tracker/ 目录下所有 .toml 文件，文件名即为 rule_id。
+func LoadTracker(home string) ([]TrackerEntry, error) {
+	dir := filepath.Join(home, "tracker")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read tracker dir: %w", err)
 	}
 
-	if err := decodeTOML(path, &t); err != nil {
-		return t, fmt.Errorf("read tracker: %w", err)
+	var list []TrackerEntry
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".toml") {
+			continue
+		}
+		ruleID := strings.TrimSuffix(e.Name(), ".toml")
+		path := filepath.Join(dir, e.Name())
+
+		var tf trackerFile
+		if err := decodeTOML(path, &tf); err != nil {
+			continue
+		}
+		list = append(list, TrackerEntry{
+			RuleID:    ruleID,
+			Platforms: tf.Platforms,
+		})
 	}
-	return t, nil
+	return list, nil
 }
 
-func SaveTracker(home string, t Tracker) error {
-	path := filepath.Join(home, "tracker.toml")
-	if err := encodeTOML(path, t); err != nil {
-		return fmt.Errorf("write tracker: %w", err)
-	}
-	return nil
+// TrackerExists 检查 tracker 文件是否存在。
+func TrackerExists(home, ruleID string) bool {
+	path := filepath.Join(home, "tracker", ruleID+".toml")
+	_, err := os.Stat(path)
+	return err == nil
 }
 
-// PlatformsFor 返回某条追踪实际生效的平台列表。
-// tracker 条目有 platforms 则以此为准，否则用 config.platforms。
+// CreateTracker 创建 tracker 文件（不设 platforms，继承 config）。
+func CreateTracker(home, ruleID string, platforms []string) error {
+	tf := trackerFile{Platforms: platforms}
+	path := filepath.Join(home, "tracker", ruleID+".toml")
+	return encodeTOML(path, tf)
+}
+
+// RemoveTracker 删除 tracker 文件。
+func RemoveTracker(home, ruleID string) error {
+	path := filepath.Join(home, "tracker", ruleID+".toml")
+	return os.Remove(path)
+}
+
+// PlatformsFor 返回 tracker 条目实际生效的平台列表。
 func PlatformsFor(entry TrackerEntry, cfgPlatforms []string) []string {
 	if len(entry.Platforms) > 0 {
 		return entry.Platforms

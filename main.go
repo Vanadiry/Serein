@@ -10,18 +10,18 @@ import (
 	"github.com/vanadiry/serein/cmd"
 )
 
-// openBrowser 打开浏览器（阶段五使用）
+// openBrowser 打开浏览器
 func openBrowser(url string) {
-	var cmd *exec.Cmd
+	var c *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
-		cmd = exec.Command("open", url)
+		c = exec.Command("open", url)
 	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+		c = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
 	default:
-		cmd = exec.Command("xdg-open", url)
+		c = exec.Command("xdg-open", url)
 	}
-	_ = cmd.Start()
+	_ = c.Start()
 }
 
 func main() {
@@ -35,7 +35,17 @@ func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "check":
-			if err := cmd.RunCheck(home); err != nil {
+			id := ""
+			if len(os.Args) > 2 {
+				id = os.Args[2]
+			}
+			if err := cmd.RunCheck(home, id); err != nil {
+				fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
+				os.Exit(1)
+			}
+			return
+		case "list":
+			if err := cmd.RunList(home); err != nil {
 				fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
 				os.Exit(1)
 			}
@@ -56,7 +66,7 @@ func main() {
 				ver = os.Args[3]
 			}
 			if id == "" {
-				fmt.Fprintf(os.Stderr, "用法: serein version <rule_id> [version]\n")
+				fmt.Fprintf(os.Stderr, "Usage: serein version <rule_id> [version]\n")
 				os.Exit(1)
 			}
 			if err := cmd.RunVersion(home, id, ver); err != nil {
@@ -64,8 +74,16 @@ func main() {
 				os.Exit(1)
 			}
 			return
-		case "serve":
-			startServer(home)
+		case "tracker":
+			if len(os.Args) < 3 {
+				fmt.Fprintf(os.Stderr, "Usage: serein tracker <rule_id>\n")
+				os.Exit(1)
+			}
+			if err := cmd.RunTracker(home, os.Args[2]); err != nil {
+				fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
+				os.Exit(1)
+			}
+			return
 		default:
 			fmt.Fprintf(os.Stderr, "Serein: unknown command %q\n", os.Args[1])
 			os.Exit(1)
@@ -73,6 +91,7 @@ func main() {
 		return
 	}
 
+	// 无参数：启动 Web 服务 + 打开浏览器
 	startServer(home)
 }
 
@@ -92,6 +111,7 @@ func initDirs(home string) error {
 	dirs := []string{
 		home,
 		filepath.Join(home, "rule"),
+		filepath.Join(home, "tracker"),
 		filepath.Join(home, "user"),
 	}
 	for _, d := range dirs {
@@ -106,4 +126,3 @@ func startServer(home string) {
 	// TODO: 阶段五
 	fmt.Println("Serein: server not implemented yet")
 }
-

@@ -24,21 +24,20 @@ func RunVersion(home, id, version string) error {
 		return fmt.Errorf("load rules: %w", err)
 	}
 
-	tracker, err := store.LoadTracker(home)
+	trackerList, err := store.LoadTracker(home)
 	if err != nil {
 		return fmt.Errorf("load tracker: %w", err)
 	}
 
 	rule, ok := rules[id]
 	if !ok {
-		return fmt.Errorf("规则 %s 未找到", id)
+		return fmt.Errorf("rule %s not found", id)
 	}
 
-	// 查找 entry 确定平台
 	var entry *store.TrackerEntry
-	for i := range tracker.Entries {
-		if tracker.Entries[i].RuleID == id {
-			entry = &tracker.Entries[i]
+	for i := range trackerList {
+		if trackerList[i].RuleID == id {
+			entry = &trackerList[i]
 			break
 		}
 	}
@@ -57,21 +56,21 @@ func RunVersion(home, id, version string) error {
 		userData[id] = make(map[string]string)
 	}
 
-	// 直接指定版本号
+	// Direct version set
 	if version != "" {
 		for _, os := range platforms {
 			userData[id][os] = version
 		}
-		fmt.Printf("%s → %s (所有平台)\n", rule.Info.Name, version)
+		fmt.Printf("%s → %s (all platforms)\n", rule.Info.Name, version)
 		return store.SaveUserData(home, userData)
 	}
 
-	// 无版本号：检查后询问
+	// Check then ask
 	fmt.Printf("%s (%s)\n", rule.Info.Name, id)
 	for _, os := range platforms {
 		platCfg := rule.MergedConfig(os)
 		if platCfg.URL == "" && platCfg.Type != "github" {
-			fmt.Printf("  %s: 未配置 URL\n", os)
+			fmt.Printf("  %s: no URL configured\n", os)
 			continue
 		}
 
@@ -99,25 +98,25 @@ func RunVersion(home, id, version string) error {
 
 		resp, err := checker.RunCheck(req)
 		if err != nil {
-			fmt.Printf("  %s: 检查失败 - %v\n", os, err)
+			fmt.Printf("  %s: check failed - %v\n", os, err)
 			continue
 		}
 		p := resp.Platforms[os]
 		latest := p.LatestVersion
 		if latest == "" {
-			fmt.Printf("  %s: 无法获取版本号\n", os)
+			fmt.Printf("  %s: unable to get version\n", os)
 			continue
 		}
 
 		if current == latest {
-			fmt.Printf("  %s: %s [已是最新]\n", os, current)
+			fmt.Printf("  %s: %s [up to date]\n", os, current)
 			continue
 		}
 
 		fmt.Printf("  %s: %s → %s\n", os, current, latest)
-		if askYN("  确认更新? [y/N] ") {
+		if askYN("  Update? [y/N] ") {
 			userData[id][os] = latest
-			fmt.Printf("  已更新\n")
+			fmt.Printf("  Updated\n")
 		}
 	}
 	return store.SaveUserData(home, userData)
