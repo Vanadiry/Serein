@@ -90,6 +90,12 @@ func main() {
 				os.Exit(1)
 			}
 			return
+		case "cli":
+			if err := cmd.RunREPL(home); err != nil {
+				fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
+				os.Exit(1)
+			}
+			return
 		default:
 			fmt.Fprintf(os.Stderr, "Serein: unknown command %q\n", os.Args[1])
 			os.Exit(1)

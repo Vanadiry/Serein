@@ -286,6 +286,7 @@ components:
           additionalProperties:
             type: object
             properties:
+              current_version: { type: string }
               latest_version: { type: string }
               url:
                 oneOf:

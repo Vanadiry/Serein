@@ -239,8 +239,9 @@ func saveCheckTemp(home, typ string, results []checker.CheckResponse) {
 		platforms := make(map[string]store.TempCheckPlatform)
 		for os, p := range r.Platforms {
 			platforms[os] = store.TempCheckPlatform{
-				LatestVersion: p.LatestVersion,
-				URL:           p.URL,
+				CurrentVersion: p.CurrentVersion,
+				LatestVersion:  p.LatestVersion,
+				URL:            p.URL,
 			}
 		}
 		temp = append(temp, store.TempCheckResult{
