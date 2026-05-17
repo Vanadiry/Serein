@@ -11,7 +11,7 @@ func CheckGitHub(cfg CheckConfig, client *http.Client) (PlatformResult, error) {
 
 // CheckRequest 一次检查的请求参数
 type CheckRequest struct {
-	UUID            string
+	AppID            string
 	Name            string
 	OfficialWebsite string
 	RuleType        string // github / json / xml / ...
@@ -37,7 +37,7 @@ type PlatformCheckConfig struct {
 
 // CheckResponse API 返回的检查结果
 type CheckResponse struct {
-	UUID            string                   `json:"uuid"`
+	AppID            string                   `json:"app_id"`
 	Name            string                   `json:"name"`
 	OfficialWebsite string                   `json:"official_website,omitempty"`
 	Platforms       map[string]CheckPlatform `json:"platforms"`
@@ -53,7 +53,7 @@ type CheckPlatform struct {
 // RunCheck 对一个软件执行检查，返回统一的 CheckResponse。
 func RunCheck(req CheckRequest) (CheckResponse, error) {
 	resp := CheckResponse{
-		UUID:            req.UUID,
+		AppID:            req.AppID,
 		Name:            req.Name,
 		OfficialWebsite: req.OfficialWebsite,
 		Platforms:       make(map[string]CheckPlatform),
@@ -96,7 +96,7 @@ func RunCheck(req CheckRequest) (CheckResponse, error) {
 
 func runGitHubCheck(req CheckRequest, client *http.Client) (CheckResponse, error) {
 	resp := CheckResponse{
-		UUID:            req.UUID,
+		AppID:            req.AppID,
 		Name:            req.Name,
 		OfficialWebsite: req.OfficialWebsite,
 		Platforms:       make(map[string]CheckPlatform),

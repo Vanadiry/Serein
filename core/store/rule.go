@@ -15,7 +15,7 @@ import (
 // ── 基础类型 ──
 
 type RuleInfo struct {
-	UUID            string   `toml:"uuid"`
+	AppID           string   `toml:"app_id"`
 	Name            string   `toml:"name"`
 	Description     string   `toml:"description,omitempty"`
 	OfficialWebsite string   `toml:"official_website,omitempty"`
@@ -65,7 +65,7 @@ type PreRequestStep struct {
 // Rule 解析后的完整规则
 type Rule struct {
 	Info        RuleInfo
-	SourceID    string                                          // 所属规则源 id
+	SourceID    string                                          // 所属规则源 source_id
 	Config      PlatConfig                                      // 共享配置
 	Platforms   map[string]PlatConfig                           // 各平台特有配置
 	PreRequests map[string]map[string]PreRequestStep             // id → platform(空串=通用) → step
@@ -93,8 +93,8 @@ func LoadRules(home string) (map[string]Rule, error) {
 			return nil
 		}
 		rule.SourceID = sourceID
-		if _, exists := rules[rule.Info.UUID]; !exists {
-			rules[rule.Info.UUID] = rule
+		if _, exists := rules[rule.Info.AppID]; !exists {
+			rules[rule.Info.AppID] = rule
 		}
 		return nil
 	})

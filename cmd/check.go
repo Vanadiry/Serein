@@ -35,14 +35,14 @@ func RunCheck(home, id string) error {
 	if id != "" {
 		var filtered []store.TrackerEntry
 		for _, e := range trackerList {
-			if e.RuleID == id {
+			if e.AppID == id {
 				filtered = append(filtered, e)
 			}
 		}
 		if len(filtered) > 0 {
 			trackerList = filtered
 		}
-		// 未找到该 rule_id → 检查全部（trackerList 不变）
+		// 未找到该 app_id → 检查全部（trackerList 不变）
 	}
 
 	return runChecks(home, trackerList, cfg, rules, userData)
@@ -53,14 +53,14 @@ func runChecks(home string, entries []store.TrackerEntry, cfg store.Config, rule
 	checker.ClearURLCache()
 
 	for _, entry := range entries {
-		rule, ok := rules[entry.RuleID]
+		rule, ok := rules[entry.AppID]
 		if !ok {
-			fmt.Printf("[%s] rule not found\n", entry.RuleID)
+			fmt.Printf("[%s] rule not found\n", entry.AppID)
 			continue
 		}
 
 		platforms := store.PlatformsFor(entry, cfg.Platforms)
-		fmt.Printf("\n%s (%s)\n", rule.Info.Name, entry.RuleID)
+		fmt.Printf("\n%s (%s)\n", rule.Info.Name, entry.AppID)
 
 		for _, os := range platforms {
 			platCfg := rule.MergedConfig(os)
@@ -70,12 +70,12 @@ func runChecks(home string, entries []store.TrackerEntry, cfg store.Config, rule
 			}
 
 			currentVer := ""
-			if ud, ok := userData[entry.RuleID]; ok {
+			if ud, ok := userData[entry.AppID]; ok {
 				currentVer = ud[os]
 			}
 
 			req := checker.CheckRequest{
-				UUID:     rule.Info.UUID,
+				AppID:     rule.Info.AppID,
 				Name:     rule.Info.Name,
 				OfficialWebsite: rule.Info.OfficialWebsite,
 				RuleType:        platCfg.Type,

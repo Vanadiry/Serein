@@ -50,7 +50,7 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 	userData, _ := store.LoadUserData(s.home)
 
 	type detail struct {
-		RuleID          string            `json:"rule_id"`
+		AppID          string            `json:"app_id"`
 		Name            string            `json:"name"`
 		OfficialWebsite string            `json:"official_website,omitempty"`
 		SourceID        string            `json:"source_id,omitempty"`
@@ -62,12 +62,12 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 	var result []detail
 	for _, entry := range entries {
 		d := detail{
-			RuleID:         entry.RuleID,
+			AppID:         entry.AppID,
 			CurrentVersion: make(map[string]string),
 		}
-		rule, ok := rules[entry.RuleID]
+		rule, ok := rules[entry.AppID]
 		if !ok {
-			d.Name = entry.RuleID
+			d.Name = entry.AppID
 			d.RuleMissing = true
 		} else {
 			d.Name = rule.Info.Name
@@ -81,7 +81,7 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 		if len(platforms) == 0 {
 			platforms = s.config.Platforms
 		}
-		if ud, ok := userData[entry.RuleID]; ok {
+		if ud, ok := userData[entry.AppID]; ok {
 			for _, p := range platforms {
 				d.CurrentVersion[p] = ud[p]
 			}
@@ -144,7 +144,7 @@ func (s *Server) handleTrackerAdd(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := store.AddToTracker(s.home, body.TrackerID, store.TrackerEntry{
-		RuleID:    body.AppID,
+		AppID:    body.AppID,
 		Platforms: body.Platforms,
 	}); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-// UserData 用户追踪数据：rule_id → 平台 → 版本号
+// UserData 用户追踪数据：app_id → 平台 → 版本号
 type UserData map[string]map[string]string
 
 func LoadUserData(home string) (UserData, error) {

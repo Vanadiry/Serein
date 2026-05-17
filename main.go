@@ -67,7 +67,7 @@ func main() {
 				ver = os.Args[3]
 			}
 			if id == "" {
-				fmt.Fprintf(os.Stderr, "Usage: serein version <rule_id> [version]\n")
+				fmt.Fprintf(os.Stderr, "Usage: serein version <app_id> [version]\n")
 				os.Exit(1)
 			}
 			if err := cmd.RunVersion(home, id, ver); err != nil {

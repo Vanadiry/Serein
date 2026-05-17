@@ -36,18 +36,18 @@ func RunList(home string) error {
 	for _, entry := range trackerList {
 		name := "rule not found"
 		website := ""
-		if rule, ok := rules[entry.RuleID]; ok {
+		if rule, ok := rules[entry.AppID]; ok {
 			name = rule.Info.Name
 			website = rule.Info.OfficialWebsite
 		}
 
 		platforms := store.PlatformsFor(entry, cfg.Platforms)
-		fmt.Printf("%s  %s", entry.RuleID, name)
+		fmt.Printf("%s  %s", entry.AppID, name)
 		if website != "" {
 			fmt.Printf("  %s", website)
 		}
 
-		versions := userData[entry.RuleID]
+		versions := userData[entry.AppID]
 		for _, os := range platforms {
 			ver := ""
 			if versions != nil {

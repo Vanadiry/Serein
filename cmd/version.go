@@ -63,7 +63,7 @@ func RunVersion(home, id, version string) error {
 
 		current := userData[id][os]
 		req := checker.CheckRequest{
-			UUID:     rule.Info.UUID,
+			AppID:     rule.Info.AppID,
 			Name:     rule.Info.Name,
 			OfficialWebsite: rule.Info.OfficialWebsite,
 			RuleType:        platCfg.Type,

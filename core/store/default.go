@@ -15,9 +15,9 @@ platforms = ["macos", "windows"]
 const DefaultTrackerTOML = `# display_name = "我的追踪列表"   # 可选，前端展示用
 
 # [[tracker]]
-# rule_id = "abc-123"
+# app_id = "abc-123"
 # platforms = ["macos"]   # 未指定则使用 config.toml 中的 platforms
 
 # [[tracker]]
-# rule_id = "def-456"
+# app_id = "def-456"
 `

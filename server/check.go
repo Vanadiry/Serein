@@ -46,7 +46,7 @@ func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
 	var entries []store.TrackerEntry
 	for _, e := range allEntries {
 		for _, id := range ids {
-			if e.RuleID == id {
+			if e.AppID == id {
 				entries = append(entries, e)
 				break
 			}
@@ -91,9 +91,9 @@ func (s *Server) handleCheckConfirm(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid body")
 		return
 	}
-	uuid, ok := body["uuid"]
-	if !ok || uuid == "" {
-		writeError(w, http.StatusBadRequest, "missing uuid")
+	appID, ok := body["app_id"]
+	if !ok || appID == "" {
+		writeError(w, http.StatusBadRequest, "missing appID")
 		return
 	}
 
@@ -102,20 +102,20 @@ func (s *Server) handleCheckConfirm(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if userData[uuid] == nil {
-		userData[uuid] = make(map[string]string)
+	if userData[appID] == nil {
+		userData[appID] = make(map[string]string)
 	}
 	for k, v := range body {
-		if k == "uuid" {
+		if k == "app_id" {
 			continue
 		}
-		userData[uuid][k] = v
+		userData[appID][k] = v
 	}
 	if err := store.SaveUserData(s.home, userData); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, userData[uuid])
+	writeJSON(w, http.StatusOK, userData[appID])
 }
 
 // ── 共享检查逻辑 ──
@@ -127,7 +127,7 @@ func runTrackerChecks(home string, entries []store.TrackerEntry) []checker.Check
 
 	var results []checker.CheckResponse
 	for _, entry := range entries {
-		rule, ok := rules[entry.RuleID]
+		rule, ok := rules[entry.AppID]
 		if !ok {
 			continue
 		}
@@ -140,7 +140,7 @@ func runTrackerChecks(home string, entries []store.TrackerEntry) []checker.Check
 				continue
 			}
 			currentVer := ""
-			if ud, ok := userData[entry.RuleID]; ok {
+			if ud, ok := userData[entry.AppID]; ok {
 				currentVer = ud[os]
 			}
 			platCfgs = append(platCfgs, checker.PlatformCheckConfig{
@@ -163,7 +163,7 @@ func runTrackerChecks(home string, entries []store.TrackerEntry) []checker.Check
 		}
 
 		req := checker.CheckRequest{
-			UUID:            rule.Info.UUID,
+			AppID:            rule.Info.AppID,
 			Name:            rule.Info.Name,
 			OfficialWebsite: rule.Info.OfficialWebsite,
 			RuleType:        rule.Config.Type,

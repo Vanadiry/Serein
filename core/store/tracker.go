@@ -9,7 +9,7 @@ import (
 
 // TrackerEntry 单条追踪记录
 type TrackerEntry struct {
-	RuleID    string   `toml:"rule_id"`
+	AppID     string   `toml:"app_id"`
 	Platforms []string `toml:"platforms,omitempty"`
 }
 
@@ -121,11 +121,11 @@ func AddToTracker(home, name string, entry TrackerEntry) error {
 	return encodeTOML(path, tf)
 }
 
-// FindTrackerEntry 在所有 tracker 文件中查找 rule_id。
+// FindTrackerEntry 在所有 tracker 文件中查找 app_id。
 func FindTrackerEntry(home, ruleID string) *TrackerEntry {
 	list, _ := LoadTracker(home)
 	for i := range list {
-		if list[i].RuleID == ruleID {
+		if list[i].AppID == ruleID {
 			return &list[i]
 		}
 	}
