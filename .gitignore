@@ -3,3 +3,7 @@ Dev/
 
 # macOS Shit
 .DS_Store
+
+# Build
+scripts/build_dev.py
+build/
