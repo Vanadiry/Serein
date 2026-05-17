@@ -101,10 +101,12 @@ function showToast(msg, bg) {
 function showLoading(msg) {
   var el = showToast(msg, "bg-[#e8a040]");
   return {
-    done: function(okMsg) {
-      el.className = el.className.replace("bg-[#e8a040]", "bg-[#68a868]");
-      el.textContent = okMsg;
-      setTimeout(function() { el.style.opacity = "0"; setTimeout(function() { el.remove(); }, 300); }, 3000);
+    done: function(okMsg, isError, duration) {
+      var bg = isError ? "bg-[#dc2626]" : "bg-[#68a868]";
+      el.className = el.className.replace("bg-[#e8a040]", bg);
+      el.innerHTML = okMsg;
+      var sec = (duration || 3) * 1000;
+      setTimeout(function() { el.style.opacity = "0"; setTimeout(function() { el.remove(); }, 300); }, sec);
     }
   };
 }

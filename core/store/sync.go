@@ -157,8 +157,10 @@ func syncList(s *SourceJSON, rawBody []byte, baseURL string, destDir string, isL
 	}
 
 	for _, f := range s.Files {
-		// f 格式: "vanadiry/_source.json"
-		subDir := filepath.Dir(f) // "vanadiry"
+		if filepath.Base(f) != "_source.json" {
+			return fmt.Errorf("list 模式子源必须以 _source.json 结尾，实际为 %q", f)
+		}
+		subDir := filepath.Dir(f)
 		expectedID := subDir
 
 		// 获取子源
