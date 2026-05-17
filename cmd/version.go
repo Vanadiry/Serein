@@ -31,7 +31,7 @@ func RunVersion(home, id, version string) error {
 
 	platforms := rule.Info.Platforms
 	if entry := store.FindTrackerEntry(home, id); entry != nil {
-		platforms = store.PlatformsFor(*entry, cfg.Platforms)
+		platforms = store.PlatformsFor(*entry, cfg.Serein.Platforms)
 	}
 
 	userData, err := store.LoadUserData(home)

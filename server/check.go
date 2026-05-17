@@ -4,6 +4,7 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"sync"
 
 	"github.com/vanadiry/serein/core/checker"
 	"github.com/vanadiry/serein/core/store"
@@ -125,13 +126,24 @@ func runTrackerChecks(home string, entries []store.TrackerEntry) []checker.Check
 	rules, _ := store.LoadRules(home)
 	userData, _ := store.LoadUserData(home)
 
-	var results []checker.CheckResponse
+	conc := cfg.Serein.Concurrency
+	if conc < 1 {
+		conc = 1
+	}
+	if conc > 64 {
+		conc = 64
+	}
+
+	type checkJob struct {
+		req checker.CheckRequest
+	}
+	var jobs []checkJob
 	for _, entry := range entries {
 		rule, ok := rules[entry.AppID]
 		if !ok {
 			continue
 		}
-		platforms := store.PlatformsFor(entry, cfg.Platforms)
+		platforms := store.PlatformsFor(entry, cfg.Serein.Platforms)
 
 		var platCfgs []checker.PlatformCheckConfig
 		for _, os := range platforms {
@@ -162,22 +174,55 @@ func runTrackerChecks(home string, entries []store.TrackerEntry) []checker.Check
 			continue
 		}
 
-		req := checker.CheckRequest{
-			AppID:            rule.Info.AppID,
+		jobs = append(jobs, checkJob{req: checker.CheckRequest{
+			AppID:           rule.Info.AppID,
 			Name:            rule.Info.Name,
 			OfficialWebsite: rule.Info.OfficialWebsite,
 			RuleType:        rule.Config.Type,
 			Owner:           rule.Config.Owner,
 			Repo:            rule.Config.Repo,
 			Platforms:       platCfgs,
-		}
-
-		resp, err := checker.RunCheck(req)
-		if err != nil {
-			continue
-		}
-		results = append(results, resp)
+		}})
 	}
+
+	if len(jobs) <= 1 {
+		var results []checker.CheckResponse
+		for _, job := range jobs {
+			resp, err := checker.RunCheck(job.req)
+			if err != nil {
+				continue
+			}
+			results = append(results, resp)
+		}
+		if results == nil {
+			results = []checker.CheckResponse{}
+		}
+		return results
+	}
+
+	sem := make(chan struct{}, conc)
+	var mu sync.Mutex
+	var results []checker.CheckResponse
+	var wg sync.WaitGroup
+
+	for _, job := range jobs {
+		wg.Add(1)
+		go func(j checkJob) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			resp, err := checker.RunCheck(j.req)
+			if err != nil {
+				return
+			}
+			mu.Lock()
+			results = append(results, resp)
+			mu.Unlock()
+		}(job)
+	}
+	wg.Wait()
+
 	if results == nil {
 		results = []checker.CheckResponse{}
 	}

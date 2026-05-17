@@ -59,7 +59,7 @@ func runChecks(home string, entries []store.TrackerEntry, cfg store.Config, rule
 			continue
 		}
 
-		platforms := store.PlatformsFor(entry, cfg.Platforms)
+		platforms := store.PlatformsFor(entry, cfg.Serein.Platforms)
 		fmt.Printf("\n%s (%s)\n", rule.Info.Name, entry.AppID)
 
 		for _, os := range platforms {

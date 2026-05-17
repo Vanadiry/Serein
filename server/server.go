@@ -64,11 +64,11 @@ func New(home string, webFS fs.FS) (*Server, error) {
 }
 
 func (s *Server) Addr() string {
-	return fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
+	return fmt.Sprintf("%s:%d", s.config.Serein.Host, s.config.Serein.Port)
 }
 
 func (s *Server) Run() error {
-	addr := fmt.Sprintf("%s:%d", s.config.Host, s.config.Port)
+	addr := fmt.Sprintf("%s:%d", s.config.Serein.Host, s.config.Serein.Port)
 	srv := &http.Server{Addr: addr, Handler: s.mux}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

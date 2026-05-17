@@ -13,17 +13,25 @@ type RuleSource struct {
 }
 
 type Config struct {
-	Host        string       `toml:"host"`
-	Port        int          `toml:"port"`
-	Platforms   []string     `toml:"platforms"`
+	Serein      SereinConfig `toml:"serein"`
 	RuleSources []RuleSource `toml:"rule_sources"`
+}
+
+type SereinConfig struct {
+	Host        string   `toml:"host"`
+	Port        int      `toml:"port"`
+	Platforms   []string `toml:"platforms"`
+	Concurrency int      `toml:"concurrency"`
 }
 
 func DefaultConfig() Config {
 	return Config{
-		Host:      "127.0.0.1",
-		Port:      12510,
-		Platforms: []string{"macos", "windows"},
+		Serein: SereinConfig{
+			Host:        "127.0.0.1",
+			Port:        12510,
+			Platforms:   []string{"macos", "windows"},
+			Concurrency: 8,
+		},
 	}
 }
 

@@ -2,9 +2,11 @@ package store
 
 // 默认 config.toml 模板
 const DefaultConfigTOML = `# Serein 配置文件
+[serein]
 host = "127.0.0.1"
 port = 12510
 platforms = ["macos", "windows"]
+concurrency = 8   # 并发检查数（最大 64）
 
 # 规则源列表（可选）
 # [[rule_sources]]

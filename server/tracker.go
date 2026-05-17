@@ -79,7 +79,7 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 		}
 		platforms := entry.Platforms
 		if len(platforms) == 0 {
-			platforms = s.config.Platforms
+			platforms = s.config.Serein.Platforms
 		}
 		if ud, ok := userData[entry.AppID]; ok {
 			for _, p := range platforms {

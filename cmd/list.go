@@ -41,7 +41,7 @@ func RunList(home string) error {
 			website = rule.Info.OfficialWebsite
 		}
 
-		platforms := store.PlatformsFor(entry, cfg.Platforms)
+		platforms := store.PlatformsFor(entry, cfg.Serein.Platforms)
 		fmt.Printf("%s  %s", entry.AppID, name)
 		if website != "" {
 			fmt.Printf("  %s", website)
