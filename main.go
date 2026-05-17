@@ -1,7 +1,9 @@
 package main
 
 import (
+	"embed"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,6 +12,9 @@ import (
 	"github.com/vanadiry/serein/cmd"
 	"github.com/vanadiry/serein/server"
 )
+
+//go:embed web
+var webFiles embed.FS
 
 // openBrowser 打开浏览器
 func openBrowser(url string) {
@@ -124,7 +129,8 @@ func initDirs(home string) error {
 }
 
 func startServer(home string, openBrowser_ bool) {
-	s, err := server.New(home)
+	webFS, _ := fs.Sub(webFiles, "web")
+	s, err := server.New(home, webFS)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
 		os.Exit(1)

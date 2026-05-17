@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -17,16 +19,7 @@ type Server struct {
 	home   string
 	config store.Config
 	mux    *http.ServeMux
-}
-
-func New(home string) (*Server, error) {
-	cfg, err := store.LoadConfig(home)
-	if err != nil {
-		return nil, err
-	}
-	s := &Server{home: home, config: cfg, mux: http.NewServeMux()}
-	s.registerRoutes()
-	return s, nil
+	webFS  fs.FS
 }
 
 func (s *Server) registerRoutes() {
@@ -44,6 +37,30 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/rules/list/all", s.handleRulesListAll)
 	s.mux.HandleFunc("/api/rules/list/search", s.handleRulesListSearch)
 	s.mux.HandleFunc("/api/rules/list/", s.handleRulesListBySource)
+
+	if s.webFS != nil {
+		fileServer := http.FileServer(http.FS(s.webFS))
+		s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			// 无后缀 → 尝试补 .html
+			if !strings.Contains(r.URL.Path, ".") {
+				htmlPath := strings.TrimSuffix(r.URL.Path, "/") + ".html"
+				if _, err := fs.Stat(s.webFS, strings.TrimPrefix(htmlPath, "/")); err == nil {
+					r.URL.Path = htmlPath
+				}
+			}
+			fileServer.ServeHTTP(w, r)
+		})
+	}
+}
+
+func New(home string, webFS fs.FS) (*Server, error) {
+	cfg, err := store.LoadConfig(home)
+	if err != nil {
+		return nil, err
+	}
+	s := &Server{home: home, config: cfg, mux: http.NewServeMux(), webFS: webFS}
+	s.registerRoutes()
+	return s, nil
 }
 
 func (s *Server) Addr() string {
