@@ -13,10 +13,10 @@
   <!-- 侧栏 -->
   <aside class="w-[200px] shrink-0">
     <div class="flex gap-1 mb-3">
-      <button id="btn-search-mode" class="flex-1 text-center text-xs text-sub hover:text-white border border-dashed border-[rgba(255,255,255,.15)] rounded-lg py-1.5 cursor-pointer hover:border-[#FE8A95] transition-colors">🔍 搜索</button>
+      <button id="btn-search-mode" class="flex-1 text-center text-xs text-sub hover:text-white border border-dashed border-[rgba(255,255,255,.15)] rounded-lg py-1.5 cursor-pointer hover:border-[#FE8A95] transition-colors"><img src="/assets/search.svg" class="w-3.5 h-3.5 inline-block mr-1">搜索</button>
       <button id="btn-sync" class="flex-1 text-center text-xs text-sub hover:text-white border border-dashed border-[rgba(255,255,255,.15)] rounded-lg py-1.5 cursor-pointer hover:border-[#FE8A95] transition-colors">↻ 同步</button>
     </div>
-    <div class="text-xs text-sub font-semibold mb-2">规则源</div>
+    <div class="text-sm text-sub font-semibold mb-2">规则源</div>
     <nav id="source-nav" class="flex flex-col gap-0.5"></nav>
   </aside>
 
@@ -77,7 +77,7 @@
     const nav = document.getElementById("source-nav");
     nav.innerHTML = sources.map(s => {
       const active = s.source_id === currentSource ? "text-white bg-[#202028] border-l-[2px] border-l-[#FE8A95]" : "text-sub hover:text-white border-l-[2px] border-l-transparent hover:border-l-[rgba(255,255,255,.12)]";
-      return `<button onclick="selectSource('${s.source_id}')" class="text-left px-3 py-1.5 text-xs rounded-r-md transition-colors ${active}">${s.name || s.source_id} <span class="text-sub">(${s.app_count})</span></button>`;
+      return `<button onclick="selectSource('${s.source_id}')" class="text-left px-3 py-2 text-sm rounded-r-md transition-colors ${active}">${s.name || s.source_id} <span class="text-sub">(${s.app_count})</span></button>`;
     }).join("");
   }
 
