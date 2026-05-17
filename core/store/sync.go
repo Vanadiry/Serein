@@ -38,7 +38,10 @@ type SyncError struct {
 
 // SyncAllSources 同步所有规则源
 func SyncAllSources(home string, sources []RuleSource) SyncResult {
-	var result SyncResult
+	result := SyncResult{
+		Synced: []string{},
+		Errors: []SyncError{},
+	}
 	usedIDs := make(map[string]bool)
 
 	for _, src := range sources {
