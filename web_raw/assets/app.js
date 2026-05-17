@@ -38,6 +38,9 @@ function renderTopbar(current) {
           <a href="/" class="no-underline px-3 py-1.5 rounded-lg text-sm ${navCls("/")}">应用</a>
           <a href="/rules" class="no-underline px-3 py-1.5 rounded-lg text-sm ${navCls("/rules")}">规则</a>
         </nav>
+        <nav class="flex gap-1 ml-2 items-center">
+          <a href="https://github.com/Vanadiry/Serein/" target="_blank" class="no-underline px-3 py-1.5 rounded-lg text-sm ${navCls("/github")}">GitHub</a>
+        </nav>
         <div class="flex-1"></div>
         ${isIndex ? `
         <nav class="flex gap-1 items-center">
