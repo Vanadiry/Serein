@@ -72,7 +72,7 @@ type Rule struct {
 
 func LoadRules(home string) (map[string]Rule, error) {
 	rules := make(map[string]Rule)
-	ruleDir := filepath.Join(home, "rule")
+	ruleDir := filepath.Join(home, "rules")
 
 	err := filepath.WalkDir(ruleDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {

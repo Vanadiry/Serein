@@ -58,7 +58,7 @@ func SyncAllSources(home string, sources []RuleSource) SyncResult {
 		}
 		usedIDs[srcJSON.ID] = true
 
-		destDir := filepath.Join(home, "rule", srcJSON.ID)
+		destDir := filepath.Join(home, "rules", srcJSON.ID)
 		if err := syncSource(srcJSON, src.URL, destDir); err != nil {
 			result.Errors = append(result.Errors, SyncError{
 				ID:     srcJSON.ID,

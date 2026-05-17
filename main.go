@@ -110,7 +110,7 @@ func sereinHome() string {
 func initDirs(home string) error {
 	dirs := []string{
 		home,
-		filepath.Join(home, "rule"),
+		filepath.Join(home, "rules"),
 		filepath.Join(home, "tracker"),
 		filepath.Join(home, "user"),
 	}
