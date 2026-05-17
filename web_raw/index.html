@@ -13,7 +13,7 @@
   <aside class="w-[200px] shrink-0 pr-4 border-r border-[rgba(255,255,255,.08)]">
     <div class="text-sm text-sub font-semibold mb-2">Tracker</div>
     <nav id="tracker-nav" class="flex flex-col gap-0.5"></nav>
-    <button id="btn-new-tracker" class="mt-3 w-full text-center text-xs text-sub hover:text-white border border-dashed border-[rgba(255,255,255,.15)] rounded-lg py-1.5 cursor-pointer hover:border-[#FE8A95] transition-colors">+</button>
+    <button id="btn-new-tracker" class="mt-3 w-full text-center text-xs text-sub hover:text-white border border-dashed border-[rgba(255,255,255,.15)] rounded-lg py-1.5 cursor-pointer hover:border-[#FE8A95] transition-colors">新建 Tracker</button>
   </aside>
 
   <main class="flex-1 min-w-0">
@@ -89,16 +89,16 @@
       const parts = [];
       for (const [os, p] of Object.entries(checked.platforms)) {
         if (p.latest_version && p.latest_version !== p.current_version) {
-          parts.push(`${platformIcon(os, "w-4 h-4")} <span class="text-err">${p.current_version || "-"}</span> <span class="text-sub">→</span> <span class="text-ok">${p.latest_version}</span>`);
+          parts.push(`<span class="opacity-50">${platformIcon(os, "w-4 h-4")}</span> <span class="text-err">${p.current_version || "-"}</span> <span class="text-sub">→</span> <span class="text-ok">${p.latest_version}</span>`);
         } else {
-          parts.push(`${platformIcon(os, "w-4 h-4")} <span class="text-sub">${p.current_version || "-"}</span>`);
+          parts.push(`<span class="opacity-50">${platformIcon(os, "w-4 h-4")}</span> <span class="text-sub">${p.current_version || "-"}</span>`);
         }
       }
       versionHTML = `<span class="text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
     } else {
       const parts = [];
       for (const [os, v] of Object.entries(d.current_version || {})) {
-        parts.push(`${platformIcon(os, "w-4 h-4")} ${v || "-"}`);
+        parts.push(`<span class="opacity-50">${platformIcon(os, "w-4 h-4")}</span> ${v || "-"}`);
       }
       versionHTML = `<span class="text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;") || "未记录版本"}</span>`;
     }
