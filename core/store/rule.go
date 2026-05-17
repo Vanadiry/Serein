@@ -84,9 +84,8 @@ func LoadRules(home string) (map[string]Rule, error) {
 		if d.IsDir() || filepath.Ext(path) != ".toml" {
 			return nil
 		}
-		// 提取 source_id：rules/ 下的第一级子目录名
-		rel, _ := filepath.Rel(ruleDir, path)
-		sourceID := strings.SplitN(rel, string(filepath.Separator), 2)[0]
+		// 提取 source_id：从 .toml 文件向上查找最近的 _source.json 所在目录
+		sourceID := findNearestSourceID(ruleDir, path)
 
 		rule, parseErr := ParseRuleFile(path)
 		if parseErr != nil {
@@ -342,6 +341,24 @@ type SourceWithID struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 	AppCount    int    `json:"app_count"`
+}
+
+// findNearestSourceID 从 .toml 文件向上查找最近的 _source.json 所在目录，返回目录名。
+func findNearestSourceID(ruleDir, tomlPath string) string {
+	dir := filepath.Dir(tomlPath)
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "_source.json")); err == nil {
+			return filepath.Base(dir)
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir || parent == ruleDir {
+			break
+		}
+		dir = parent
+	}
+	// 兜底：使用第一级目录名
+	rel, _ := filepath.Rel(ruleDir, filepath.Dir(tomlPath))
+	return strings.SplitN(rel, string(filepath.Separator), 2)[0]
 }
 
 // ── 辅助 ──
