@@ -3,7 +3,6 @@ package checker
 
 import (
 	"crypto/tls"
-	"fmt"
 	"net/http"
 	"time"
 )
@@ -55,7 +54,7 @@ func RunPlatformCheck(cfg CheckConfig, client *http.Client) (PlatformResult, err
 		if err != nil {
 			return vr, err
 		}
-		vr.LatestVersion = fmt.Sprintf("%v", ver)
+		vr.LatestVersion = toString(ver)
 	}
 
 	// 提取下载链接
@@ -65,8 +64,10 @@ func RunPlatformCheck(cfg CheckConfig, client *http.Client) (PlatformResult, err
 			return vr, err
 		}
 		// baseURL 直接与 d_position 结果拼接
-		if s, ok := dl.(string); ok && cfg.BaseURL != "" {
-			dl = cfg.BaseURL + s
+		if cfg.BaseURL != "" {
+			dl = cfg.BaseURL + toString(dl)
+		} else {
+			dl = toString(dl)
 		}
 		vr.URL = dl
 	}
