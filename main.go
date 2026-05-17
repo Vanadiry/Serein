@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/vanadiry/serein/cmd"
 	"github.com/vanadiry/serein/server"
@@ -39,68 +40,16 @@ func main() {
 	}
 
 	if len(os.Args) > 1 {
-		switch os.Args[1] {
-		case "check":
-			id := ""
-			if len(os.Args) > 2 {
-				id = os.Args[2]
-			}
-			if err := cmd.RunCheck(home, id); err != nil {
-				fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
-				os.Exit(1)
-			}
-			return
-		case "list":
-			if err := cmd.RunList(home); err != nil {
-				fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
-				os.Exit(1)
-			}
-			return
-		case "sync":
-			if err := cmd.RunSync(home); err != nil {
-				fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
-				os.Exit(1)
-			}
-			return
-		case "version":
-			id := ""
-			ver := ""
-			if len(os.Args) > 2 {
-				id = os.Args[2]
-			}
-			if len(os.Args) > 3 {
-				ver = os.Args[3]
-			}
-			if id == "" {
-				fmt.Fprintf(os.Stderr, "Usage: serein version <app_id> [version]\n")
-				os.Exit(1)
-			}
-			if err := cmd.RunVersion(home, id, ver); err != nil {
-				fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
-				os.Exit(1)
-			}
-			return
-		case "tracker":
-			if len(os.Args) < 3 {
-				fmt.Fprintf(os.Stderr, "Usage: serein tracker <id>\n")
-				os.Exit(1)
-			}
-			if err := cmd.RunTracker(home, os.Args[2]); err != nil {
-				fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
-				os.Exit(1)
-			}
-			return
-		case "cli":
+		if os.Args[1] == "cli" {
+			go startServer(home, false)
+			time.Sleep(200 * time.Millisecond)
 			if err := cmd.RunREPL(home); err != nil {
 				fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
-				os.Exit(1)
 			}
-			return
-		default:
-			fmt.Fprintf(os.Stderr, "Serein: unknown command %q\n", os.Args[1])
-			os.Exit(1)
+			os.Exit(0)
 		}
-		return
+		fmt.Fprintf(os.Stderr, "Usage: serein [cli]\n")
+		os.Exit(1)
 	}
 
 	// 无参数：启动 Web 服务 + 打开浏览器
