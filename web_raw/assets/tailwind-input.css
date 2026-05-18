@@ -8,7 +8,7 @@
 body { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
 .icon-bg { background: rgba(255,255,255,.08); border-radius: 4px; padding: 4px; display: inline-flex; align-items: center; justify-content: center; }
 .icon-bg img { display: block; }
-.icon-bg-pink { background: #FE8A95; border-radius: 4px; padding: 4px; display: inline-flex; align-items: center; justify-content: center; }
+.icon-bg-pink { background: #14b8a6; border-radius: 4px; padding: 4px; display: inline-flex; align-items: center; justify-content: center; }
 .icon-bg-pink img { display: block; }
 .icon-bg-green { background: #68a868; border-radius: 4px; padding: 4px; display: inline-flex; align-items: center; justify-content: center; }
 .icon-bg-green img { display: block; }

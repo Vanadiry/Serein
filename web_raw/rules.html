@@ -19,12 +19,12 @@
     <!-- 搜索视图 -->
     <div id="search-view" class="hidden">
       <div class="flex items-center gap-2 mb-4">
-        <span class="w-[3px] h-[18px] bg-[#FE8A95] rounded-sm"></span>
+        <span class="w-[3px] h-[18px] bg-[#14b8a6] rounded-sm"></span>
         <span class="font-bold text-sm">搜索规则</span>
       </div>
       <div class="relative mb-4">
         <input id="search-input" type="text" placeholder="输入关键词搜索..."
-          class="w-full bg-[#202028] border border-[rgba(255,255,255,.12)] rounded-lg px-4 py-2 text-sm outline-none focus:border-[#FE8A95] placeholder:text-sub"
+          class="w-full bg-[#202028] border border-[rgba(255,255,255,.12)] rounded-lg px-4 py-2 text-sm outline-none focus:border-[#14b8a6] placeholder:text-sub"
           onkeydown="if(event.key==='Enter') doSearch()">
       </div>
       <div id="search-results-grid" class="grid grid-cols-5 gap-3"></div>
@@ -33,8 +33,10 @@
     <!-- 卡片视图 -->
     <div id="card-view" class="hidden">
       <div class="flex items-center gap-2 mb-4">
-        <span class="w-[3px] h-[18px] bg-[#FE8A95] rounded-sm"></span>
+        <span class="w-[3px] h-[18px] bg-[#14b8a6] rounded-sm"></span>
         <span id="source-title" class="font-bold text-sm"></span>
+        <span class="flex-1"></span>
+        <span id="filter-platforms" class="flex items-center gap-1"></span>
       </div>
       <div id="card-grid" class="grid grid-cols-5 gap-3"></div>
     </div>
@@ -48,6 +50,8 @@
 <script src="/assets/app.min.js"></script>
 <script>
   var currentSource = null;
+  var allSourceRules = [];
+  var activeFilters = {};
 
   renderTopbar("规则");
   loadSources();
@@ -82,7 +86,7 @@
     const sources = await api("/api/rules/list/all") || [];
     const nav = document.getElementById("source-nav");
     nav.innerHTML = sources.map(s => {
-      const active = s.source_id === currentSource ? "text-white bg-[#202028] border-l-[2px] border-l-[#FE8A95]" : "text-sub hover:text-white border-l-[2px] border-l-transparent hover:border-l-[rgba(255,255,255,.12)]";
+      const active = s.source_id === currentSource ? "text-white bg-[#202028] border-l-[2px] border-l-[#14b8a6]" : "text-sub hover:text-white border-l-[2px] border-l-transparent hover:bg-[#202028] hover:border-l-[rgba(255,255,255,.12)]";
       return `<button onclick="selectSource('${s.source_id}')" class="text-left px-3 py-2 text-sm rounded-r-md transition-colors ${active}">${s.name || s.source_id} <span class="text-sub">(${s.app_count})</span></button>`;
     }).join("");
   }
@@ -95,8 +99,69 @@
     document.getElementById("card-view").classList.remove("hidden");
     document.getElementById("source-title").textContent = id;
 
-    const rules = await api("/api/rules/list/" + id) || [];
+    var rules = await api("/api/rules/list/" + id) || [];
+    allSourceRules = rules;
+    activeFilters = {};
+    showTrackedOnly = false;
+    buildPlatformFilters(rules);
     document.getElementById("card-grid").innerHTML = renderCards(rules);
+  }
+
+  var trackedApps = [];
+  api("/api/tracker/apps").then(function(data) { trackedApps = data || []; });
+
+  function buildPlatformFilters(rules) {
+    var allPlatforms = [];
+    var seen = {};
+    for (var i = 0; i < rules.length; i++) {
+      var plats = rules[i].platforms || [];
+      for (var j = 0; j < plats.length; j++) {
+        if (!seen[plats[j]]) { seen[plats[j]] = true; allPlatforms.push(plats[j]); }
+      }
+    }
+    var el = document.getElementById("filter-platforms");
+    var html = '<span class="text-xs text-sub mr-1">筛选</span>';
+    html += allPlatforms.map(function(p) {
+      return '<button onclick="toggleFilter(\'' + p + '\')" id="btn-filter-' + p + '" class="px-2 py-0.5 rounded text-xs border border-[rgba(255,255,255,.12)] bg-transparent text-sub hover:text-white cursor-pointer transition-colors">' + platformLabel(p) + '</button>';
+    }).join("");
+    html += '<button onclick="toggleTrackedFilter()" id="btn-tracked-filter" class="px-2 py-0.5 rounded text-xs border border-[rgba(255,255,255,.12)] bg-transparent text-sub hover:text-white cursor-pointer transition-colors">已追踪</button>';
+    el.innerHTML = html;
+  }
+
+  var showTrackedOnly = false;
+  function toggleTrackedFilter() {
+    showTrackedOnly = !showTrackedOnly;
+    var btn = document.getElementById("btn-tracked-filter");
+    btn.className = showTrackedOnly
+      ? "px-2 py-0.5 rounded text-xs border border-[#14b8a6] bg-[#14b8a6] text-white cursor-pointer transition-colors"
+      : "px-2 py-0.5 rounded text-xs border border-[rgba(255,255,255,.12)] bg-transparent text-sub hover:text-white cursor-pointer transition-colors";
+    applyFilter();
+  }
+
+  function toggleFilter(os) {
+    activeFilters[os] = !activeFilters[os];
+    var btn = document.getElementById("btn-filter-" + os);
+    if (activeFilters[os]) {
+      btn.className = "px-2 py-0.5 rounded text-xs border border-[#14b8a6] bg-[#14b8a6] text-white cursor-pointer transition-colors";
+    } else {
+      btn.className = "px-2 py-0.5 rounded text-xs border border-[rgba(255,255,255,.12)] bg-transparent text-sub hover:text-white cursor-pointer transition-colors";
+    }
+    applyFilter();
+  }
+
+  function applyFilter() {
+    var filtered = allSourceRules;
+    if (showTrackedOnly) {
+      filtered = filtered.filter(function(r) { return trackedApps.indexOf(r.app_id) >= 0; });
+    }
+    var activeCount = 0;
+    for (var k in activeFilters) { if (activeFilters[k]) activeCount++; }
+    if (activeCount > 0) {
+      filtered = filtered.filter(function(r) {
+        return (r.platforms || []).some(function(p) { return activeFilters[p]; });
+      });
+    }
+    document.getElementById("card-grid").innerHTML = renderCards(filtered);
   }
 
   async function doSearch() {
@@ -121,9 +186,9 @@
         <div class="text-sm font-semibold truncate"><span ${tipAttr((r.app_id || '') + (r.status && r.status.length && r.status[0] ? '<br>状态：' + r.status.join(', ') : ''))}>${r.name || r.app_id}</span>${(r.status && r.status.length && r.status[0]) ? ' <span class="inline-block w-2 h-2 rounded-full bg-[#e8a040] align-middle" title="' + r.status.join(', ') + '"></span>' : ''}</div>
         <div class="text-xs text-sub mt-1 truncate">${r.description || r.app_id}</div>
         <div class="flex-1 mt-3 flex flex-col gap-1 pl-2">
-          ${platforms.map(p => `<label class="flex items-center gap-2 text-xs text-sub cursor-pointer"><input type="checkbox" class="rule-cb" data-os="${p}" onchange="event.stopPropagation()"> ${p}</label>`).join("")}
+          ${platforms.map(p => `<label class="flex items-center gap-2 text-xs text-sub cursor-pointer"><input type="checkbox" class="rule-cb" data-os="${p}" onchange="event.stopPropagation()"> ${platformLabel(p)}</label>`).join("")}
         </div>
-        <button onclick="event.stopPropagation(); addToTracker('${r.app_id}', this)" class="mt-3 w-full text-center text-xs text-sub hover:text-white border border-[rgba(255,255,255,.12)] rounded-lg py-1 cursor-pointer hover:border-[#FE8A95] transition-colors">添加到默认Tracker</button>
+        <button onclick="event.stopPropagation(); addToTracker('${r.app_id}', this)" class="mt-3 w-full text-center text-xs text-sub hover:text-white border border-[rgba(255,255,255,.12)] rounded-lg py-1 cursor-pointer hover:border-[#14b8a6] transition-colors">添加到默认 Tracker</button>
       </div>`;
     }).join("");
   }

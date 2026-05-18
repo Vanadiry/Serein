@@ -58,12 +58,18 @@ function renderTopbar(current) {
 }
 
 // ── 图标 ──
+function platformLabel(os) {
+  const labels = { macos: "macOS", windows: "Windows", linux: "Linux", android: "Android", ios: "iOS" };
+  return labels[os] || os;
+}
+
 function platformIcon(os, cls) {
   const map = { macos: "apple", windows: "windows", linux: "linux" };
   const name = map[os];
+  const label = platformLabel(os);
   const sz = cls || "w-5 h-5";
-  if (name) return `<span class="icon-bg inline-flex">${iconImgRaw(name, os, sz)}</span>`;
-  return `<span class="icon-bg inline-flex"><span class="${sz} text-xs text-sub font-semibold inline-flex items-center justify-center" title="${os}">${os.slice(0, 2).toUpperCase()}</span></span>`;
+  if (name) return `<span class="icon-bg inline-flex">${iconImgRaw(name, label, sz)}</span>`;
+  return `<span class="icon-bg inline-flex"><span class="${sz} text-xs text-sub font-semibold inline-flex items-center justify-center" title="${label}">${os.slice(0, 2).toUpperCase()}</span></span>`;
 }
 
 function iconImg(file, alt, cls) {
