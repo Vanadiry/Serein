@@ -51,6 +51,7 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 
 	type detail struct {
 		AppID          string            `json:"app_id"`
+			Description     string            `json:"description,omitempty"`
 		Name            string            `json:"name"`
 		OfficialWebsite string            `json:"official_website,omitempty"`
 			Status          []string          `json:"status,omitempty"`
@@ -72,6 +73,7 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 			d.RuleMissing = true
 		} else {
 			d.Name = rule.Info.Name
+			d.Description = rule.Info.Description
 			d.OfficialWebsite = rule.Info.OfficialWebsite
 			d.Status = rule.Info.Status
 			d.SourceID = rule.SourceID
@@ -131,6 +133,7 @@ func (s *Server) handleTrackerAdd(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		TrackerID string   `json:"tracker_id"`
 		AppID     string   `json:"app_id"`
+			Description     string            `json:"description,omitempty"`
 		Platforms []string `json:"platforms"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
