@@ -158,11 +158,13 @@
 
   async function refreshApp(appId) {
     console.log("[check] ids:", appId);
+    const ld = showLoading("加载中", "正在检查...");
     const data = await apiPost("/api/check/ids", [appId]);
     if (data && data.length) {
       for (const r of data) checkResults[r.app_id] = r;
       loadTrackerDetail(currentTracker);
     }
+    ld.done("检查完成");
   }
 
   async function confirmUpdate(appId) {
