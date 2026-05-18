@@ -85,11 +85,14 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 		if len(platforms) == 0 {
 			platforms = s.config.Serein.Platforms
 		}
-		if ud, ok := userData[entry.AppID]; ok {
+		ud := userData[entry.AppID]
 			for _, p := range platforms {
-				d.CurrentVersion[p] = ud[p]
+				if ud != nil {
+					d.CurrentVersion[p] = ud[p]
+				} else {
+					d.CurrentVersion[p] = ""
+				}
 			}
-		}
 		result = append(result, d)
 	}
 	if result == nil {
