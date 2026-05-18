@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -27,7 +28,7 @@ func LoadUserData(home string) (UserData, error) {
 	if info.Size() == 0 {
 		return ud, nil // 空文件 → 返回空数据
 	}
-	if err := json.NewDecoder(f).Decode(&ud); err != nil {
+	if err := json.NewDecoder(f).Decode(&ud); err != nil && err != io.EOF {
 		return nil, fmt.Errorf("decode user data: %w", err)
 	}
 	return ud, nil
