@@ -195,20 +195,23 @@
     };
   }
 
+  function cleanGitHubError(msg) {
+    // 提取 JSON 中的 message 字段
+    var m = msg.match(/"message"\s*:\s*"([^"]+)"/);
+    if (m) msg = m[1];
+    // 截断 GitHub 提示
+    var idx = msg.indexOf("(But here's the good news");
+    if (idx >= 0) msg = msg.substring(0, idx).trim();
+    return msg;
+  }
+
   function collectErrors(data) {
     var errs = [];
     if (!Array.isArray(data)) return errs;
     for (const r of data) {
       for (const [os, p] of Object.entries(r.platforms || {})) {
         if (p.error) {
-          var msg = p.error;
-          var idx = msg.indexOf("(But here's the good news");
-          if (idx >= 0) msg = msg.substring(0, idx).trim();
-          // 去掉 HTTP 403: {"message":"..."} 的 JSON 部分，只留消息
-          var jsonStart = msg.indexOf('{"message":"');
-          if (jsonStart >= 0) {
-            msg = msg.substring(0, jsonStart).trim() + " " + msg.substring(jsonStart + 12).replace(/"}$/, "");
-          }
+          var msg = cleanGitHubError(p.error);
           errs.push('<span class="text-[#e8a040]">' + r.name + " " + os + "</span>: " + msg);
         }
       }
@@ -216,34 +219,38 @@
     return errs;
   }
 
-  async function checkTracker() {
-    const ld = showLoading("正在检查当前Tracker…");
-    const data = await apiPost("/api/check/tracker", { tracker_id: currentTracker });
+  function finishCheck(ld, data) {
     mergeCheckResults(data);
     loadTrackerDetail(currentTracker);
     var errs = collectErrors(data);
     showCheckDone(ld, errs);
   }
 
+  async function checkTracker() {
+    const ld = showLoading("加载中", "正在检查当前Tracker…");
+    try { var data = await apiPost("/api/check/tracker", { tracker_id: currentTracker }); finishCheck(ld, data); }
+    catch(e) { ld.done(e.message || "请求失败", true); }
+  }
+
   async function checkAll() {
-    const ld = showLoading("正在检查全部更新…");
-    const data = await apiPost("/api/check/all");
-    mergeCheckResults(data);
-    loadTrackerDetail(currentTracker);
-    var errs = collectErrors(data);
-    showCheckDone(ld, errs);
+    const ld = showLoading("加载中", "正在检查全部更新…");
+    try { var data = await apiPost("/api/check/all"); finishCheck(ld, data); }
+    catch(e) { ld.done(e.message || "请求失败", true); }
   }
 
   function showCheckDone(ld, errs) {
     if (!errs.length) { ld.done("检查完成"); return; }
     var hasRateLimit = errs.some(function(e) { return e.indexOf("API rate limit exceeded") >= 0; });
-    var title = "检查完成，" + errs.length + " 个错误";
-    if (hasRateLimit) title += "（你似乎达到了 GitHub 请求速率限制，查看 Serein 文档获取更多信息）";
-    ld.done(title + "<hr class=\"border-[rgba(255,255,255,.12)] my-2\">" + errs.join("<br>"), true, 10);
+    var hasAbuse = errs.some(function(e) { return e.indexOf("abuse detection") >= 0; });
+    var body = "";
+    if (hasRateLimit) body += "提示：你似乎达到了 GitHub 请求速率限制，查看 Serein 文档获取更多信息。<br><br>";
+    if (hasAbuse) body += "提示：你似乎在短时间大量请求 GitHub API 导致被暂时封禁。请降低并发，不要频繁操作，稍等片刻再继续尝试。<br><br>";
+    body += errs.join("<br>");
+    ld.done(body, true, errs.length + " 个错误");
   }
 
   async function readCache() {
-    const ld = showLoading("正在读取缓存…");
+    const ld = showLoading("加载中", "正在读取缓存…");
     for (const t of ["all", "ids", "tracker"]) {
       mergeCheckResults(await api("/api/check/temp/" + t));
     }

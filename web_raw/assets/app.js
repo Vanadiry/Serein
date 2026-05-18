@@ -90,26 +90,72 @@ function formatURL(u) {
   return "";
 }
 
-// ── 通知 ──
-function showToast(msg, bg) {
-  const el = document.createElement("div");
-  el.className = `fixed bottom-4 right-4 z-[100] px-4 py-2 rounded-lg text-sm text-white font-semibold shadow-lg ${bg}`;
-  el.textContent = msg;
-  document.body.appendChild(el);
-  return el;
-}
+// ── 通知组件 ──
+var _currentToast = null;
 
-function showLoading(msg) {
-  var el = showToast(msg, "bg-[#e8a040]");
+function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
+  if (_currentToast) {
+    var old = _currentToast;
+    old.style.opacity = "0";
+    setTimeout(function() { old.remove(); }, 300);
+  }
+
+  var el = document.createElement("div");
+  el.className = "fixed bottom-4 right-4 z-[100] rounded-lg shadow-xl text-sm";
+  el.style.maxWidth = "calc(100vw - 32px)";
+  el.innerHTML =
+    '<div class="' + titleBg + ' text-white font-semibold px-4 py-2 rounded-t-lg flex items-center justify-between">' +
+    '<span>' + title + '</span>' +
+    '<span class="cursor-pointer text-white opacity-60 hover:opacity-100 text-base leading-none ml-3">✕</span>' +
+    '</div>' +
+    '<div class="' + bodyBg + ' text-white px-4 py-2 rounded-b-lg">' + (body || "") + '</div>';
+  document.body.appendChild(el);
+
+  var timer = null;
+  function close() {
+    if (timer) clearTimeout(timer);
+    el.style.opacity = "0";
+    setTimeout(function() { el.remove(); }, 300);
+    if (_currentToast === el) _currentToast = null;
+    closed = true;
+  }
+  var closed = false;
+
+  el.querySelector("span[class*='cursor-pointer']").onclick = close;
+
+  if (autoCloseSec > 0) {
+    timer = setTimeout(close, autoCloseSec * 1000);
+  }
+
+  _currentToast = el;
+
   return {
-    done: function(okMsg, isError, duration) {
-      var bg = isError ? "bg-[#dc2626]" : "bg-[#68a868]";
-      el.className = el.className.replace("bg-[#e8a040]", bg);
-      el.innerHTML = okMsg;
-      var sec = (duration || 3) * 1000;
-      setTimeout(function() { el.style.opacity = "0"; setTimeout(function() { el.remove(); }, 300); }, sec);
+    el: el,
+    done: function(okBody, isError, titleText) {
+      if (closed) {
+        var t = _makeToast(isError ? "错误" : "成功", okBody, isError ? "bg-[#dc2626]" : "bg-[#68a868]", isError ? "bg-[#dc2626]/80" : "bg-[#68a868]/80", isError ? 0 : 5);
+        if (titleText) t.el.querySelector("span:first-child").textContent = titleText;
+        return;
+      }
+      var tb = isError ? "bg-[#dc2626]" : "bg-[#68a868]";
+      var bb = isError ? "bg-[#dc2626]/80" : "bg-[#68a868]/80";
+      var tt = titleText || (isError ? "错误" : "成功");
+      el.querySelector("div:first-child").className = tb + " text-white font-semibold px-4 py-2 rounded-t-lg flex items-center justify-between";
+      el.querySelector("span:first-child").textContent = tt;
+      el.querySelector("div:last-child").className = bb + " text-white px-4 py-2 rounded-b-lg";
+      el.querySelector("div:last-child").innerHTML = okBody || "";
+      if (isError) {
+        if (timer) clearTimeout(timer);
+      } else {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(close, 5000);
+      }
     }
   };
+}
+
+function showLoading(title, body) {
+  return _makeToast(title || "加载中", body || "", "bg-[#e8a040]", "bg-[#e8a040]/80", 0);
 }
 
 // ── 链接悬停框（全局单例，避免被 overflow-hidden 裁剪）──

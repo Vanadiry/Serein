@@ -53,13 +53,13 @@
   loadSources();
 
   document.getElementById("btn-sync").onclick = async () => {
-    const ld = showLoading("正在同步规则…");
+    const ld = showLoading("加载中", "正在同步规则…");
     const result = await apiPost("/api/rules/sync");
     loadSources();
     if (result && result.Errors && result.Errors.length) {
       var msg = "同步完成，" + result.Synced.length + " 个成功，" + result.Errors.length + " 个失败<br><br>" +
         result.Errors.map(function(e) { return e.url + ": " + e.reason; }).join("<br>");
-      ld.done(msg, true, 10);
+      ld.done(msg, true);
     } else if (result && result.Synced) {
       ld.done("同步完成（" + result.Synced.length + " 个源）");
     } else {
