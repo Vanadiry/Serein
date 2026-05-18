@@ -23,10 +23,8 @@ func (s *Server) handleCheckAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	checker.ClearURLCache()
-	store.Logf("[check/all] %d entries", len(entries))
 	result := runTrackerChecks(s.home, entries)
 	saveCheckTemp(s.home, "all", result)
-	store.Logf("[check/all] done, %d results", len(result))
 	writeJSON(w, http.StatusOK, result)
 }
 
@@ -161,9 +159,6 @@ func runTrackerChecks(home string, entries []store.TrackerEntry) []checker.Check
 		var platCfgs []checker.PlatformCheckConfig
 		for _, os := range platforms {
 			platCfg := rule.MergedConfig(os)
-			if platCfg.URL == "" && platCfg.Type != "github" {
-				continue
-			}
 
 			// 执行前置请求链，获取最终 URL
 			preSteps := rule.PreRequestChain(os)
@@ -183,6 +178,10 @@ func runTrackerChecks(home string, entries []store.TrackerEntry) []checker.Check
 				if err == nil && preURL != "" {
 					platCfg.URL = preURL
 				}
+			}
+
+			if platCfg.URL == "" && platCfg.Type != "github" {
+				continue
 			}
 
 			currentVer := ""

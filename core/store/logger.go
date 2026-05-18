@@ -1,6 +1,7 @@
 package store
 
 import (
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -44,27 +45,11 @@ func InitLogger(home string) error {
 		return err
 	}
 
-	multi := ioMultiWriter(os.Stdout, f)
-	log.SetOutput(multi)
+	log.SetOutput(io.MultiWriter(os.Stdout, f))
 	log.SetFlags(log.LstdFlags)
 	logFile = f
 	logInited = true
 	return nil
-}
-
-func ioMultiWriter(writers ...interface{ Write([]byte) (int, error) }) *multiWriter {
-	return &multiWriter{writers: writers}
-}
-
-type multiWriter struct {
-	writers []interface{ Write([]byte) (int, error) }
-}
-
-func (m *multiWriter) Write(p []byte) (int, error) {
-	for _, w := range m.writers {
-		w.Write(p)
-	}
-	return len(p), nil
 }
 
 // Logf 格式化日志
