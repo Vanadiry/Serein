@@ -38,16 +38,12 @@ function renderTopbar(current) {
           <a href="/" class="no-underline px-3 py-1.5 rounded-lg text-sm ${navCls("/")}">应用</a>
           <a href="/rules" class="no-underline px-3 py-1.5 rounded-lg text-sm ${navCls("/rules")}">规则</a>
         </nav>
-        <nav class="flex gap-1 ml-2 items-center">
-          <a href="/api" target="_blank" class="no-underline px-3 py-1.5 rounded-lg text-sm ${navCls("/api")}">API</a>
-          <a href="https://github.com/Vanadiry/Serein/" target="_blank" class="no-underline px-3 py-1.5 rounded-lg text-sm ${navCls("/github")}">GitHub</a>
-        </nav>
         <div class="flex-1"></div>
         ${isIndex ? `
         <nav class="flex gap-1 items-center">
+          <button id="btn-read-cache" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-[#30303b] hover:text-white cursor-pointer border-0 bg-transparent">读取缓存</button>
           <button id="btn-check-all" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-[#30303b] hover:text-white cursor-pointer border-0 bg-transparent">检查全部</button>
           <button id="btn-tracker-check" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-[#30303b] hover:text-white cursor-pointer border-0 bg-transparent">检查当前 Tracker</button>
-          <button id="btn-read-cache" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-[#30303b] hover:text-white cursor-pointer border-0 bg-transparent">读取缓存</button>
         </nav>` : `
         <nav class="flex gap-1 items-center">
           <button id="btn-search-mode" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-[#30303b] hover:text-white cursor-pointer border-0 bg-transparent">搜索规则</button>

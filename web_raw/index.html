@@ -17,8 +17,16 @@
   </aside>
 
   <main class="flex-1 min-w-0">
-    <div id="placeholder" class="text-center py-20 text-sub text-sm">
-      在左侧栏选择 Tracker 来查看对应列表中追踪的软件<br /><br />若是你第一次启动，请前往规则页面<br />点击规则页面右上角的同步规则，来拉取内置的规则表。
+    <div id="placeholder" class="text-sub text-sm max-w-[600px] pt-[25vh] pl-2">
+      <h2 class="text-lg font-semibold text-white mb-3">欢迎使用 Serein</h2>
+      <p class="mb-2">在左侧栏选择一个 Tracker 来查看对应列表中追踪的软件。</p>
+      <p class="mb-4">点击右上角的按钮，能够检查软件更新。</p>
+      <p class="mb-8">若是你第一次启动，请前往<a href="/rules" class="text-[#14b8a6] hover:underline">规则页</a>，点击右上角的「同步规则」来拉取内置的规则表。</p>
+
+      <h2 class="text-lg font-semibold text-white mb-3">关于</h2>
+      <p class="mb-2">Serein 在 <a href="https://github.com/Vanadiry/Serein/" class="text-[#14b8a6] hover:underline">GitHub</a> 开源。前后端分离，你可以在 <a href="/api" class="text-[#14b8a6] hover:underline">API</a> 查看相关端点。</p>
+      <p>规则表也依赖于社区贡献，内置的规则表项目：<a href="https://github.com/Vanadiry/SereinRulesList/" class="text-[#14b8a6] hover:underline">SereinRulesList</a>。</p>
+
     </div>
     <div id="software-list" class="flex flex-col gap-0 hidden"></div>
   </main>
@@ -76,7 +84,7 @@
     const placeholder = document.getElementById("placeholder");
     if (!data.length) {
       placeholder.classList.remove("hidden");
-      placeholder.innerHTML = '这是一个空的 Tracker';
+      placeholder.innerHTML = '<h2 class="text-lg font-semibold text-white mb-2">空的 Tracker</h2><p>这个 Tracker 还没有添加任何软件。前往<a href="/rules" class="text-[#14b8a6] hover:underline">规则页面</a>搜索并添加软件。</p>';
       list.classList.add("hidden");
       return;
     }
