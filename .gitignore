@@ -10,7 +10,6 @@ scripts/list.txt
 
 
 # Build
-scripts/build_dev.py
 build/
 web/assets/app.min.js
 web/index.html
