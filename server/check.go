@@ -194,6 +194,7 @@ func runTrackerChecks(home string, entries []store.TrackerEntry) []checker.Check
 			RuleType:        rule.Config.Type,
 			Owner:           rule.Config.Owner,
 			Repo:            rule.Config.Repo,
+				GithubToken:     cfg.Serein.GithubToken,
 			Platforms:       platCfgs,
 		}})
 	}

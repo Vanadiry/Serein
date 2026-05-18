@@ -7,6 +7,7 @@ host = "127.0.0.1"
 port = 12510
 platforms = ["macos", "windows"]
 concurrency = 8   # 并发检查数（最大 64）
+# github_token = "ghp_xxx"   # GitHub Personal Access Token，提升请求限额
 
 # 规则源列表（可选）
 # [[rule_sources]]

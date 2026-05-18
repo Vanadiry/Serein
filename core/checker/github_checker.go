@@ -15,7 +15,11 @@ const githubAPI = "https://api.github.com/repos"
 // 一次 HTTP 请求，两种结果：latest 来自 [0, ...]，versions 来自全部。
 func CheckGitHubAll(cfg CheckConfig, client *http.Client) (PlatformResult, []PlatformResult, error) {
 	url := fmt.Sprintf("%s/%s/%s/releases", githubAPI, cfg.Owner, cfg.Repo)
-	body, err := doRequest(client, url, cfg.UA, mergeHeaders(cfg.Headers, "application/vnd.github+json"))
+	headers := mergeHeaders(cfg.Headers, "application/vnd.github+json")
+	if cfg.GithubToken != "" {
+		headers["Authorization"] = "Bearer " + cfg.GithubToken
+	}
+	body, err := doRequest(client, url, cfg.UA, headers)
 	if err != nil {
 		return PlatformResult{}, nil, fmt.Errorf("github: %w", err)
 	}

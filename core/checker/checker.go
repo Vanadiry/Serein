@@ -9,17 +9,18 @@ import (
 
 // CheckConfig 一次检查的配置
 type CheckConfig struct {
-	URL       string
-	Type      string
-	UA        string
-	Headers   map[string]string
-	BaseURL   string
-	Owner     string // GitHub
-	Repo      string // GitHub
-	VPosition any
-	DPosition any
-	VJoin     string
-	DJoin     string
+	URL         string
+	Type        string
+	UA          string
+	Headers     map[string]string
+	BaseURL     string
+	Owner       string // GitHub
+	Repo        string // GitHub
+	GithubToken string
+	VPosition   any
+	DPosition   any
+	VJoin       string
+	DJoin       string
 }
 
 // PlatformResult 单个平台的检查结果

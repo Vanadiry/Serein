@@ -22,6 +22,7 @@ type SereinConfig struct {
 	Port        int      `toml:"port"`
 	Platforms   []string `toml:"platforms"`
 	Concurrency int      `toml:"concurrency"`
+	GithubToken string   `toml:"github_token,omitempty"`
 }
 
 func DefaultConfig() Config {

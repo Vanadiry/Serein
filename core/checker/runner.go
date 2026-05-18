@@ -17,6 +17,7 @@ type CheckRequest struct {
 	RuleType        string // github / json / xml / ...
 	Owner           string
 	Repo            string
+	GithubToken     string
 	Platforms       []PlatformCheckConfig
 }
 
@@ -111,6 +112,7 @@ func runGitHubCheck(req CheckRequest, client *http.Client) (CheckResponse, error
 	cfg := CheckConfig{
 		Owner: req.Owner,
 		Repo:  req.Repo,
+			GithubToken: req.GithubToken,
 	}
 	if len(req.Platforms) > 0 {
 		cfg.UA = req.Platforms[0].UA
