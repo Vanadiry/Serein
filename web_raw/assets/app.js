@@ -103,7 +103,8 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
   }
 
   var el = document.createElement("div");
-  el.className = "fixed bottom-4 right-4 z-[100] rounded-lg shadow-xl text-sm";
+  el.className = "fixed bottom-4 right-4 z-[100] rounded-lg shadow-xl text-sm transition-opacity duration-200";
+  el.style.opacity = "0";
   el.style.maxWidth = "calc(100vw - 32px)";
   el.innerHTML =
     '<div class="' + titleBg + ' text-white font-semibold px-4 py-2 rounded-t-lg flex items-center justify-between">' +
@@ -112,6 +113,7 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
     '</div>' +
     '<div class="' + bodyBg + ' text-white px-4 py-2 rounded-b-lg">' + (body || "") + '</div>';
   document.body.appendChild(el);
+  requestAnimationFrame(function() { el.style.opacity = "1"; });
 
   var timer = null;
   function close() {
@@ -165,8 +167,9 @@ var _tooltipEl = null;
 function _ensureTooltip() {
   if (!_tooltipEl) {
     _tooltipEl = document.createElement("div");
-    _tooltipEl.className = "fixed bg-[#1c1c22] border border-[rgba(255,255,255,.15)] text-xs text-sub rounded-lg px-3 py-2 shadow-xl pointer-events-none z-[200]";
+    _tooltipEl.className = "fixed bg-[#1c1c22] border border-[rgba(255,255,255,.15)] text-xs text-sub rounded-lg px-3 py-2 shadow-xl pointer-events-none z-[200] transition-opacity duration-150";
     _tooltipEl.style.display = "none";
+    _tooltipEl.style.opacity = "0";
     _tooltipEl.style.maxWidth = (window.innerWidth - 32) + "px";
     _tooltipEl.style.whiteSpace = "normal";
     _tooltipEl.style.wordBreak = "break-all";
@@ -184,6 +187,7 @@ function _positionTooltip(e) {
   tip.style.top = (rect.top - 8) + "px";
   tip.style.transform = "translate(-50%, -100%)";
   tip.style.display = "block";
+  requestAnimationFrame(function() { tip.style.opacity = "1"; });
 
   var tipRect = tip.getBoundingClientRect();
   if (tipRect.right > window.innerWidth - 16) {
@@ -209,7 +213,7 @@ function showTooltip(e, html) {
 }
 
 function hideTooltip() {
-  if (_tooltipEl) _tooltipEl.style.display = "none";
+  if (_tooltipEl) { _tooltipEl.style.opacity = "0"; }
 }
 
 // 链接悬停（下载地址，文件名高亮）
@@ -227,7 +231,7 @@ function linkWithTooltip(href, innerHTML, os) {
 function earthTooltip(href) {
   var m = href.match(/^(https?:\/\/[^\/]+)/);
   var domain = m ? m[1] : href;
-  return "官网：<br>" + href.replace(domain, '<span class="text-ok font-semibold">' + domain + '</span>');
+  return href.replace(domain, '<span class="text-ok font-semibold">' + domain + '</span>');
 }
 
 // 纯文本提示
