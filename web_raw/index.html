@@ -18,7 +18,7 @@
 
   <main class="flex-1 min-w-0">
     <div id="placeholder" class="text-center py-20 text-sub text-sm">
-      在左侧栏选择 Tracker 来查看对应列表中追踪的软件<br /><br />若是首次运行，请前往规则页面，在右上角执行同步规则
+      在左侧栏选择 Tracker 来查看对应列表中追踪的软件<br /><br />若是你第一次启动，请前往规则页面<br />点击规则页面右上角的同步规则，来拉取内置的规则表。
     </div>
     <div id="software-list" class="flex flex-col gap-0 hidden"></div>
   </main>
@@ -130,20 +130,17 @@
           });
         }
       }
-      // 绿色对钩（仅在有更新时显示）
-      if (hasUpdate) {
-        rightIcons += `<span onclick="event.stopPropagation(); confirmUpdate('${d.app_id}')" title="应用更新" class="mx-3">${iconYes("应用更新", "w-5 h-5")}</span>`;
-      }
+      rightIcons += `<span onclick="event.stopPropagation(); confirmUpdate('${d.app_id}')" class="mx-3" ${tipAttr("确认这个更新")}>${iconYes("应用更新", "w-5 h-5")}</span>`;
     }
     // 常驻按钮：编辑、地球、刷新，粉色背景
-    rightIcons += `<span onclick="event.stopPropagation(); editVersion('${d.app_id}')" title="编辑版本">${iconImg("edit", "编辑版本", "w-5 h-5")}</span>`;
-    rightIcons += `<span class="${d.official_website ? "" : "opacity-30"}">${d.official_website ? `<a href="${d.official_website}" target="_blank" onclick="event.stopPropagation()" title="官网" class="no-underline">${iconImg("earth", "官网", "w-5 h-5")}</a>` : iconImg("earth", "无官网", "w-5 h-5")}</span>`;
-    rightIcons += `<span onclick="event.stopPropagation(); refreshApp('${d.app_id}')" title="检查更新">${iconImg("refresh", "检查更新", "w-5 h-5")}</span>`;
+    rightIcons += `<span onclick="event.stopPropagation(); editVersion('${d.app_id}')" ${tipAttr("修改已记录的版本号")}>${iconImg("edit", "修改已记录的版本号", "w-5 h-5")}</span>`;
+    rightIcons += `<span class="${d.official_website ? "" : "opacity-30"}" ${d.official_website ? tipAttr(earthTooltip(d.official_website)) : ''}>${d.official_website ? '<a href="' + d.official_website + '" target="_blank" onclick="event.stopPropagation()" class="no-underline">' + iconImg("earth", "官网", "w-5 h-5") + '</a>' : iconImg("earth", "无官网", "w-5 h-5")}</span>`;
+    rightIcons += `<span onclick="event.stopPropagation(); refreshApp('${d.app_id}')" ${tipAttr("检查更新")}>${iconImg("refresh", "检查更新", "w-5 h-5")}</span>`;
     rightIcons += `</span>`;
 
     return `<div class="flex items-center bg-[#2a2a2a] border border-[rgba(255,255,255,.08)] rounded-lg pl-2 pr-4 h-16 hover:border-[rgba(255,255,255,.12)] transition-colors mb-2 overflow-hidden">
       <div class="flex-1 min-w-0 pr-4 flex flex-col justify-center">
-        <div class="text-base font-semibold truncate pl-1" title="${d.app_id + (d.official_website ? '\n官网: ' + d.official_website : '')}">${d.name || d.app_id}${(d.status && d.status.length && d.status[0]) ? ' <span class="inline-block w-2 h-2 rounded-full bg-[#e8a040] align-middle" title="' + d.status.join(', ') + '"></span>' : ''}</div>
+        <div class="text-base font-semibold truncate pl-1"><span ${tipAttr((d.app_id || '') + (d.description ? '<br>' + d.description : '') + (d.status && d.status.length && d.status[0] ? '<br>状态：' + d.status.join(', ') : ''))}>${d.name || d.app_id}</span>${(d.status && d.status.length && d.status[0]) ? ' <span class="inline-block w-2 h-2 rounded-full bg-[#e8a040] align-middle" title="' + d.status.join(', ') + '"></span>' : ''}</div>
         <div class="mt-0.5">${versionHTML}</div>
       </div>
       ${rightIcons}
@@ -151,6 +148,7 @@
   }
 
   async function refreshApp(appId) {
+    console.log("[check] ids:", appId);
     const data = await apiPost("/api/check/ids", [appId]);
     if (data && data.length) {
       for (const r of data) checkResults[r.app_id] = r;
@@ -165,6 +163,7 @@
     for (const [os, p] of Object.entries(cr.platforms || {})) {
       if (p.latest_version) body[os] = p.latest_version;
     }
+    console.log("[confirm]", appId, body);
     await apiPost("/api/check/confirm", body);
     delete checkResults[appId];
     loadTrackerDetail(currentTracker);
@@ -180,8 +179,7 @@
       </div>`);
     const detail = await api("/api/tracker/list/" + currentTracker);
     const entry = (detail || []).find(e => e.app_id === appId);
-    const platforms = entry ? Object.keys(entry.current_version || {}) : [];
-    if (!platforms.length) platforms.push("macos", "windows");
+    var platforms = (entry && entry.current_version) ? Object.keys(entry.current_version) : [];
     document.getElementById("edit-platforms").innerHTML = platforms.map(os => {
       const cur = (entry && entry.current_version && entry.current_version[os]) || "";
       return `<div class="flex items-center gap-2"><span class="text-xs text-sub w-16">${os}</span><input class="flex-1 bg-[#202028] border border-[rgba(255,255,255,.12)] rounded-lg px-3 py-1.5 text-sm outline-none focus:border-[#FE8A95]" value="${cur}" data-os="${os}"></div>`;
@@ -228,13 +226,13 @@
 
   async function checkTracker() {
     const ld = showLoading("加载中", "正在检查当前Tracker…");
-    try { var data = await apiPost("/api/check/tracker", { tracker_id: currentTracker }); finishCheck(ld, data); }
+    try { console.log("[check] tracker:", currentTracker); var data = await apiPost("/api/check/tracker", { tracker_id: currentTracker }); finishCheck(ld, data); }
     catch(e) { ld.done(e.message || "请求失败", true); }
   }
 
   async function checkAll() {
     const ld = showLoading("加载中", "正在检查全部更新…");
-    try { var data = await apiPost("/api/check/all"); finishCheck(ld, data); }
+    try { console.log("[check] all"); var data = await apiPost("/api/check/all"); finishCheck(ld, data); }
     catch(e) { ld.done(e.message || "请求失败", true); }
   }
 

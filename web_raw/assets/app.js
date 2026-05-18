@@ -75,7 +75,7 @@ function iconYes(alt, cls) {
 }
 
 function iconImgRaw(file, alt, sz) {
-  return `<img src="/assets/${file}.svg" class="${sz} inline-block" alt="${alt}" title="${alt}">`;
+  return `<img src="/assets/${file}.svg" class="${sz} inline-block" alt="${alt}" title="${alt}" draggable="false">`;
 }
 
 // ── 工具 ──
@@ -158,39 +158,31 @@ function showLoading(title, body) {
   return _makeToast(title || "加载中", body || "", "bg-[#e8a040]", "bg-[#e8a040]/80", 0);
 }
 
-// ── 链接悬停框（全局单例，避免被 overflow-hidden 裁剪）──
+// ── 通用悬停提示（全局单例）──
 var _tooltipEl = null;
 function _ensureTooltip() {
   if (!_tooltipEl) {
     _tooltipEl = document.createElement("div");
-    _tooltipEl.className = "fixed bg-[#1c1c22] border border-[rgba(255,255,255,.15)] text-xs text-sub rounded-lg px-3 py-2 shadow-xl whitespace-nowrap pointer-events-none z-[200]";
+    _tooltipEl.className = "fixed bg-[#1c1c22] border border-[rgba(255,255,255,.15)] text-xs text-sub rounded-lg px-3 py-2 shadow-xl pointer-events-none z-[200]";
     _tooltipEl.style.display = "none";
+    _tooltipEl.style.maxWidth = (window.innerWidth - 32) + "px";
+    _tooltipEl.style.whiteSpace = "normal";
+    _tooltipEl.style.wordBreak = "break-all";
+    _tooltipEl.style.lineHeight = "1.4";
     document.body.appendChild(_tooltipEl);
   }
   return _tooltipEl;
 }
 
-function _showTooltip(e, href) {
-  var parts = href.split("/");
-  var filename = parts[parts.length - 1];
+function _positionTooltip(e) {
   var tip = _ensureTooltip();
-  tip.innerHTML = parts.slice(0, -1).join("/") + "/" + '<span class="text-ok font-semibold">' + filename + "</span>";
-  tip.style.display = "block";
-  tip.style.maxWidth = (window.innerWidth - 32) + "px";
-  tip.style.whiteSpace = "normal";
-  tip.style.wordBreak = "break-all";
-  tip.style.lineHeight = "1.4";
-
   var rect = e.target.getBoundingClientRect();
   var left = rect.left + rect.width / 2;
-  var top = rect.top - 8;
-
-  // 先设位置再读尺寸
   tip.style.left = left + "px";
-  tip.style.top = top + "px";
+  tip.style.top = (rect.top - 8) + "px";
   tip.style.transform = "translate(-50%, -100%)";
+  tip.style.display = "block";
 
-  // 若超出屏幕右侧，右对齐
   var tipRect = tip.getBoundingClientRect();
   if (tipRect.right > window.innerWidth - 16) {
     tip.style.left = "auto";
@@ -203,15 +195,42 @@ function _showTooltip(e, href) {
   }
 }
 
-function _hideTooltip() {
+function showTooltip(e, html) {
+  // 若 html 未传，从 data-tip 读取
+  if (!html && e && e.target) {
+    var el = e.target.closest("[data-tip]");
+    if (el) html = el.getAttribute("data-tip");
+  }
+  if (!html) return;
+  _ensureTooltip().innerHTML = html;
+  _positionTooltip(e);
+}
+
+function hideTooltip() {
   if (_tooltipEl) _tooltipEl.style.display = "none";
 }
 
+// 链接悬停（下载地址，文件名高亮）
 function linkWithTooltip(href, innerHTML, os) {
+  var parts = href.split("/");
+  var filename = parts[parts.length - 1];
+  var tipHTML = parts.slice(0, -1).join("/") + "/" + '<span class="text-ok font-semibold">' + filename + "</span>";
   return '<a href="' + href + '" download onclick="event.stopPropagation()" class="no-underline"' +
-    ' onmouseenter="_showTooltip(event,\'' + href + '\')"' +
-    ' onmouseleave="_hideTooltip()">' +
+    ' data-tip="' + tipHTML.replace(/"/g, "&quot;") + '"' +
+    ' onmouseenter="showTooltip(event)" onmouseleave="hideTooltip()">' +
     innerHTML + "</a>";
+}
+
+// 官网链接悬停（高亮根域）
+function earthTooltip(href) {
+  var m = href.match(/^(https?:\/\/[^\/]+)/);
+  var domain = m ? m[1] : href;
+  return "官网：<br>" + href.replace(domain, '<span class="text-ok font-semibold">' + domain + '</span>');
+}
+
+// 纯文本提示
+function tipAttr(html) {
+  return ' data-tip="' + html.replace(/"/g, "&quot;") + '" onmouseenter="showTooltip(event)" onmouseleave="hideTooltip()"';
 }
 
 // ── 弹窗 ──
