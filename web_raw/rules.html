@@ -118,8 +118,8 @@
     return rules.map(r => {
       const platforms = r.platforms || [];
       return `<div class="bg-[#2a2a2a] border border-[rgba(255,255,255,.08)] rounded-xl p-3 flex flex-col card-h hover:border-[rgba(255,255,255,.12)] transition-colors">
-        <div class="text-sm font-semibold truncate" title="${r.app_id + (r.description ? '\n' + r.description : '') + (r.official_website ? '\n' + r.official_website : '')}">${r.name || r.app_id}</div>
-        <div class="text-xs text-sub mt-1 truncate">${r.app_id}</div>
+        <div class="text-sm font-semibold truncate" title="${r.app_id + (r.description ? '\n' + r.description : '') + (r.official_website ? '\n' + r.official_website : '')}">${r.name || r.app_id}${(r.status && r.status.length && r.status[0]) ? ' <span class="inline-block w-2 h-2 rounded-full bg-[#e8a040] align-middle" title="' + r.status.join(', ') + '"></span>' : ''}</div>
+        <div class="text-xs text-sub mt-1 truncate">${r.description || r.app_id}</div>
         <div class="flex-1 mt-3 flex flex-col gap-1 pl-2">
           ${platforms.map(p => `<label class="flex items-center gap-2 text-xs text-sub cursor-pointer"><input type="checkbox" class="rule-cb" data-os="${p}" onchange="event.stopPropagation()"> ${p}</label>`).join("")}
         </div>
