@@ -88,16 +88,26 @@
   function renderSoftwareRow(d) {
     const checked = checkResults[d.app_id];
     const hasUpdate = checked && Object.values(checked.platforms || {}).some(p => p.latest_version && p.latest_version !== p.current_version);
-
     let versionHTML = "";
     if (d.rule_missing) {
       versionHTML = `<span class="text-yellow-500 text-sm">⚠ 规则缺失</span>`;
+    } else if (hasUpdate) {
+      const parts = [];
+      for (const [os, p] of Object.entries(checked.platforms)) {
+        if (p.latest_version && p.latest_version !== p.current_version) {
+          parts.push(`<span class="opacity-50">${platformIcon(os, "w-4 h-4")}</span> <span class="text-err">${p.current_version || "-"}</span> <span class="text-sub">→</span> <span class="text-ok">${p.latest_version}</span>`);
+        } else if (p.latest_version && p.latest_version === p.current_version) {
+          parts.push(`<span class="opacity-50">${platformIcon(os, "w-4 h-4")}</span> <span class="text-ok">${p.current_version || "-"}</span> <span class="text-sub">(无更新)</span>`);
+        } else {
+          parts.push(`<span class="opacity-50">${platformIcon(os, "w-4 h-4")}</span> <span class="text-sub">${p.current_version || "-"}</span>`);
+        }
+      }
+      versionHTML = `<span class="text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
     } else if (checked && Object.keys(checked.platforms || {}).length > 0) {
-      // 检查过，全部已是最新
       const parts = [];
       for (const [os, p] of Object.entries(checked.platforms)) {
         var v = p.current_version || p.latest_version || d.current_version?.[os];
-        parts.push(`<span class="opacity-50">${platformIcon(os, "w-4 h-4")}</span> <span class="text-ok">${v || "-"}</span> <span class="text-sub">(up to date)</span>`);
+        parts.push(`<span class="opacity-50">${platformIcon(os, "w-4 h-4")}</span> <span class="text-ok">${v || "-"}</span> <span class="text-sub">(无更新)</span>`);
       }
       versionHTML = `<span class="text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
     } else {
@@ -108,7 +118,7 @@
       versionHTML = `<span class="text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;") || "未记录版本"}</span>`;
     }
 
-    // 右侧：[平台] [yes]  |  [编辑] [地球] [刷新]
+    // 右侧：[平台]  |  [yes]  |  [编辑] [地球] [刷新]
     let rightIcons = `<span class="flex items-center gap-2 shrink-0">`;
     // 平台下载图标（检查后有数据才显示）
     if (checked && Object.keys(checked.platforms || {}).length > 0) {
