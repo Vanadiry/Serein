@@ -82,6 +82,7 @@ func (s *Server) handleCheckTracker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	store.Logf("[check/tracker] %s", body.TrackerID)
+	checker.ClearURLCache()
 	result := runTrackerChecks(s.home, entries)
 	saveCheckTemp(s.home, "tracker", result)
 	writeJSON(w, http.StatusOK, result)
