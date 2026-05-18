@@ -41,6 +41,7 @@ func CheckGitHubAll(cfg CheckConfig, client *http.Client) (PlatformResult, []Pla
 	}
 
 	var latest PlatformResult
+	var latestFound bool
 	var versions []PlatformResult
 
 	for i := range arr {
@@ -56,8 +57,9 @@ func CheckGitHubAll(cfg CheckConfig, client *http.Client) (PlatformResult, []Pla
 		}
 		versions = append(versions, pr)
 
-		if i == 0 {
+		if !latestFound && !isGitHubPrerelease(root, i) {
 			latest = pr
+			latestFound = true
 		}
 	}
 
@@ -114,6 +116,15 @@ func extractGitHubAssets(root any, idx int, dPosition any) any {
 		return urls
 	}
 	return nil
+}
+
+func isGitHubPrerelease(root any, idx int) bool {
+	pr, err := stepJSON(root, []any{int64(idx), "prerelease"}, "")
+	if err != nil {
+		return false
+	}
+	b, ok := pr.(bool)
+	return ok && b
 }
 
 func mergeHeaders(headers map[string]string, accept string) map[string]string {
