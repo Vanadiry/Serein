@@ -55,6 +55,7 @@ func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	store.Logf("[check/ids] %v", ids)
+	checker.ClearURLCache()
 	result := runTrackerChecks(s.home, entries)
 	saveCheckTemp(s.home, "ids", result)
 	writeJSON(w, http.StatusOK, result)
