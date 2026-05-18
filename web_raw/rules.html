@@ -23,7 +23,7 @@
         <span class="font-bold text-sm">搜索规则</span>
       </div>
       <div class="relative mb-4">
-        <input id="search-input" type="text" placeholder="输入关键词搜索…"
+        <input id="search-input" type="text" placeholder="输入关键词搜索..."
           class="w-full bg-[#202028] border border-[rgba(255,255,255,.12)] rounded-lg px-4 py-2 text-sm outline-none focus:border-[#FE8A95] placeholder:text-sub"
           onkeydown="if(event.key==='Enter') doSearch()">
       </div>
@@ -53,8 +53,8 @@
   loadSources();
 
   document.getElementById("btn-sync").onclick = async () => {
-    const ld = showLoading("加载中", "正在同步规则…");
-    const result = console.log("[sync]"); await apiPost("/api/rules/sync");
+    const ld = showLoading("加载中", "正在同步规则...");
+    console.log("[sync]"); const result = await apiPost("/api/rules/sync");
     loadSources();
     if (result && result.Errors && result.Errors.length) {
       var msg = "同步完成，" + result.Synced.length + " 个成功，" + result.Errors.length + " 个失败<br><br>" +
@@ -104,7 +104,7 @@
     if (!q) return;
     document.getElementById("search-placeholder").classList.add("hidden");
     const grid = document.getElementById("search-results-grid");
-    grid.innerHTML = '<div class="col-span-full text-center py-10 text-sub text-sm">搜索中…</div>';
+    grid.innerHTML = '<div class="col-span-full text-center py-10 text-sub text-sm">搜索中...</div>';
 
     const rules = await api("/api/rules/list/search?q=" + encodeURIComponent(q)) || [];
     if (!rules.length) {

@@ -225,13 +225,13 @@
   }
 
   async function checkTracker() {
-    const ld = showLoading("加载中", "正在检查当前Tracker…");
+    const ld = showLoading("加载中", "正在检查当前 Tracker...");
     try { console.log("[check] tracker:", currentTracker); var data = await apiPost("/api/check/tracker", { tracker_id: currentTracker }); finishCheck(ld, data); }
     catch(e) { ld.done(e.message || "请求失败", true); }
   }
 
   async function checkAll() {
-    const ld = showLoading("加载中", "正在检查全部更新…");
+    const ld = showLoading("加载中", "正在检查全部更新...");
     try { console.log("[check] all"); var data = await apiPost("/api/check/all"); finishCheck(ld, data); }
     catch(e) { ld.done(e.message || "请求失败", true); }
   }
@@ -248,7 +248,7 @@
   }
 
   async function readCache() {
-    const ld = showLoading("加载中", "正在读取缓存…");
+    const ld = showLoading("加载中", "正在读取缓存...");
     for (const t of ["all", "ids", "tracker"]) {
       mergeCheckResults(await api("/api/check/temp/" + t));
     }
