@@ -16,7 +16,6 @@ type SourceJSON struct {
 	Name        string   `json:"name,omitempty"`
 	Description string   `json:"description,omitempty"`
 	Type        string   `json:"type,omitempty"`    // "rules"（默认）或 "list"
-	Mode        string   `json:"mode,omitempty"`    // "web" 或 "local"，默认 web
 	BaseURL     string   `json:"baseurl,omitempty"`
 	Files       []string `json:"files"`
 }
@@ -114,7 +113,7 @@ func fetchSourceJSON(url string) (*SourceJSON, []byte, error) {
 }
 
 func syncSource(s *SourceJSON, rawBody []byte, sourceURL string, destDir string) error {
-	isLocal := s.Mode == "local"
+	isLocal := !strings.HasPrefix(sourceURL, "http://") && !strings.HasPrefix(sourceURL, "https://")
 	baseURL := s.BaseURL
 
 	if baseURL == "" {
