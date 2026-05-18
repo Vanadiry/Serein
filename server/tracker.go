@@ -163,3 +163,29 @@ func (s *Server) handleTrackerAdd(w http.ResponseWriter, r *http.Request) {
 		"app_id":     body.AppID,
 	})
 }
+
+// ── GET /api/tracker/apps ──
+
+func (s *Server) handleTrackerApps(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "GET required")
+		return
+	}
+	entries, err := store.LoadTracker(s.home)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	seen := make(map[string]bool)
+	var apps []string
+	for _, e := range entries {
+		if !seen[e.AppID] {
+			seen[e.AppID] = true
+			apps = append(apps, e.AppID)
+		}
+	}
+	if apps == nil {
+		apps = []string{}
+	}
+	writeJSON(w, http.StatusOK, apps)
+}
