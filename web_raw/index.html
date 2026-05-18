@@ -107,7 +107,7 @@
       const parts = [];
       for (const [os, p] of Object.entries(checked.platforms)) {
         var v = p.current_version || p.latest_version || d.current_version?.[os];
-        parts.push(`<span class="opacity-50">${platformIcon(os, "w-4 h-4")}</span> <span class="text-ok">${v || "-"}</span> <span class="text-sub">(无更新)</span>`);
+          parts.push(`<span class="opacity-50">${platformIcon(os, "w-4 h-4")}</span> <span class="text-ok">${v || "-"}</span> <span class="text-sub">(无更新)</span>`);
       }
       versionHTML = `<span class="text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
     } else {
@@ -195,12 +195,34 @@
     };
   }
 
+  function collectErrors(data) {
+    var errs = [];
+    if (!Array.isArray(data)) return errs;
+    for (const r of data) {
+      for (const [os, p] of Object.entries(r.platforms || {})) {
+        if (p.error) {
+          var msg = p.error;
+          var idx = msg.indexOf("(But here's the good news");
+          if (idx >= 0) msg = msg.substring(0, idx).trim();
+          // 去掉 HTTP 403: {"message":"..."} 的 JSON 部分，只留消息
+          var jsonStart = msg.indexOf('{"message":"');
+          if (jsonStart >= 0) {
+            msg = msg.substring(0, jsonStart).trim() + " " + msg.substring(jsonStart + 12).replace(/"}$/, "");
+          }
+          errs.push('<span class="text-[#e8a040]">' + r.name + " " + os + "</span>: " + msg);
+        }
+      }
+    }
+    return errs;
+  }
+
   async function checkTracker() {
     const ld = showLoading("正在检查当前Tracker…");
     const data = await apiPost("/api/check/tracker", { tracker_id: currentTracker });
     mergeCheckResults(data);
     loadTrackerDetail(currentTracker);
-    ld.done("检查完成");
+    var errs = collectErrors(data);
+    showCheckDone(ld, errs);
   }
 
   async function checkAll() {
@@ -208,7 +230,16 @@
     const data = await apiPost("/api/check/all");
     mergeCheckResults(data);
     loadTrackerDetail(currentTracker);
-    ld.done("检查完成");
+    var errs = collectErrors(data);
+    showCheckDone(ld, errs);
+  }
+
+  function showCheckDone(ld, errs) {
+    if (!errs.length) { ld.done("检查完成"); return; }
+    var hasRateLimit = errs.some(function(e) { return e.indexOf("API rate limit exceeded") >= 0; });
+    var title = "检查完成，" + errs.length + " 个错误";
+    if (hasRateLimit) title += "（你似乎达到了 GitHub 请求速率限制，查看 Serein 文档获取更多信息）";
+    ld.done(title + "<hr class=\"border-[rgba(255,255,255,.12)] my-2\">" + errs.join("<br>"), true, 10);
   }
 
   async function readCache() {
