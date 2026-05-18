@@ -11,7 +11,7 @@ def main():
     subprocess.run(args + ["."], check=True)
     print(f"OK. {out}")
 
-    subprocess.run([out], check=True)
+    # subprocess.run([out], check=True)
 
 
 if __name__ == "__main__":
