@@ -40,6 +40,7 @@ function renderTopbar(current) {
         </nav>
         <nav class="flex gap-1 ml-2 items-center">
           <a href="https://github.com/Vanadiry/Serein/" target="_blank" class="no-underline px-3 py-1.5 rounded-lg text-sm ${navCls("/github")}">GitHub</a>
+          <a href="/api" target="_blank" class="no-underline px-3 py-1.5 rounded-lg text-sm ${navCls("/api")}">API</a>
         </nav>
         <div class="flex-1"></div>
         ${isIndex ? `
@@ -109,6 +110,62 @@ function showLoading(msg) {
       setTimeout(function() { el.style.opacity = "0"; setTimeout(function() { el.remove(); }, 300); }, sec);
     }
   };
+}
+
+// ── 链接悬停框（全局单例，避免被 overflow-hidden 裁剪）──
+var _tooltipEl = null;
+function _ensureTooltip() {
+  if (!_tooltipEl) {
+    _tooltipEl = document.createElement("div");
+    _tooltipEl.className = "fixed bg-[#1c1c22] border border-[rgba(255,255,255,.15)] text-xs text-sub rounded-lg px-3 py-2 shadow-xl whitespace-nowrap pointer-events-none z-[200]";
+    _tooltipEl.style.display = "none";
+    document.body.appendChild(_tooltipEl);
+  }
+  return _tooltipEl;
+}
+
+function _showTooltip(e, href) {
+  var parts = href.split("/");
+  var filename = parts[parts.length - 1];
+  var tip = _ensureTooltip();
+  tip.innerHTML = parts.slice(0, -1).join("/") + "/" + '<span class="text-ok font-semibold">' + filename + "</span>";
+  tip.style.display = "block";
+  tip.style.maxWidth = (window.innerWidth - 32) + "px";
+  tip.style.whiteSpace = "normal";
+  tip.style.wordBreak = "break-all";
+  tip.style.lineHeight = "1.4";
+
+  var rect = e.target.getBoundingClientRect();
+  var left = rect.left + rect.width / 2;
+  var top = rect.top - 8;
+
+  // 先设位置再读尺寸
+  tip.style.left = left + "px";
+  tip.style.top = top + "px";
+  tip.style.transform = "translate(-50%, -100%)";
+
+  // 若超出屏幕右侧，右对齐
+  var tipRect = tip.getBoundingClientRect();
+  if (tipRect.right > window.innerWidth - 16) {
+    tip.style.left = "auto";
+    tip.style.right = "16px";
+    tip.style.transform = "translate(0, -100%)";
+  }
+  if (tipRect.left < 16) {
+    tip.style.left = "16px";
+    tip.style.transform = "translate(0, -100%)";
+  }
+}
+
+function _hideTooltip() {
+  if (_tooltipEl) _tooltipEl.style.display = "none";
+}
+
+function linkWithTooltip(href, innerHTML, os) {
+  return '<a href="' + href + '" download onclick="event.stopPropagation()" class="no-underline"' +
+    ' onmouseenter="_showTooltip(event,\'' + href + '\')"' +
+    ' onmouseleave="_hideTooltip()">' +
+    innerHTML + "</a>";
 }
 
 // ── 弹窗 ──

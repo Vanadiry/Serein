@@ -92,14 +92,12 @@
     let versionHTML = "";
     if (d.rule_missing) {
       versionHTML = `<span class="text-yellow-500 text-sm">⚠ 规则缺失</span>`;
-    } else if (hasUpdate) {
+    } else if (checked && Object.keys(checked.platforms || {}).length > 0) {
+      // 检查过，全部已是最新
       const parts = [];
       for (const [os, p] of Object.entries(checked.platforms)) {
-        if (p.latest_version && p.latest_version !== p.current_version) {
-          parts.push(`<span class="opacity-50">${platformIcon(os, "w-4 h-4")}</span> <span class="text-err">${p.current_version || "-"}</span> <span class="text-sub">→</span> <span class="text-ok">${p.latest_version}</span>`);
-        } else {
-          parts.push(`<span class="opacity-50">${platformIcon(os, "w-4 h-4")}</span> <span class="text-sub">${p.current_version || "-"}</span>`);
-        }
+        var v = p.current_version || p.latest_version || d.current_version?.[os];
+        parts.push(`<span class="opacity-50">${platformIcon(os, "w-4 h-4")}</span> <span class="text-ok">${v || "-"}</span> <span class="text-sub">(up to date)</span>`);
       }
       versionHTML = `<span class="text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
     } else {
@@ -112,18 +110,20 @@
 
     // 右侧：[平台] [yes]  |  [编辑] [地球] [刷新]
     let rightIcons = `<span class="flex items-center gap-2 shrink-0">`;
-    // 平台下载图标
-    if (hasUpdate) {
+    // 平台下载图标（检查后有数据才显示）
+    if (checked && Object.keys(checked.platforms || {}).length > 0) {
       for (const [os, p] of Object.entries(checked.platforms)) {
         if (p.url) {
           const urls = typeof p.url === "string" ? [p.url] : (p.url || []);
           urls.forEach((url) => {
-            rightIcons += `<a href="${url}" download onclick="event.stopPropagation()" title="${os}下载" class="no-underline">${platformIcon(os, "w-5 h-5")}</a>`;
+            rightIcons += linkWithTooltip(url, platformIcon(os, "w-5 h-5"), os);
           });
         }
       }
-      // 绿色对钩
-      rightIcons += `<span onclick="event.stopPropagation(); confirmUpdate('${d.app_id}')" title="应用更新" class="mx-3">${iconYes("应用更新", "w-5 h-5")}</span>`;
+      // 绿色对钩（仅在有更新时显示）
+      if (hasUpdate) {
+        rightIcons += `<span onclick="event.stopPropagation(); confirmUpdate('${d.app_id}')" title="应用更新" class="mx-3">${iconYes("应用更新", "w-5 h-5")}</span>`;
+      }
     }
     // 常驻按钮：编辑、地球、刷新，粉色背景
     rightIcons += `<span onclick="event.stopPropagation(); editVersion('${d.app_id}')" title="编辑版本">${iconImg("edit", "编辑版本", "w-5 h-5")}</span>`;
