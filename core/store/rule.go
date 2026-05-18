@@ -19,6 +19,7 @@ type RuleInfo struct {
 	Name            string   `toml:"name"`
 	Description     string   `toml:"description,omitempty"`
 	OfficialWebsite string   `toml:"official_website,omitempty"`
+	Status          []string `toml:"status,omitempty"`
 	Platforms       []string `toml:"platforms"`
 }
 
