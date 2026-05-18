@@ -23,8 +23,10 @@ func (s *Server) handleCheckAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	checker.ClearURLCache()
+	store.Logf("[check/all] %d entries", len(entries))
 	result := runTrackerChecks(s.home, entries)
 	saveCheckTemp(s.home, "all", result)
+	store.Logf("[check/all] done, %d results", len(result))
 	writeJSON(w, http.StatusOK, result)
 }
 
@@ -54,6 +56,7 @@ func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	store.Logf("[check/ids] %v", ids)
 	result := runTrackerChecks(s.home, entries)
 	saveCheckTemp(s.home, "ids", result)
 	writeJSON(w, http.StatusOK, result)
@@ -78,6 +81,7 @@ func (s *Server) handleCheckTracker(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	store.Logf("[check/tracker] %s", body.TrackerID)
 	result := runTrackerChecks(s.home, entries)
 	saveCheckTemp(s.home, "tracker", result)
 	writeJSON(w, http.StatusOK, result)
@@ -119,6 +123,7 @@ func (s *Server) handleCheckConfirm(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	store.Logf("[confirm] %s: %v", appID, userData[appID])
 	writeJSON(w, http.StatusOK, map[string]any{
 		"app_id":   appID,
 		"status":   "ok",

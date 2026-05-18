@@ -22,6 +22,13 @@ type Server struct {
 	webFS  fs.FS
 }
 
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		store.Logf("[http] %s %s", r.Method, r.URL.Path)
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/tracker/list/all", s.handleTrackerListAll)
 	s.mux.HandleFunc("/api/tracker/list/", s.handleTrackerListByID)
@@ -59,6 +66,7 @@ func New(home string, webFS fs.FS) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	store.InitLogger(home)
 	s := &Server{home: home, config: cfg, mux: http.NewServeMux(), webFS: webFS}
 	s.registerRoutes()
 	return s, nil
@@ -70,7 +78,7 @@ func (s *Server) Addr() string {
 
 func (s *Server) Run() error {
 	addr := fmt.Sprintf("%s:%d", s.config.Serein.Host, s.config.Serein.Port)
-	srv := &http.Server{Addr: addr, Handler: s.mux}
+	srv := &http.Server{Addr: addr, Handler: loggingMiddleware(s.mux)}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
