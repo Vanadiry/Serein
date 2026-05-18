@@ -164,6 +164,27 @@ func runTrackerChecks(home string, entries []store.TrackerEntry) []checker.Check
 			if platCfg.URL == "" && platCfg.Type != "github" {
 				continue
 			}
+
+			// 执行前置请求链，获取最终 URL
+			preSteps := rule.PreRequestChain(os)
+			if len(preSteps) > 0 {
+				var checkerSteps []checker.PreStep
+				for _, ps := range preSteps {
+					checkerSteps = append(checkerSteps, checker.PreStep{
+						URL:      ps.URL,
+						Type:     ps.Type,
+						UA:       ps.UA,
+						Headers:  ps.Headers,
+						BaseURL:  ps.BaseURL,
+						Position: ps.Position,
+					})
+				}
+				preURL, err := checker.RunPreRequests(checkerSteps, checker.NewClient())
+				if err == nil && preURL != "" {
+					platCfg.URL = preURL
+				}
+			}
+
 			currentVer := ""
 			if ud, ok := userData[entry.AppID]; ok {
 				currentVer = ud[os]
