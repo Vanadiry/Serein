@@ -246,6 +246,7 @@ func saveCheckTemp(home, typ string, results []checker.CheckResponse) {
 				CurrentVersion: p.CurrentVersion,
 				LatestVersion:  p.LatestVersion,
 				URL:            p.URL,
+				Error:          p.Error,
 			}
 		}
 		temp = append(temp, store.TempCheckResult{

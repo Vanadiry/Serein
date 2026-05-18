@@ -11,8 +11,9 @@ import (
 // TempCheckPlatform 单平台检查结果
 type TempCheckPlatform struct {
 	CurrentVersion string `json:"current_version,omitempty"`
-	LatestVersion  string `json:"latest_version"`
+	LatestVersion  string `json:"latest_version,omitempty"`
 	URL            any    `json:"url,omitempty"`
+	Error          string `json:"error,omitempty"`
 }
 
 // TempCheckResult 单次检查结果缓存

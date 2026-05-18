@@ -27,7 +27,13 @@ func CheckGitHubAll(cfg CheckConfig, client *http.Client) (PlatformResult, []Pla
 
 	arr, ok := root.([]any)
 	if !ok {
-		return PlatformResult{}, nil, fmt.Errorf("github: expected array, got %T", root)
+		// 尝试解析错误消息
+		if errMap, ok := root.(map[string]any); ok {
+			if msg, ok := errMap["message"].(string); ok {
+				return PlatformResult{}, nil, fmt.Errorf("github: %s", msg)
+			}
+		}
+		return PlatformResult{}, nil, fmt.Errorf("github: unexpected response format")
 	}
 
 	var latest PlatformResult

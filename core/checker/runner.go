@@ -48,6 +48,7 @@ type CheckPlatform struct {
 	CurrentVersion string `json:"current_version,omitempty"`
 	LatestVersion  string `json:"latest_version,omitempty"`
 	URL            any    `json:"url,omitempty"`
+	Error          string `json:"error,omitempty"`
 }
 
 // RunCheck 对一个软件执行检查，返回统一的 CheckResponse。
@@ -82,6 +83,7 @@ func RunCheck(req CheckRequest) (CheckResponse, error) {
 		if err != nil {
 			resp.Platforms[pc.OS] = CheckPlatform{
 				CurrentVersion: pc.CurrentVersion,
+				Error:          err.Error(),
 			}
 			continue
 		}
@@ -121,6 +123,7 @@ func runGitHubCheck(req CheckRequest, client *http.Client) (CheckResponse, error
 		if err != nil {
 			resp.Platforms[pc.OS] = CheckPlatform{
 				CurrentVersion: pc.CurrentVersion,
+				Error:          err.Error(),
 			}
 			continue
 		}
