@@ -33,13 +33,53 @@ d_position = "..."
 | `url` | 请求地址（前置请求或各平台有 URL 时可省略） |
 | `ua` | 自定义 UA（可选） |
 | `headers` | 自定义请求头内联字典（可选） |
-| `baseurl` | 拼接相对路径（仅 d_position 生效） |
+| `baseurl` | 拼接相对路径（仅 d_position 非直通模式时生效） |
 | `v_position` | 版本号定位（各解析器格式不同，详见各解析器文档） |
 | `d_position` | 下载链接定位 |
 | `v_join` | 版本号多路径拼接分隔符 |
 | `d_join` | 下载链接多路径拼接分隔符 |
+| `v_url` | 版本号独立请求地址，覆盖 `url`（可选） |
+| `v_type` | 版本号独立解析器类型，覆盖 `type`（可选） |
+| `d_url` | 下载链接独立请求地址，覆盖 `url`（可选） |
+| `d_type` | 下载链接独立解析器类型，覆盖 `type`（可选） |
 
 `[config.{os}]` 中同名字段覆盖 `[config]`，未覆盖则继承。
+
+### 分开请求版本号与下载链接
+
+当版本号和下载链接位于不同页面时，使用 `v_url` 和 `d_url` 分别指定：
+
+```toml
+[config]
+type = "json"
+url = "https://api.example.com/releases/latest"
+v_position = ["tag_name"]
+
+# 下载链接从另一个页面获取
+d_url = "https://example.com/download"
+d_type = "html_selector"
+d_position = { selector = ".link", attr = "href" }
+```
+
+未设置 `v_url` / `d_url` 时，回退到 `url`。未设置 `v_type` / `d_type` 时，回退到 `type`。
+
+### 直通模式
+
+当下载链接（或版本号）有固定规律、不需要解析页面时，使用 `d_type = "direct"`（或 `v_type = "direct"`）。
+
+程序不会发起 HTTP 请求，直接将 `d_url` 字符串作为下载链接返回。字符串中的 `{version}` 会被替换为当前提取到的版本号。
+
+```toml
+[config]
+type = "json"
+url = "https://api.example.com/releases/latest"
+v_position = ["tag_name"]
+
+d_type = "direct"
+d_url = "https://cdn.example.com/releases/{version}/app.dmg"
+```
+
+> **限制**：`direct` 只能用于 `v_type` 或 `d_type`，不能作为主 `type`。`{version}` 无法替换时（如版本号提取失败），下载链接直接报错。
 
 ## 合并规则
 
@@ -59,6 +99,7 @@ d_position = "..."
 - [HTML 选择器](html_selector.md)
 - [HTML XPath](html_xpath.md)
 - [GitHub Release](github.md)
+- 直通（仅用于 `v_type` / `d_type`，详见上方[直通模式](#直通模式)）
 
 ## 前置请求
 

@@ -37,6 +37,10 @@ type PlatConfig struct {
 	BaseURL   string            `toml:"baseurl,omitempty"`
 	Owner     string            `toml:"owner,omitempty"`
 	Repo      string            `toml:"repo,omitempty"`
+	VURL      string            `toml:"v_url,omitempty"`
+	VType     string            `toml:"v_type,omitempty"`
+	DURL      string            `toml:"d_url,omitempty"`
+	DType     string            `toml:"d_type,omitempty"`
 	VPosition Position          `toml:"v_position,omitempty"`
 	DPosition Position          `toml:"d_position,omitempty"`
 	VJoin     string            `toml:"v_join,omitempty"`
@@ -233,6 +237,18 @@ func mergePlatConfig(base, plat PlatConfig) PlatConfig {
 	}
 	if plat.DJoin != "" {
 		base.DJoin = plat.DJoin
+	}
+	if plat.VURL != "" {
+		base.VURL = plat.VURL
+	}
+	if plat.VType != "" {
+		base.VType = plat.VType
+	}
+	if plat.DURL != "" {
+		base.DURL = plat.DURL
+	}
+	if plat.DType != "" {
+		base.DType = plat.DType
 	}
 	return base
 }

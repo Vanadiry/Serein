@@ -1,7 +1,10 @@
 // 检查运行器：整合规则、用户数据、Checker，组装统一的 API 返回格式。
 package checker
 
-import "net/http"
+import (
+	"net/http"
+	"strings"
+)
 
 // CheckGitHub 单平台便捷调用（包装 CheckGitHubAll）。
 func CheckGitHub(cfg CheckConfig, client *http.Client) (PlatformResult, error) {
@@ -29,6 +32,10 @@ type PlatformCheckConfig struct {
 	UA             string
 	Headers        map[string]string
 	BaseURL        string
+	VURL           string
+	VType          string
+	DURL           string
+	DType          string
 	VPosition      any
 	DPosition      any
 	VJoin          string
@@ -74,6 +81,10 @@ func RunCheck(req CheckRequest) (CheckResponse, error) {
 			UA:        pc.UA,
 			Headers:   pc.Headers,
 			BaseURL:   pc.BaseURL,
+			VURL:      pc.VURL,
+			VType:     pc.VType,
+			DURL:      pc.DURL,
+			DType:     pc.DType,
 			VPosition: pc.VPosition,
 			DPosition: pc.DPosition,
 			VJoin:     pc.VJoin,
@@ -120,7 +131,11 @@ func runGitHubCheck(req CheckRequest, client *http.Client) (CheckResponse, error
 	}
 
 	for _, pc := range req.Platforms {
-		cfg.DPosition = pc.DPosition
+		if pc.DType == "direct" {
+			cfg.DPosition = nil
+		} else {
+			cfg.DPosition = pc.DPosition
+		}
 		pr, err := CheckGitHub(cfg, client)
 		if err != nil {
 			resp.Platforms[pc.OS] = CheckPlatform{
@@ -128,6 +143,21 @@ func runGitHubCheck(req CheckRequest, client *http.Client) (CheckResponse, error
 				Error:          err.Error(),
 			}
 			continue
+		}
+		if pc.DType == "direct" {
+			dl := pc.DURL
+			if strings.Contains(dl, "{version}") {
+				if pr.LatestVersion == "" {
+					resp.Platforms[pc.OS] = CheckPlatform{
+						CurrentVersion: pc.CurrentVersion,
+						LatestVersion:  pr.LatestVersion,
+						Error:          "d_url 包含 {version} 但未能获取到版本号",
+					}
+					continue
+				}
+				dl = strings.ReplaceAll(dl, "{version}", pr.LatestVersion)
+			}
+			pr.URL = dl
 		}
 		resp.Platforms[pc.OS] = CheckPlatform{
 			CurrentVersion: pc.CurrentVersion,

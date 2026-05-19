@@ -3,7 +3,9 @@ package checker
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -17,6 +19,10 @@ type CheckConfig struct {
 	Owner       string // GitHub
 	Repo        string // GitHub
 	GithubToken string
+	VURL        string
+	VType       string
+	DURL        string
+	DType       string
 	VPosition   any
 	DPosition   any
 	VJoin       string
@@ -41,29 +47,60 @@ func NewClient() *http.Client {
 
 // RunPlatformCheck 对单个平台执行检查
 func RunPlatformCheck(cfg CheckConfig, client *http.Client) (PlatformResult, error) {
-	body, err := doRequest(client, cfg.URL, cfg.UA, cfg.Headers)
-	if err != nil {
-		return PlatformResult{}, err
-	}
-
 	var vr PlatformResult
 
-	// 提取版本号（不受 baseURL 影响）
-	if cfg.VPosition != nil {
-		ver, err := extractValue(body, cfg.Type, cfg.VPosition, cfg.VJoin, "")
+	// ── 提取版本号 ──
+	vURL := cfg.URL
+	vType := cfg.Type
+	if cfg.VURL != "" {
+		vURL = cfg.VURL
+	}
+	if cfg.VType != "" {
+		vType = cfg.VType
+	}
+
+	if vType == "direct" {
+		vr.LatestVersion = vURL
+	} else if cfg.VPosition != nil {
+		body, err := doRequest(client, vURL, cfg.UA, cfg.Headers)
+		if err != nil {
+			return vr, err
+		}
+		ver, err := extractValue(body, vType, cfg.VPosition, cfg.VJoin, "")
 		if err != nil {
 			return vr, err
 		}
 		vr.LatestVersion = toString(ver)
 	}
 
-	// 提取下载链接
-	if cfg.DPosition != nil {
-		dl, err := extractValue(body, cfg.Type, cfg.DPosition, cfg.DJoin, "")
+	// ── 提取下载链接 ──
+	dURL := cfg.URL
+	dType := cfg.Type
+	if cfg.DURL != "" {
+		dURL = cfg.DURL
+	}
+	if cfg.DType != "" {
+		dType = cfg.DType
+	}
+
+	if dType == "direct" {
+		dl := dURL
+		if strings.Contains(dl, "{version}") {
+			if vr.LatestVersion == "" {
+				return vr, fmt.Errorf("d_url 包含 {version} 但未能获取到版本号")
+			}
+			dl = strings.ReplaceAll(dl, "{version}", vr.LatestVersion)
+		}
+		vr.URL = dl
+	} else if cfg.DPosition != nil {
+		body, err := doRequest(client, dURL, cfg.UA, cfg.Headers)
 		if err != nil {
 			return vr, err
 		}
-		// baseURL 直接与 d_position 结果拼接
+		dl, err := extractValue(body, dType, cfg.DPosition, cfg.DJoin, "")
+		if err != nil {
+			return vr, err
+		}
 		if cfg.BaseURL != "" {
 			dl = cfg.BaseURL + toString(dl)
 		} else {
