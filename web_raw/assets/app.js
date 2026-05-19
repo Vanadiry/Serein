@@ -217,11 +217,16 @@ function hideTooltip() {
 }
 
 // 链接悬停（下载地址，文件名高亮）
+function isDirectDownload(href) {
+  return /\.(exe|zip|dmg|pkg|msi|apk|deb|rpm|AppImage|tar\\.gz|tar\\.xz|7z|rar)$/i.test(href);
+}
+
 function linkWithTooltip(href, innerHTML, os) {
   var parts = href.split("/");
   var filename = parts[parts.length - 1];
   var tipHTML = parts.slice(0, -1).join("/") + "/" + '<span class="text-ok font-semibold">' + filename + "</span>";
-  return '<a href="' + href + '" download onclick="event.stopPropagation()" class="no-underline"' +
+  var attrs = isDirectDownload(href) ? 'download' : 'target="_blank"';
+  return '<a href="' + href + '" ' + attrs + ' onclick="event.stopPropagation()" class="no-underline"' +
     ' data-tip="' + tipHTML.replace(/"/g, "&quot;") + '"' +
     ' onmouseenter="showTooltip(event)" onmouseleave="hideTooltip()">' +
     innerHTML + "</a>";
