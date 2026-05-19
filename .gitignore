@@ -4,10 +4,6 @@ TODO.md
 Dev/
 node_modules/
 pnpm-workspace.yaml
-scripts/output/
-scripts/gen_rules.py
-scripts/list.txt
-
 
 # Build
 build/

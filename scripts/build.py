@@ -21,7 +21,7 @@ def main():
 
     for goos, goarch in TARGETS:
         ext = ".exe" if goos == "windows" else ""
-        out = f"./build/seshat-{version}-{goos}-{goarch}{ext}"
+        out = f"./build/serein-{version}-{goos}-{goarch}{ext}"
         env = {**os.environ, "GOOS": goos, "GOARCH": goarch}
         args = ["go", "build", "-ldflags=-s -w", "-o", out]
         subprocess.run(args + ["."], env=env, check=True)
