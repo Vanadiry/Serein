@@ -102,7 +102,8 @@
       versionHTML = `<span class="text-yellow-500 text-sm">⚠ 规则缺失</span>`;
     } else if (hasUpdate) {
       const parts = [];
-      for (const [os, p] of Object.entries(checked.platforms)) {
+      var sortedOS = Object.keys(checked.platforms).sort(function(a, b) { var order = ["macos","windows","linux","ios","android"]; return order.indexOf(a) - order.indexOf(b); });
+      for (var si = 0; si < sortedOS.length; si++) { var os = sortedOS[si]; var p = checked.platforms[os];
         if (p.latest_version && p.latest_version !== p.current_version) {
           parts.push(`<span class="opacity-50">${platformIcon(os, "w-4 h-4")}</span> <span class="text-err">${p.current_version || "-"}</span> <span class="text-sub">→</span> <span class="text-ok">${p.latest_version}</span>`);
         } else if (p.latest_version && p.latest_version === p.current_version) {
@@ -114,14 +115,16 @@
       versionHTML = `<span class="text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
     } else if (checked && Object.keys(checked.platforms || {}).length > 0) {
       const parts = [];
-      for (const [os, p] of Object.entries(checked.platforms)) {
+      var sortedOS = Object.keys(checked.platforms).sort(function(a, b) { var order = ["macos","windows","linux","ios","android"]; return order.indexOf(a) - order.indexOf(b); });
+      for (var si = 0; si < sortedOS.length; si++) { var os = sortedOS[si]; var p = checked.platforms[os];
         var v = p.current_version || p.latest_version || d.current_version?.[os];
           parts.push(`<span class="opacity-50">${platformIcon(os, "w-4 h-4")}</span> <span class="text-ok">${v || "-"}</span> <span class="text-sub">(无更新)</span>`);
       }
       versionHTML = `<span class="text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
     } else {
       const parts = [];
-      for (const [os, v] of Object.entries(d.current_version || {})) {
+      var sortedOS2 = Object.keys(d.current_version || {}).sort(function(a, b) { var order = ["macos","windows","linux","ios","android"]; return order.indexOf(a) - order.indexOf(b); });
+        for (var si2 = 0; si2 < sortedOS2.length; si2++) { var os = sortedOS2[si2]; var v = (d.current_version || {})[os];
         parts.push(`<span class="opacity-50">${platformIcon(os, "w-4 h-4")}</span> ${v || "-"}`);
       }
       versionHTML = `<span class="text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;") || "未记录版本"}</span>`;
@@ -131,7 +134,8 @@
     let rightIcons = `<span class="flex items-center gap-2 shrink-0">`;
     // 平台下载图标（检查后有数据才显示）
     if (checked && Object.keys(checked.platforms || {}).length > 0) {
-      for (const [os, p] of Object.entries(checked.platforms)) {
+      var dlOS = Object.keys(checked.platforms).sort(function(a, b) { var order = ["macos","windows","linux","ios","android"]; return order.indexOf(a) - order.indexOf(b); });
+      for (var di = 0; di < dlOS.length; di++) { var os = dlOS[di]; var p = checked.platforms[os];
         if (p.url) {
           const urls = typeof p.url === "string" ? [p.url] : (p.url || []);
           urls.forEach((url) => {

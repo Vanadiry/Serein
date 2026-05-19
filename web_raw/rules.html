@@ -106,6 +106,7 @@
     allSourceRules = rules;
     activeFilters = {};
     showTrackedOnly = false;
+    showUntrackedOnly = false;
     buildPlatformFilters(rules);
     document.getElementById("card-grid").innerHTML = renderCards(rules);
   }
@@ -128,17 +129,31 @@
       return '<button onclick="toggleFilter(\'' + p + '\')" id="btn-filter-' + p + '" class="px-2 py-0.5 rounded text-xs border border-[rgba(255,255,255,.12)] bg-transparent text-sub hover:text-white cursor-pointer transition-colors">' + platformLabel(p) + '</button>';
     }).join("");
     html += '<button onclick="toggleTrackedFilter()" id="btn-tracked-filter" class="px-2 py-0.5 rounded text-xs border border-[rgba(255,255,255,.12)] bg-transparent text-sub hover:text-white cursor-pointer transition-colors">已追踪</button>';
+    html += '<button onclick="toggleUntrackedFilter()" id="btn-untracked-filter" class="px-2 py-0.5 rounded text-xs border border-[rgba(255,255,255,.12)] bg-transparent text-sub hover:text-white cursor-pointer transition-colors">未追踪</button>';
     el.innerHTML = html;
   }
 
   var showTrackedOnly = false;
+  var showUntrackedOnly = false;
   function toggleTrackedFilter() {
     showTrackedOnly = !showTrackedOnly;
-    var btn = document.getElementById("btn-tracked-filter");
-    btn.className = showTrackedOnly
+    if (showTrackedOnly) showUntrackedOnly = false;
+    updateFilterButtons();
+    applyFilter();
+  }
+  function toggleUntrackedFilter() {
+    showUntrackedOnly = !showUntrackedOnly;
+    if (showUntrackedOnly) showTrackedOnly = false;
+    updateFilterButtons();
+    applyFilter();
+  }
+  function updateFilterButtons() {
+    document.getElementById("btn-tracked-filter").className = showTrackedOnly
       ? "px-2 py-0.5 rounded text-xs border border-[#14b8a6] bg-[#14b8a6] text-white cursor-pointer transition-colors"
       : "px-2 py-0.5 rounded text-xs border border-[rgba(255,255,255,.12)] bg-transparent text-sub hover:text-white cursor-pointer transition-colors";
-    applyFilter();
+    document.getElementById("btn-untracked-filter").className = showUntrackedOnly
+      ? "px-2 py-0.5 rounded text-xs border border-[#14b8a6] bg-[#14b8a6] text-white cursor-pointer transition-colors"
+      : "px-2 py-0.5 rounded text-xs border border-[rgba(255,255,255,.12)] bg-transparent text-sub hover:text-white cursor-pointer transition-colors";
   }
 
   function toggleFilter(os) {
@@ -156,6 +171,9 @@
     var filtered = allSourceRules;
     if (showTrackedOnly) {
       filtered = filtered.filter(function(r) { return trackedApps.indexOf(r.app_id) >= 0; });
+    }
+    if (showUntrackedOnly) {
+      filtered = filtered.filter(function(r) { return trackedApps.indexOf(r.app_id) < 0; });
     }
     var activeCount = 0;
     for (var k in activeFilters) { if (activeFilters[k]) activeCount++; }

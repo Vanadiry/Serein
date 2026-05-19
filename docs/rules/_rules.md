@@ -6,7 +6,7 @@
 你的自定义规则表将存放在这里。
 
 规则支持多种解析方式，并支持前置请求功能。  
-请前往 [rules/toml](toml.md) 查看规则文件格式。
+请前往 [rules/toml](_toml.md) 查看规则文件格式。
 
 规则支持如下匹配方式，请前往对应的文档查看：
 
@@ -20,4 +20,4 @@
 ## 创建规则源
 
 规则源通过 `_source.json` 配置，允许远端或本地源。  
-请查看 [Source](source.md) 来了解 `_source.json` 格式。
+请查看 [Source](_source.md) 来了解 `_source.json` 格式。

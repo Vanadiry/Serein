@@ -208,16 +208,23 @@ func runTrackerChecks(home string, entries []store.TrackerEntry) []checker.Check
 			continue
 		}
 
-		jobs = append(jobs, checkJob{req: checker.CheckRequest{
-			AppID:           rule.Info.AppID,
-			Name:            rule.Info.Name,
-			OfficialWebsite: rule.Info.OfficialWebsite,
-			RuleType:        rule.Config.Type,
-			Owner:           rule.Config.Owner,
-			Repo:            rule.Config.Repo,
+		// 按平台实际 type 分组，避免混合 github 和非 github
+		typeGroups := make(map[string][]checker.PlatformCheckConfig)
+		for _, pc := range platCfgs {
+			typeGroups[pc.Type] = append(typeGroups[pc.Type], pc)
+		}
+		for typ, group := range typeGroups {
+			jobs = append(jobs, checkJob{req: checker.CheckRequest{
+				AppID:           rule.Info.AppID,
+				Name:            rule.Info.Name,
+				OfficialWebsite: rule.Info.OfficialWebsite,
+				RuleType:        typ,
+				Owner:           rule.Config.Owner,
+				Repo:            rule.Config.Repo,
 				GithubToken:     cfg.Serein.GithubToken,
-			Platforms:       platCfgs,
-		}})
+				Platforms:       group,
+			}})
+		}
 	}
 
 	if len(jobs) <= 1 {

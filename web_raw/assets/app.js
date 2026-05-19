@@ -60,7 +60,7 @@ function platformLabel(os) {
 }
 
 function platformIcon(os, cls) {
-  const map = { macos: "apple", windows: "windows", linux: "linux" };
+  const map = { macos: "apple", windows: "windows", linux: "linux", ios: "ios", android: "android" };
   const name = map[os];
   const label = platformLabel(os);
   const sz = cls || "w-5 h-5";

@@ -43,7 +43,7 @@ Serein 不会收集你的 Token，请勿将 Token 外泄。
 ### 规则源
 
 规则源可以配置多个，每条都必须指向一个 `_source.json` 文件，远端或本地皆可。  
-如果你是规则编写者，请查看 [rules/source](rules/source.md)。
+如果你是规则编写者，请查看 [rules/source](rules/_source.md)。
 
 ## Tracker
 
