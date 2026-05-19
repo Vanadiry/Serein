@@ -128,7 +128,7 @@ func ParseRuleFile(path string) (Rule, error) {
 		rule.Config = *parseInto[PlatConfig](cfgRaw)
 		if cfgMap, ok := cfgRaw.(map[string]any); ok {
 			for key, val := range cfgMap {
-				if isPlatform(key) {
+				if isPlatformKey(key, rule.Info.Platforms) {
 					rule.Platforms[key] = *parseInto[PlatConfig](val)
 				}
 			}
@@ -143,7 +143,7 @@ func ParseRuleFile(path string) (Rule, error) {
 				if stepMap, ok := val.(map[string]any); ok {
 					hasPlatform := false
 					for k, v := range stepMap {
-						if isPlatform(k) {
+						if isPlatformKey(k, rule.Info.Platforms) {
 							hasPlatform = true
 							rs := parseInto[rawPreStep](v)
 							steps[k] = rawToStep(rs)
@@ -364,10 +364,11 @@ func findNearestSourceID(ruleDir, tomlPath string) string {
 
 // ── 辅助 ──
 
-func isPlatform(s string) bool {
-	switch s {
-	case "macos", "windows", "linux":
-		return true
+func isPlatformKey(s string, platforms []string) bool {
+	for _, p := range platforms {
+		if p == s {
+			return true
+		}
 	}
 	return false
 }
