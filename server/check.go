@@ -265,8 +265,26 @@ func runTrackerChecks(home string, entries []store.TrackerEntry) []checker.Check
 	}
 	wg.Wait()
 
-	if results == nil {
+	// 合并同 app_id 的结果
+	merged := make(map[string]*checker.CheckResponse)
+	for i := range results {
+		r := &results[i]
+		if existing, ok := merged[r.AppID]; ok {
+			for os, p := range r.Platforms {
+				existing.Platforms[os] = p
+			}
+		} else {
+			merged[r.AppID] = r
+		}
+	}
+	var final []checker.CheckResponse
+	for _, r := range merged {
+		final = append(final, *r)
+	}
+	if final == nil {
 		results = []checker.CheckResponse{}
+	} else {
+		results = final
 	}
 	return results
 }
