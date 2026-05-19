@@ -6,7 +6,10 @@
 所有更新规则依赖用户贡献的规则表，直接从对应软件官方源获取版本信息。  
 规则表去中心化分发，任何人都可独立维护和分发，无需信任中心化服务。
 
-内置规则表：[Vanadiry/SereinRulesList](https://github.com/Vanadiry/SereinRulesList)
+内置的规则表：[Vanadiry/SereinRulesList](https://github.com/Vanadiry/SereinRulesList)
+
+<img src="/docs/image/readme-01.png" width="500"/>
+<img src="/docs/image/readme-02.png" width="500"/>
 
 ## 快速开始
 

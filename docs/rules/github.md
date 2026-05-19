@@ -27,6 +27,21 @@ seshat-v0.2.5-darwin-arm64
 seshat-v0.2.5-windows-amd64.exe
 ```
 
+等效 JSON 规则：
+
+```toml
+[config]
+type = "json"
+url = "https://api.github.com/repos/Vanadiry/Seshat/releases"
+v_position = [0, "tag_name"]
+
+[config.macos]
+d_position = [0, "assets", "name~darwin.*arm64", "browser_download_url"]
+
+[config.windows]
+d_position = [0, "assets", "name~exe", "browser_download_url"]
+```
+
 ## 注意事项
 
 - `v_position` 不需要写，版本号始终从 `tag_name` 提取，并自动去 `v` 前缀

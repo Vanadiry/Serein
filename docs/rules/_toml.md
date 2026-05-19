@@ -10,6 +10,7 @@ app_id = "vanadiry-seshat"         # 唯一标识，更推荐直接用 UUID。�
 name = "Seshat"                    # 名称，会在前端显示
 platforms = ["macos", "windows"]   # 平台
 description = "番组计划 Tracker 管理工具"   # 可选，描述
+status = ["ABC"]                    # 可选，状态。若有值，前端将展示一个黄点
 official_website = "https://github.com/Vanadiry/Seshat"   # 可选，官网
 
 [config]
