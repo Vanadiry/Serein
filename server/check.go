@@ -181,7 +181,7 @@ func runTrackerChecks(home string, entries []store.TrackerEntry) []checker.Check
 				}
 			}
 
-			if platCfg.URL == "" && platCfg.Type != "github" {
+			if platCfg.URL == "" && platCfg.VURL == "" && platCfg.DURL == "" && platCfg.Type != "github" {
 				continue
 			}
 
