@@ -204,6 +204,10 @@
     };
   }
 
+  function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
   function cleanGitHubError(msg) {
     // 提取 JSON 中的 message 字段
     var m = msg.match(/"message"\s*:\s*"([^"]+)"/);
@@ -221,6 +225,28 @@
       for (const [os, p] of Object.entries(r.platforms || {})) {
         if (p.error) {
           var msg = cleanGitHubError(p.error);
+          msg = escapeHtml(msg);
+          // HTTP 403：不展示 HTML 正文，检测人机验证
+          if (/^HTTP 403/.test(msg)) {
+            var challengePatterns = [
+              'challenges.cloudflare.com', '_cf_chl_opt', 'cf_chl', 'turnstile',
+              'captcha', 'recaptcha', 'hcaptcha',
+              '/cdn-cgi/challenge-platform',
+              'akamai', 'challenge-platform',
+              'distil', 'perimeterx', 'datadome', 'imperva', 'incapsula', 'sucuri',
+              'Just a moment', 'Checking your browser'
+            ];
+            var isChallenge = false;
+            for (var ci = 0; ci < challengePatterns.length; ci++) {
+              if (msg.indexOf(challengePatterns[ci]) !== -1) { isChallenge = true; break; }
+            }
+            if (isChallenge) {
+              window._hasChallenge = true;
+              msg = 'HTTP 403 (Challenge)';
+            } else {
+              msg = 'HTTP 403';
+            }
+          }
           errs.push('<span class="text-[#e8a040]">' + r.name + " " + os + "</span>: " + msg);
         }
       }
@@ -254,6 +280,9 @@
     var body = "";
     if (hasRateLimit) body += "提示：你似乎达到了 GitHub 请求速率限制，查看 Serein 文档获取更多信息。<br><br>";
     if (hasAbuse) body += "提示：你似乎在短时间大量请求 GitHub API 导致被暂时封禁。请降低并发，不要频繁操作，稍等片刻再继续尝试。<br><br>";
+    var hasCloudflare = window._hasChallenge;
+    if (hasCloudflare) body += "提示：似乎触发了人机验证，请尝试手动更新。<br><br>";
+    window._hasChallenge = false;
     body += errs.join("<br>");
     ld.done(body, true, errs.length + " 个错误");
   }
