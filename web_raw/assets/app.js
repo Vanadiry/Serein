@@ -183,6 +183,7 @@ function _positionTooltip(e) {
   var tip = _ensureTooltip();
   var rect = e.target.getBoundingClientRect();
   var left = rect.left + rect.width / 2;
+  var above = true;
   tip.style.left = left + "px";
   tip.style.top = (rect.top - 8) + "px";
   tip.style.transform = "translate(-50%, -100%)";
@@ -190,14 +191,21 @@ function _positionTooltip(e) {
   requestAnimationFrame(function() { tip.style.opacity = "1"; });
 
   var tipRect = tip.getBoundingClientRect();
+  // 顶部溢出：翻转到元素下方
+  if (tipRect.top < 16) {
+    tip.style.top = (rect.bottom + 8) + "px";
+    tip.style.transform = "translate(-50%, 0)";
+    above = false;
+    tipRect = tip.getBoundingClientRect();
+  }
   if (tipRect.right > window.innerWidth - 16) {
     tip.style.left = "auto";
     tip.style.right = "16px";
-    tip.style.transform = "translate(0, -100%)";
+    tip.style.transform = above ? "translate(0, -100%)" : "translate(0, 0)";
   }
   if (tipRect.left < 16) {
     tip.style.left = "16px";
-    tip.style.transform = "translate(0, -100%)";
+    tip.style.transform = above ? "translate(0, -100%)" : "translate(0, 0)";
   }
 }
 
