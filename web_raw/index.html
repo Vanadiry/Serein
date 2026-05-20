@@ -103,29 +103,62 @@
     } else if (hasUpdate) {
       const parts = [];
       var sortedOS = Object.keys(checked.platforms).sort(function(a, b) { var order = ["macos","windows","linux","ios","android"]; return order.indexOf(a) - order.indexOf(b); });
+      var groups = {};
+      var groupOrder = [];
       for (var si = 0; si < sortedOS.length; si++) { var os = sortedOS[si]; var p = checked.platforms[os];
-        if (p.latest_version && p.latest_version !== p.current_version) {
-          parts.push(`<span class="opacity-50">${platformIcon(os, "w-4 h-4")}</span> <span class="text-err">${p.current_version || "-"}</span> <span class="text-sub">→</span> <span class="text-ok">${p.latest_version}</span>`);
-        } else if (p.latest_version && p.latest_version === p.current_version) {
-          parts.push(`<span class="opacity-50">${platformIcon(os, "w-4 h-4")}</span> <span class="text-ok">${p.current_version || "-"}</span> <span class="text-sub">(无更新)</span>`);
+        var cur = p.current_version || "-";
+        var lat = p.latest_version || "-";
+        var key = cur + "|" + lat;
+        if (!groups[key]) { groups[key] = { current: cur, latest: p.latest_version, oses: [] }; groupOrder.push(key); }
+        groups[key].oses.push(os);
+      }
+      for (var gi = 0; gi < groupOrder.length; gi++) {
+        var g = groups[groupOrder[gi]];
+        var icons = '<span class="inline-flex gap-px">';
+        for (var ii = 0; ii < g.oses.length; ii++) { icons += platformIcon(g.oses[ii], "w-4 h-4"); }
+        icons += '</span>';
+        if (g.latest && g.latest !== g.current) {
+          parts.push(`<span class="opacity-50">${icons}</span> <span class="text-err">${g.current}</span> <span class="text-sub">→</span> <span class="text-ok">${g.latest}</span>`);
+        } else if (g.latest && g.latest === g.current) {
+          parts.push(`<span class="opacity-50">${icons}</span> <span class="text-ok">${g.current}</span> <span class="text-sub">(无更新)</span>`);
         } else {
-          parts.push(`<span class="opacity-50">${platformIcon(os, "w-4 h-4")}</span> <span class="text-sub">${p.current_version || "-"}</span>`);
+          parts.push(`<span class="opacity-50">${icons}</span> <span class="text-sub">${g.current}</span>`);
         }
       }
       versionHTML = `<span class="text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
     } else if (checked && Object.keys(checked.platforms || {}).length > 0) {
       const parts = [];
       var sortedOS = Object.keys(checked.platforms).sort(function(a, b) { var order = ["macos","windows","linux","ios","android"]; return order.indexOf(a) - order.indexOf(b); });
+      var groups2 = {};
+      var groupOrder2 = [];
       for (var si = 0; si < sortedOS.length; si++) { var os = sortedOS[si]; var p = checked.platforms[os];
-        var v = p.current_version || p.latest_version || d.current_version?.[os];
-          parts.push(`<span class="opacity-50">${platformIcon(os, "w-4 h-4")}</span> <span class="text-ok">${v || "-"}</span> <span class="text-sub">(无更新)</span>`);
+        var v = p.current_version || p.latest_version || d.current_version?.[os] || "-";
+        if (!groups2[v]) { groups2[v] = []; groupOrder2.push(v); }
+        groups2[v].push(os);
+      }
+      for (var gi = 0; gi < groupOrder2.length; gi++) {
+        var v2 = groupOrder2[gi];
+        var icons = '<span class="inline-flex gap-px">';
+        for (var ii = 0; ii < groups2[v2].length; ii++) { icons += platformIcon(groups2[v2][ii], "w-4 h-4"); }
+        icons += '</span>';
+        parts.push(`<span class="opacity-50">${icons}</span> <span class="text-ok">${v2}</span> <span class="text-sub">(无更新)</span>`);
       }
       versionHTML = `<span class="text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
     } else {
       const parts = [];
       var sortedOS2 = Object.keys(d.current_version || {}).sort(function(a, b) { var order = ["macos","windows","linux","ios","android"]; return order.indexOf(a) - order.indexOf(b); });
-        for (var si2 = 0; si2 < sortedOS2.length; si2++) { var os = sortedOS2[si2]; var v = (d.current_version || {})[os];
-        parts.push(`<span class="opacity-50">${platformIcon(os, "w-4 h-4")}</span> ${v || "-"}`);
+      var groups3 = {};
+      var groupOrder3 = [];
+      for (var si2 = 0; si2 < sortedOS2.length; si2++) { var os = sortedOS2[si2]; var v = (d.current_version || {})[os] || "-";
+        if (!groups3[v]) { groups3[v] = []; groupOrder3.push(v); }
+        groups3[v].push(os);
+      }
+      for (var gi = 0; gi < groupOrder3.length; gi++) {
+        var v3 = groupOrder3[gi];
+        var icons = '<span class="inline-flex gap-px">';
+        for (var ii = 0; ii < groups3[v3].length; ii++) { icons += platformIcon(groups3[v3][ii], "w-4 h-4"); }
+        icons += '</span>';
+        parts.push(`<span class="opacity-50">${icons}</span> ${v3}`);
       }
       versionHTML = `<span class="text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;") || "未记录版本"}</span>`;
     }
