@@ -26,6 +26,7 @@ github_token = "github_xxx"       # GitHub 令牌，用于提升请求限制
 
 [[rule_sources]]                  # 规则源，默认为 Vanadiry 维护的规则源。你可以添加新的 url 来指定更多
 url = "https://111.xx/"
+[[rule_sources]]                  # 规则源 2
 url = "https://222.xx/"
 ```
 
