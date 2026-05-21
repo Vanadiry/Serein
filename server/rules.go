@@ -23,7 +23,7 @@ func (s *Server) handleRulesSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	store.Logf("[sync] %d sources", len(s.config.RuleSources))
-	result := store.SyncAllSources(s.home, s.config.RuleSources)
+	result := store.SyncAllSources(s.home, s.config.RuleSources, s.config.Serein.Concurrency)
 	store.Logf("[sync] done, %d synced, %d errors", len(result.Synced), len(result.Errors))
 	writeJSON(w, http.StatusOK, result)
 }
