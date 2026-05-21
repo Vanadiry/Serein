@@ -1,13 +1,13 @@
 package store
 
 import (
-	"regexp"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 )
@@ -17,15 +17,17 @@ type SourceJSON struct {
 	ID          string   `json:"source_id"`
 	Name        string   `json:"name,omitempty"`
 	Description string   `json:"description,omitempty"`
-	Type        string   `json:"type,omitempty"`    // "rules"（默认）或 "list"
+	Type        string   `json:"type,omitempty"`  // "rules"（默认）或 "list"
 	BaseURL     string   `json:"baseurl,omitempty"`
+	Version     int      `json:"version,omitempty"`
 	Files       []string `json:"files"`
 }
 
 // SyncResult 同步结果
 type SyncResult struct {
-	Synced []string
-	Errors []SyncError
+	Synced  []string
+	Skipped []string
+	Errors  []SyncError
 }
 
 // SyncError 同步错误
@@ -49,8 +51,9 @@ func SyncAllSources(home string, sources []RuleSource, concurrency int) SyncResu
 	var wg sync.WaitGroup
 
 	result := SyncResult{
-		Synced: []string{},
-		Errors: []SyncError{},
+		Synced:  []string{},
+		Skipped: []string{},
+		Errors:  []SyncError{},
 	}
 	usedIDs := make(map[string]bool)
 
@@ -95,6 +98,14 @@ func SyncAllSources(home string, sources []RuleSource, concurrency int) SyncResu
 			usedIDs[srcJSON.ID] = true
 			destDir := filepath.Join(home, "rules", srcJSON.ID)
 			mu.Unlock()
+
+			// 版本检查：本地版本与远端一致则跳过
+			if srcJSON.Version > 0 && loadLocalSourceVersion(destDir) == srcJSON.Version {
+				mu.Lock()
+				result.Skipped = append(result.Skipped, srcJSON.ID)
+				mu.Unlock()
+				return
+			}
 
 			if err := syncSource(srcJSON, rawBody, src.URL, destDir, sem); err != nil {
 				mu.Lock()
@@ -144,6 +155,18 @@ func fetchSourceJSON(url string) (*SourceJSON, []byte, error) {
 		return nil, nil, fmt.Errorf("source_id %q 包含非法字符，仅允许大小写字母、数字、下划线和连字符", s.ID)
 	}
 	return &s, body, nil
+}
+
+func loadLocalSourceVersion(dir string) int {
+	data, err := os.ReadFile(filepath.Join(dir, "_source.json"))
+	if err != nil {
+		return 0
+	}
+	var s SourceJSON
+	if json.Unmarshal(data, &s) != nil {
+		return 0
+	}
+	return s.Version
 }
 
 func syncSource(s *SourceJSON, rawBody []byte, sourceURL string, destDir string, sem chan struct{}) error {
@@ -227,6 +250,11 @@ func syncList(s *SourceJSON, rawBody []byte, baseURL string, destDir string, isL
 			}
 		} else {
 			subBaseURL = filepath.Dir(subURL)
+		}
+
+		// 子源版本检查
+		if subJSON.Version > 0 && loadLocalSourceVersion(subDest) == subJSON.Version {
+			continue
 		}
 
 		if subJSON.Type == "list" {

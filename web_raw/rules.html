@@ -64,11 +64,14 @@
     console.log("[sync]"); const result = await apiPost("/api/rules/sync");
     loadSources();
     if (result && result.Errors && result.Errors.length) {
-      var msg = "同步完成，" + result.Synced.length + " 个成功，" + result.Errors.length + " 个失败<br><br>" +
+      var msg = "同步完成，" + (result.Synced || []).length + " 个更新，" + (result.Skipped || []).length + " 个跳过，" + result.Errors.length + " 个失败<br><br>" +
         result.Errors.map(function(e) { return e.url + ": " + e.reason; }).join("<br>");
       ld.done(msg, true);
     } else if (result && result.Synced) {
-      ld.done("同步完成（" + result.Synced.length + " 个源）");
+      var doneMsg = "同步完成（" + result.Synced.length + " 个更新";
+      if (result.Skipped && result.Skipped.length) doneMsg += "，" + result.Skipped.length + " 个跳过";
+      doneMsg += "）";
+      ld.done(doneMsg);
     } else {
       ld.done("同步完成");
     }

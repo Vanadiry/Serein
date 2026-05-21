@@ -8,6 +8,7 @@
 {
   "source_id": "规则源唯一标识，推荐使用 UUID",
   "name": "显示名称（可选）",
+  "version": 1,
   "description": "简介（可选）",
   "type": "解析模式：rules | list",
   "baseurl": "基路径（可选）",
@@ -21,6 +22,9 @@ API 拉取规则时，程序逐个下载 `{baseurl}/{files[i]}` 到 Serein 主�
 
 若规则源 json 的位置，和文件位置不同，可以配置 `baseurl` 指定基目录。  
 不写时，自动取 `_source.json` 的父目录。
+
+`version` 为 int 类型的版本号，从 1 开始，每次更新时需要递增。  
+Serein 在拉取规则时，将会通过版本号判断这个源是否需要更新。
 
 ## 递归解析
 
