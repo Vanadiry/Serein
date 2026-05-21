@@ -1,6 +1,7 @@
 package store
 
 import (
+	"regexp"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -138,6 +139,9 @@ func fetchSourceJSON(url string) (*SourceJSON, []byte, error) {
 	}
 	if s.ID == "" {
 		return nil, nil, fmt.Errorf("_source.json 缺少 source_id")
+	}
+	if !regexp.MustCompile(`^[a-zA-Z0-9_-]+$`).MatchString(s.ID) {
+		return nil, nil, fmt.Errorf("source_id %q 包含非法字符，仅允许大小写字母、数字、下划线和连字符", s.ID)
 	}
 	return &s, body, nil
 }
