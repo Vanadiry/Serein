@@ -37,6 +37,12 @@ type SyncError struct {
 	Reason string `json:"reason"`
 }
 
+// subResult 子源同步统计
+type subResult struct {
+	synced  []string
+	skipped []string
+}
+
 // SyncAllSources 同步所有规则源（并发）
 func SyncAllSources(home string, sources []RuleSource, concurrency int) SyncResult {
 	if concurrency < 1 {
@@ -99,26 +105,26 @@ func SyncAllSources(home string, sources []RuleSource, concurrency int) SyncResu
 			destDir := filepath.Join(home, "rules", srcJSON.ID)
 			mu.Unlock()
 
-			// 版本检查：本地版本与远端一致则跳过
-			if srcJSON.Version > 0 && loadLocalSourceVersion(destDir) == srcJSON.Version {
+			// 版本检查：仅对非 list 源生效
+			if srcJSON.Type != "list" && srcJSON.Version > 0 && loadLocalSourceVersion(destDir) == srcJSON.Version {
 				mu.Lock()
 				result.Skipped = append(result.Skipped, srcJSON.ID)
 				mu.Unlock()
 				return
 			}
 
-			if err := syncSource(srcJSON, rawBody, src.URL, destDir, sem); err != nil {
-				mu.Lock()
+			sub, err := syncSource(srcJSON, rawBody, src.URL, destDir, sem)
+			mu.Lock()
+			if err != nil {
 				result.Errors = append(result.Errors, SyncError{
 					ID:     srcJSON.ID,
 					URL:    src.URL,
 					Reason: fmt.Sprintf("同步失败: %v", err),
 				})
-				mu.Unlock()
-				return
+			} else {
+				result.Synced = append(result.Synced, sub.synced...)
+				result.Skipped = append(result.Skipped, sub.skipped...)
 			}
-			mu.Lock()
-			result.Synced = append(result.Synced, srcJSON.ID)
 			mu.Unlock()
 		}(src)
 	}
@@ -169,7 +175,7 @@ func loadLocalSourceVersion(dir string) int {
 	return s.Version
 }
 
-func syncSource(s *SourceJSON, rawBody []byte, sourceURL string, destDir string, sem chan struct{}) error {
+func syncSource(s *SourceJSON, rawBody []byte, sourceURL string, destDir string, sem chan struct{}) (subResult, error) {
 	isLocal := !strings.HasPrefix(sourceURL, "http://") && !strings.HasPrefix(sourceURL, "https://")
 	baseURL := s.BaseURL
 
@@ -189,32 +195,32 @@ func syncSource(s *SourceJSON, rawBody []byte, sourceURL string, destDir string,
 
 	// type=rules（默认）：直接下载文件
 	if err := syncFileList(baseURL, s.Files, destDir, !isLocal, sem); err != nil {
-		return err
+		return subResult{}, err
 	}
 
 	infoPath := filepath.Join(destDir, "_source.json")
 	if writeErr := os.WriteFile(infoPath, rawBody, 0644); writeErr != nil {
-		return fmt.Errorf("write _source.json: %w", writeErr)
+		return subResult{}, fmt.Errorf("write _source.json: %w", writeErr)
 	}
-	return nil
+	return subResult{synced: []string{s.ID}}, nil
 }
 
-// syncList 递归处理 type=list 的源
-func syncList(s *SourceJSON, rawBody []byte, baseURL string, destDir string, isLocal bool, sem chan struct{}) error {
-	os.RemoveAll(destDir)
+// syncList 递归处理 type=list 的源，返回所有子源的同步统计
+func syncList(s *SourceJSON, rawBody []byte, baseURL string, destDir string, isLocal bool, sem chan struct{}) (subResult, error) {
 	if err := os.MkdirAll(destDir, 0755); err != nil {
-		return err
+		return subResult{}, err
 	}
 
 	// 写入 list 源自身的 _source.json
 	infoPath := filepath.Join(destDir, "_source.json")
 	if err := os.WriteFile(infoPath, rawBody, 0644); err != nil {
-		return err
+		return subResult{}, err
 	}
 
+	var r subResult
 	for _, f := range s.Files {
 		if filepath.Base(f) != "_source.json" {
-			return fmt.Errorf("list 模式子源必须以 _source.json 结尾，实际为 %q", f)
+			return subResult{}, fmt.Errorf("list 模式子源必须以 _source.json 结尾，实际为 %q", f)
 		}
 		subDir := filepath.Dir(f)
 		expectedID := subDir
@@ -232,11 +238,11 @@ func syncList(s *SourceJSON, rawBody []byte, baseURL string, destDir string, isL
 		<-sem
 
 		if err != nil {
-			return fmt.Errorf("子源 %s: %w", f, err)
+			return subResult{}, fmt.Errorf("子源 %s: %w", f, err)
 		}
 
 		if subJSON.ID != expectedID {
-			return fmt.Errorf("子源 %s 的 source_id 必须为 %q，实际为 %q", f, expectedID, subJSON.ID)
+			return subResult{}, fmt.Errorf("子源 %s 的 source_id 必须为 %q，实际为 %q", f, expectedID, subJSON.ID)
 		}
 
 		subDest := filepath.Join(destDir, subDir)
@@ -254,25 +260,30 @@ func syncList(s *SourceJSON, rawBody []byte, baseURL string, destDir string, isL
 
 		// 子源版本检查
 		if subJSON.Version > 0 && loadLocalSourceVersion(subDest) == subJSON.Version {
+			r.skipped = append(r.skipped, subJSON.ID)
 			continue
 		}
 
 		if subJSON.Type == "list" {
-			if err := syncList(subJSON, subRaw, subBaseURL, subDest, isLocal, sem); err != nil {
-				return err
+			subR, subErr := syncList(subJSON, subRaw, subBaseURL, subDest, isLocal, sem)
+			if subErr != nil {
+				return subResult{}, subErr
 			}
+			r.synced = append(r.synced, subR.synced...)
+			r.skipped = append(r.skipped, subR.skipped...)
 		} else {
 			if err := syncFileList(subBaseURL, subJSON.Files, subDest, !isLocal, sem); err != nil {
-				return err
+				return subResult{}, err
 			}
 			// 写入子源的 _source.json
 			subInfoPath := filepath.Join(subDest, "_source.json")
 			if writeErr := os.WriteFile(subInfoPath, subRaw, 0644); writeErr != nil {
-				return fmt.Errorf("write _source.json: %w", writeErr)
+				return subResult{}, fmt.Errorf("write _source.json: %w", writeErr)
 			}
+			r.synced = append(r.synced, subJSON.ID)
 		}
 	}
-	return nil
+	return r, nil
 }
 
 // syncFileList 并发下载文件列表
