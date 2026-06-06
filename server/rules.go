@@ -3,6 +3,7 @@ package server
 
 import (
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/vanadiry/serein/core/store"
@@ -105,6 +106,9 @@ type ruleListItem struct {
 }
 
 func formatRuleList(home string, rules []store.Rule) []ruleListItem {
+	sort.Slice(rules, func(i, j int) bool {
+		return strings.ToLower(rules[i].Info.Name) < strings.ToLower(rules[j].Info.Name)
+	})
 	var result []ruleListItem
 	for _, rule := range rules {
 		item := ruleListItem{
