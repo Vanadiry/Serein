@@ -17,16 +17,13 @@ func (s *Server) handleRulesSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(s.config.RuleSources) == 0 {
-		writeJSON(w, http.StatusOK, map[string]any{
-			"synced": []string{},
-			"errors": []string{},
-		})
+		writeJSON(w, http.StatusOK, map[string]string{"task_id": ""})
 		return
 	}
 	store.Logf("[sync] %d sources", len(s.config.RuleSources))
-	result := store.SyncAllSources(s.home, s.config.RuleSources, s.config.Serein.Concurrency)
-	store.Logf("[sync] done, %d synced, %d skipped, %d errors", len(result.Synced), len(result.Skipped), len(result.Errors))
-	writeJSON(w, http.StatusOK, result)
+	p := store.NewProgress(0)
+	go store.SyncAllSourcesAsync(s.home, s.config.RuleSources, s.config.Serein.Concurrency, p)
+	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID})
 }
 
 // GET /api/rules/list/all

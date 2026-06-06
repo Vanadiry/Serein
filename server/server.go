@@ -46,7 +46,8 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/check/progress/{task_id}", store.HandleProgressSSE)
 	s.mux.HandleFunc("POST /api/check/cancel/{task_id}", store.HandleProgressCancel)
 
-	s.mux.HandleFunc("/api/rules/sync", s.handleRulesSync)
+	s.mux.HandleFunc("POST /api/rules/sync", s.handleRulesSync)
+	s.mux.HandleFunc("GET /api/rules/sync/progress/{task_id}", store.HandleProgressSSE)
 	s.mux.HandleFunc("/api/rules/list/all", s.handleRulesListAll)
 	s.mux.HandleFunc("/api/rules/list/search", s.handleRulesListSearch)
 	s.mux.HandleFunc("/api/rules/list/", s.handleRulesListBySource)

@@ -42,14 +42,14 @@ func NewProgress(total int) *Progress {
 	return p
 }
 
-// Send 发送进度事件。done 为已完成数（累计），name 为刚完成的 app 名称。
-func (p *Progress) Send(name string, done, total int) {
+// Send 发送进度事件。step: "app" / "list" / "file" 等。
+func (p *Progress) Send(step, name string, done, total int) {
 	p.mu.Lock()
 	p.Done = done
 	p.Name = name
 	p.mu.Unlock()
 	select {
-	case p.Channel <- progressEvent("app", name, done, total):
+	case p.Channel <- progressEvent(step, name, done, total):
 	default:
 	}
 }

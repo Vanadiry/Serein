@@ -17,119 +17,10 @@ type SourceJSON struct {
 	ID          string   `json:"source_id"`
 	Name        string   `json:"name,omitempty"`
 	Description string   `json:"description,omitempty"`
-	Type        string   `json:"type,omitempty"`  // "rules"（默认）或 "list"
+	Type        string   `json:"type,omitempty"` // "rules"（默认）或 "list"
 	BaseURL     string   `json:"baseurl,omitempty"`
 	Version     int      `json:"version,omitempty"`
 	Files       []string `json:"files"`
-}
-
-// SyncResult 同步结果
-type SyncResult struct {
-	Synced  []string
-	Skipped []string
-	Errors  []SyncError
-}
-
-// SyncError 同步错误
-type SyncError struct {
-	ID     string `json:"id,omitempty"`
-	URL    string `json:"url"`
-	Reason string `json:"reason"`
-}
-
-// subResult 子源同步统计
-type subResult struct {
-	synced  []string
-	skipped []string
-}
-
-// SyncAllSources 同步所有规则源（并发）
-func SyncAllSources(home string, sources []RuleSource, concurrency int) SyncResult {
-	if concurrency < 1 {
-		concurrency = 1
-	}
-	if concurrency > 64 {
-		concurrency = 64
-	}
-
-	sem := make(chan struct{}, concurrency)
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-
-	result := SyncResult{
-		Synced:  []string{},
-		Skipped: []string{},
-		Errors:  []SyncError{},
-	}
-	usedIDs := make(map[string]bool)
-
-	for _, src := range sources {
-		wg.Add(1)
-		go func(src RuleSource) {
-			defer wg.Done()
-
-			sem <- struct{}{}
-			srcJSON, rawBody, err := fetchSourceJSON(src.URL)
-			<-sem
-
-			mu.Lock()
-			if err != nil {
-				result.Errors = append(result.Errors, SyncError{
-					URL:    src.URL,
-					Reason: fmt.Sprintf("获取 _source.json 失败: %v", err),
-				})
-				mu.Unlock()
-				return
-			}
-
-			if len(srcJSON.Files) == 0 {
-				result.Errors = append(result.Errors, SyncError{
-					ID:     srcJSON.ID,
-					URL:    src.URL,
-					Reason: "_source.json 缺少 files 字段",
-				})
-				mu.Unlock()
-				return
-			}
-
-			if usedIDs[srcJSON.ID] {
-				result.Errors = append(result.Errors, SyncError{
-					ID:     srcJSON.ID,
-					URL:    src.URL,
-					Reason: "duplicate ID, already claimed by an earlier source",
-				})
-				mu.Unlock()
-				return
-			}
-			usedIDs[srcJSON.ID] = true
-			destDir := filepath.Join(home, "rules", srcJSON.ID)
-			mu.Unlock()
-
-			// 版本检查：仅对非 list 源生效
-			if srcJSON.Type != "list" && srcJSON.Version > 0 && loadLocalSourceVersion(destDir) == srcJSON.Version {
-				mu.Lock()
-				result.Skipped = append(result.Skipped, srcJSON.ID)
-				mu.Unlock()
-				return
-			}
-
-			sub, err := syncSource(srcJSON, rawBody, src.URL, destDir, sem)
-			mu.Lock()
-			if err != nil {
-				result.Errors = append(result.Errors, SyncError{
-					ID:     srcJSON.ID,
-					URL:    src.URL,
-					Reason: fmt.Sprintf("同步失败: %v", err),
-				})
-			} else {
-				result.Synced = append(result.Synced, sub.synced...)
-				result.Skipped = append(result.Skipped, sub.skipped...)
-			}
-			mu.Unlock()
-		}(src)
-	}
-	wg.Wait()
-	return result
 }
 
 func fetchSourceJSON(url string) (*SourceJSON, []byte, error) {
@@ -175,192 +66,6 @@ func loadLocalSourceVersion(dir string) int {
 	return s.Version
 }
 
-func syncSource(s *SourceJSON, rawBody []byte, sourceURL string, destDir string, sem chan struct{}) (subResult, error) {
-	isLocal := !strings.HasPrefix(sourceURL, "http://") && !strings.HasPrefix(sourceURL, "https://")
-	baseURL := s.BaseURL
-
-	if baseURL == "" {
-		baseURL = filepath.Dir(sourceURL)
-		if !isLocal {
-			idx := strings.LastIndex(sourceURL, "/")
-			if idx >= 0 {
-				baseURL = sourceURL[:idx]
-			}
-		}
-	}
-
-	if s.Type == "list" {
-		return syncList(s, rawBody, baseURL, destDir, isLocal, sem)
-	}
-
-	// type=rules（默认）：直接下载文件
-	if err := syncFileList(baseURL, s.Files, destDir, !isLocal, sem); err != nil {
-		return subResult{}, err
-	}
-
-	infoPath := filepath.Join(destDir, "_source.json")
-	if writeErr := os.WriteFile(infoPath, rawBody, 0644); writeErr != nil {
-		return subResult{}, fmt.Errorf("write _source.json: %w", writeErr)
-	}
-	return subResult{synced: []string{s.ID}}, nil
-}
-
-// syncList 递归处理 type=list 的源，返回所有子源的同步统计
-func syncList(s *SourceJSON, rawBody []byte, baseURL string, destDir string, isLocal bool, sem chan struct{}) (subResult, error) {
-	if err := os.MkdirAll(destDir, 0755); err != nil {
-		return subResult{}, err
-	}
-
-	// 写入 list 源自身的 _source.json
-	infoPath := filepath.Join(destDir, "_source.json")
-	if err := os.WriteFile(infoPath, rawBody, 0644); err != nil {
-		return subResult{}, err
-	}
-
-	var r subResult
-	for _, f := range s.Files {
-		if filepath.Base(f) != "_source.json" {
-			return subResult{}, fmt.Errorf("list 模式子源必须以 _source.json 结尾，实际为 %q", f)
-		}
-		subDir := filepath.Dir(f)
-		expectedID := subDir
-
-		// 获取子源
-		var subURL string
-		if isLocal {
-			subURL = filepath.Join(baseURL, f)
-		} else {
-			subURL = strings.TrimSuffix(baseURL, "/") + "/" + f
-		}
-
-		sem <- struct{}{}
-		subJSON, subRaw, err := fetchSourceJSON(subURL)
-		<-sem
-
-		if err != nil {
-			return subResult{}, fmt.Errorf("子源 %s: %w", f, err)
-		}
-
-		if subJSON.ID != expectedID {
-			return subResult{}, fmt.Errorf("子源 %s 的 source_id 必须为 %q，实际为 %q", f, expectedID, subJSON.ID)
-		}
-
-		subDest := filepath.Join(destDir, subDir)
-
-		// 递归处理子源
-		subBaseURL := baseURL
-		if !isLocal {
-			idx := strings.LastIndex(subURL, "/")
-			if idx >= 0 {
-				subBaseURL = subURL[:idx]
-			}
-		} else {
-			subBaseURL = filepath.Dir(subURL)
-		}
-
-		// 子源版本检查
-		if subJSON.Version > 0 && loadLocalSourceVersion(subDest) == subJSON.Version {
-			r.skipped = append(r.skipped, subJSON.ID)
-			continue
-		}
-
-		if subJSON.Type == "list" {
-			subR, subErr := syncList(subJSON, subRaw, subBaseURL, subDest, isLocal, sem)
-			if subErr != nil {
-				return subResult{}, subErr
-			}
-			r.synced = append(r.synced, subR.synced...)
-			r.skipped = append(r.skipped, subR.skipped...)
-		} else {
-			if err := syncFileList(subBaseURL, subJSON.Files, subDest, !isLocal, sem); err != nil {
-				return subResult{}, err
-			}
-			// 写入子源的 _source.json
-			subInfoPath := filepath.Join(subDest, "_source.json")
-			if writeErr := os.WriteFile(subInfoPath, subRaw, 0644); writeErr != nil {
-				return subResult{}, fmt.Errorf("write _source.json: %w", writeErr)
-			}
-			r.synced = append(r.synced, subJSON.ID)
-		}
-	}
-	return r, nil
-}
-
-// syncFileList 并发下载文件列表
-func syncFileList(baseURL string, files []string, destDir string, isWeb bool, sem chan struct{}) error {
-	os.RemoveAll(destDir)
-
-	if !isWeb {
-		// 本地文件保持串行，避免并发复制带来的复杂度和收益不成正比
-		for _, f := range files {
-			target := filepath.Join(destDir, f)
-			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
-				return err
-			}
-			src := filepath.Join(baseURL, f)
-			if err := copyFile(src, target); err != nil {
-				return fmt.Errorf("复制 %s: %w", f, err)
-			}
-		}
-		return nil
-	}
-
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	var firstErr error
-
-	for _, f := range files {
-		wg.Add(1)
-		go func(f string) {
-			defer wg.Done()
-
-			target := filepath.Join(destDir, f)
-			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
-				mu.Lock()
-				if firstErr == nil {
-					firstErr = err
-				}
-				mu.Unlock()
-				return
-			}
-
-			sem <- struct{}{}
-			fileURL := strings.TrimSuffix(baseURL, "/") + "/" + f
-			resp, err := http.Get(fileURL)
-			if err != nil {
-				<-sem
-				mu.Lock()
-				if firstErr == nil {
-					firstErr = fmt.Errorf("下载 %s: %w", f, err)
-				}
-				mu.Unlock()
-				return
-			}
-			body, readErr := io.ReadAll(resp.Body)
-			resp.Body.Close()
-			<-sem
-
-			if readErr != nil {
-				mu.Lock()
-				if firstErr == nil {
-					firstErr = fmt.Errorf("读取 %s: %w", f, readErr)
-				}
-				mu.Unlock()
-				return
-			}
-
-			writeErr := os.WriteFile(target, body, 0644)
-			mu.Lock()
-			if firstErr == nil && writeErr != nil {
-				firstErr = fmt.Errorf("写入 %s: %w", f, writeErr)
-			}
-			mu.Unlock()
-		}(f)
-	}
-	wg.Wait()
-	return firstErr
-}
-
 func copyFile(src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {
@@ -376,4 +81,177 @@ func copyFile(src, dst string) error {
 
 	_, err = io.Copy(out, in)
 	return err
+}
+
+func downloadFile(url, dest string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return fmt.Errorf("下载 %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(dest, body, 0644)
+}
+
+// ── 异步同步（带进度）──────────────────────────────────────────
+
+type leafSrc struct {
+	id      string
+	rawBody []byte
+	destDir string
+	baseURL string
+	files   []string
+	isWeb   bool
+}
+
+// SyncAllSourcesAsync 两阶段同步：
+// 1. 遍历源树，收集所有叶子源 → 发 list 事件
+// 2. 并发下载所有规则文件 → 发 file 事件（done/total）
+func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *Progress) {
+	defer p.Close()
+	if concurrency < 1 {
+		concurrency = 1
+	}
+	if concurrency > 64 {
+		concurrency = 64
+	}
+
+	// Phase 1: 遍历
+	leaves := gatherLeaves(sources, concurrency, p)
+	if len(leaves) == 0 {
+		return
+	}
+
+	total := 0
+	for _, l := range leaves {
+		total += len(l.files)
+	}
+
+	// Phase 2: 并发下载
+	sem := make(chan struct{}, concurrency)
+	var mu sync.Mutex
+	var done int
+	var wg sync.WaitGroup
+	rulesDir := filepath.Join(home, "rules")
+
+	for _, l := range leaves {
+		dest := filepath.Join(rulesDir, l.destDir)
+		os.RemoveAll(dest)
+		for _, f := range l.files {
+			wg.Add(1)
+			go func(l leafSrc, f string) {
+				defer wg.Done()
+				sem <- struct{}{}
+				defer func() { <-sem }()
+
+				target := filepath.Join(rulesDir, l.destDir, f)
+				os.MkdirAll(filepath.Dir(target), 0755)
+				var err error
+				if l.isWeb {
+					err = downloadFile(strings.TrimSuffix(l.baseURL, "/")+"/"+f, target)
+				} else {
+					err = copyFile(filepath.Join(l.baseURL, f), target)
+				}
+				mu.Lock()
+				done++
+				name := f
+				if err != nil {
+					name += " (失败)"
+				}
+				p.Send("file", name, done, total)
+				mu.Unlock()
+			}(l, f)
+		}
+	}
+	wg.Wait()
+
+	// 写入 _source.json
+	for _, l := range leaves {
+		dest := filepath.Join(rulesDir, l.destDir)
+		os.MkdirAll(dest, 0755)
+		os.WriteFile(filepath.Join(dest, "_source.json"), l.rawBody, 0644)
+	}
+}
+
+func gatherLeaves(sources []RuleSource, concurrency int, p *Progress) []leafSrc {
+	sem := make(chan struct{}, concurrency)
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	usedIDs := make(map[string]bool)
+	var leaves []leafSrc
+
+	for _, src := range sources {
+		wg.Add(1)
+		go func(src RuleSource) {
+			defer wg.Done()
+			sem <- struct{}{}
+			js, raw, err := fetchSourceJSON(src.URL)
+			<-sem
+			if err != nil {
+				return
+			}
+			mu.Lock()
+			if usedIDs[js.ID] {
+				mu.Unlock()
+				return
+			}
+			usedIDs[js.ID] = true
+			mu.Unlock()
+
+			p.Send("list", js.ID, 0, 0)
+			sub := resolveLeaves(js, raw, src.URL, js.ID, usedIDs, sem, &mu)
+			mu.Lock()
+			leaves = append(leaves, sub...)
+			mu.Unlock()
+		}(src)
+	}
+	wg.Wait()
+	return leaves
+}
+
+func resolveLeaves(s *SourceJSON, rawBody []byte, sourceURL, destRel string, usedIDs map[string]bool, sem chan struct{}, mu *sync.Mutex) []leafSrc {
+	isLocal := !strings.HasPrefix(sourceURL, "http://") && !strings.HasPrefix(sourceURL, "https://")
+	baseURL := s.BaseURL
+	if baseURL == "" {
+		baseURL = filepath.Dir(sourceURL)
+		if !isLocal {
+			if idx := strings.LastIndex(sourceURL, "/"); idx >= 0 {
+				baseURL = sourceURL[:idx]
+			}
+		}
+	}
+	if s.Type != "list" {
+		return []leafSrc{{id: s.ID, rawBody: rawBody, destDir: destRel, baseURL: baseURL, files: s.Files, isWeb: !isLocal}}
+	}
+	var result []leafSrc
+	for _, f := range s.Files {
+		if filepath.Base(f) != "_source.json" {
+			continue
+		}
+		subDir := filepath.Dir(f)
+		var subURL string
+		if isLocal {
+			subURL = filepath.Join(baseURL, f)
+		} else {
+			subURL = strings.TrimSuffix(baseURL, "/") + "/" + f
+		}
+		sem <- struct{}{}
+		subJSON, subRaw, err := fetchSourceJSON(subURL)
+		<-sem
+		if err != nil || subJSON.ID != subDir {
+			continue
+		}
+		mu.Lock()
+		if usedIDs[subJSON.ID] {
+			mu.Unlock()
+			continue
+		}
+		usedIDs[subJSON.ID] = true
+		mu.Unlock()
+		result = append(result, resolveLeaves(subJSON, subRaw, subURL, filepath.Join(destRel, subDir), usedIDs, sem, mu)...)
+	}
+	return result
 }
