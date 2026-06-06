@@ -1,6 +1,6 @@
 # Serein
 
-软件更新追踪器。
+规则去中心化的软件更新追踪器。
 
 与其他软件更新器不同的是，Serein 不提供中心化的检查更新接口。  
 所有更新规则依赖用户贡献的规则表，直接从对应软件官方源获取版本信息。  
@@ -11,37 +11,48 @@
 <img src="/docs/image/readme-01.png" width="500"/>
 <img src="/docs/image/readme-02.png" width="500"/>
 
-## 快速开始
+## 使用
 
-下载对应系统的二进制文件后运行即可，macOS/Linux 请先赋予可执行权限。  
+请阅读 [docs/guide](/docs/guide.md) 来学习 Serein 的使用方法。
+
+Serein 提供 Desktop 和 Server 两种运行方式。
+二者功能和行为完全一样，只是 Desktop 版本多了 Tauri 壳，可以作为桌面应用。
+Server 使用浏览器显示前端。
+
+macOS 和 Windows 建议使用 Desktop。Linux 请使用 Server。
+（~~Linux 没有 Desktop，因为我懒了QvQ，对不起呜呜。~~）  
+
+### Serein Desktop
+
+只需要下载对应平台的安装包，安装后即可运行。
+
+对于 macOS，打开程序时可能会提示“未打开，无法验证...”，这是因为我没钱买一年 99 美元的苹果证书。  
+安装好后，请打开终端，输入 `xattr -cr ` 后，将 Serein 程序拖入终端窗口，然后点击回车即可。
+
+对于 Windows，首次打开安装程序或 Server 程序时会弹出 Defender 蓝窗口，这是因为我也没钱买微软的证书...  
+只需要点击“更多信息”，然后点击“仍要运行”即可。
+
+### Serein Server
+
+对于 macOS 和 Linux，运行之前需要执行 `chmod +x`，然后通过 `./serein-server-xxx` 运行。  
 运行时，请保持终端窗口打开。
 
-<details><summary>macOS</summary>
+程序启动后，会自动拉起浏览器。  
+如果浏览器没有自动打开，请访问 `http://127.0.0.1:12510`。
 
-1. 打开终端，输入 `chmod +x`，然后将二进制文件拖入终端，点击回车。
-2. 再将二进制文件拖入终端，点击回车。（若提示“移动到废纸篓”，继续第三步）
-3. 在终端输入 `xattr -cr`，然后将二进制文件拖入终端，点击回车。
-4. 再执行一遍第二步，程序应当启动。
+## 构建
 
-</details>
+分发包已转向 GitHub Actions。从源码构建需要 `go`、`rust`、`pnpm`。
 
-<details><summary>Linux</summary>
+```bash
+pnpm install
+python3 scripts/build.py server    # Serein Server
+python3 scripts/build.py desktop   # Serein Desktop
+```
 
-1. 打开终端，输入 `chmod +x`，然后将二进制文件拖入终端，点击回车。
-2. 再将二进制文件拖入终端，点击回车。
+## 配置
 
-</details>
+程序首次启动时会在 `~/.vSoft/Serein/` 生成 `config.toml`。  
+通过环境变量 `SEREIN_HOME` 可自定义主目录。
 
-<details><summary>Windows</summary>
-
-直接运行 exe 即可。如果被 Defender 拦截，需要手动放行。
-
-</details>
-<br />
-
-程序会在本地启动 Go 后端，并自动拉起前端。  
-如果 WebUI 没有自动打开，请访问 `http://127.0.0.1:12510`。
-
-首次启动，请按照 WebUI 首屏的教程，更新一下默认规则源。
-
-详细使用方法，请阅读 [docs/guide](/docs/guide.md)。
+首次启动请前往规则页点击「同步规则」拉取内置规则表。

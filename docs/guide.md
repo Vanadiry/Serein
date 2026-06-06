@@ -18,11 +18,18 @@ Serein 首次启动时，会生成默认配置：
 
 ```toml
 [serein]
-host = "127.0.0.1"                # 监听地址，设为 0.0.0.0 则允许局域网访问
-port = 12510                      # 监听端口
+host = "127.0.0.1"     # 监听地址，设为 0.0.0.0 则允许局域网访问
+port = 12510           # 监听端口
+
+[tracker]
 platforms = ["macos", "windows"]  # 全局平台偏好，可被 Tracker 中的记录覆盖
-concurrency = 8                   # 检查更新时的并发数，最大允许 64
-github_token = "github_xxx"       # GitHub 令牌，用于提升请求限制
+
+[download]
+concurrency = 8        # 检查更新时的并发数，最大允许 64
+# downloader = "ndm"   # 下载器：空=浏览器，ndm=NeatDM，也可填入命令行（{url}替换为链接）
+
+[access]
+# github_token = "github_pat_xxx" # GitHub 令牌，用于提升请求限制
 
 [[rule_sources]]                  # 规则源，默认为 Vanadiry 维护的规则源。你可以添加新的 url 来指定更多
 url = "https://111.xx/"
@@ -33,13 +40,21 @@ url = "https://222.xx/"
 ### GitHub 令牌
 
 如果你追踪的位于 GitHub Release 的软件比较多，那么建议你配置这个。  
-因为GitHub 对未认证请求限制 60 次/小时，配置 Token 后提升至 5000 次/小时。
+因为 GitHub 对未认证请求限制 60 次/小时，配置 Token 后提升至 5000 次/小时。
 
-访问 [GitHub Personal access tokens](https://github.com/settings/personal-access-tokens)，点击 Generate new token」。  
+访问 [GitHub Personal access tokens](https://github.com/settings/personal-access-tokens)，点击 Generate new token。  
 设置名称和你想要的 Expiration 过期时间，其他全部默认即可，然后创建。  
-创建后，将 Token 写入到配置文件，即可提升请求次数上限。
+创建后，将 Token 写入到配置文件的 `[access]` 节，即可提升请求次数上限。
 
 Serein 不会收集你的 Token，请勿将 Token 外泄。
+
+### 下载器
+
+在 `[download]` 节配置 `downloader`：
+
+- 留空：下载链接在浏览器中打开，使用浏览器的下载
+- `"ndm"`：Neat Download Manager（内建 WebSocket 支持）
+- 自定义命令：如 `"aria2c {url}"`、`"IDMan.exe /d {url}"`，`{url}` 会被 Serein 替换为下载链接
 
 ### 规则源
 
@@ -53,7 +68,8 @@ Tracker 文件存放在主目录的 `tracker` 目录下，每个 `.toml` 文件�
 基本格式为：
 
 ```toml
-display_name = "Tracker 名称"   # 可选，仅供前端展示
+display_name = "Tracker Name"  # 可选，仅供前端展示
+order = 1                      # 可选，排序（数字小的在前）
 
 [[tracker]]
 app_id = "vanadiry-seshat"
@@ -66,10 +82,10 @@ platforms = ["windows", "linux"]
 
 Tracker 中的 `platforms` 优先级高于配置文件中的 `platforms`。  
 当在配置文件中设置了追踪 A 和 B 平台，但 Tracker 中仅设置了 A，则最终只会检查 A 平台的更新。  
-不写此字段，将继承配置文件中的 `platforms` 设置。
+不写此字段，将继承 `[tracker]` 节中的 `platforms` 设置。
 
-`_serein.toml` 为前端自动写入的默认 Tracker。  
-为了便于你管理，更推荐你手动创建和编辑一个新的 Tracker。
+可以从规则页面搜索规则并添加到默认 Tracker。  
+推荐你根据 Tracker 格式，手动创建和管理。
 
 ## 备份
 

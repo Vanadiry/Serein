@@ -1,10 +1,11 @@
 openapi: "3.0.3"
 info:
   title: Serein API
-  version: "0.1.0"
+  version: "1.0.0"
 servers:
   - url: http://127.0.0.1:12510
 paths:
+  # Tracker
   /api/tracker/list/all:
     get:
       tags: [Tracker]
@@ -49,10 +50,8 @@ paths:
               properties:
                 id: { type: string }
       responses:
-        "201":
-          description: Created
-        "409":
-          description: Already exists
+        "201": { description: Created }
+        "409": { description: Already exists }
   /api/tracker/add:
     post:
       tags: [Tracker]
@@ -68,12 +67,11 @@ paths:
                 app_id: { type: string }
                 platforms: { type: array, items: { type: string } }
       responses:
-        "200":
-          description: OK
-  /api/check/all:
-    post:
-      tags: [Check]
-      summary: 检查全部软件更新
+        "200": { description: OK }
+  /api/tracker/apps:
+    get:
+      tags: [Tracker]
+      summary: 获取所有已追踪的 app_id
       responses:
         "200":
           description: OK
@@ -81,12 +79,24 @@ paths:
             application/json:
               schema:
                 type: array
-                items:
-                  $ref: "#/components/schemas/CheckResponse"
+                items: { type: string }
+
+  # Check
+  /api/check/all:
+    post:
+      tags: [Check]
+      summary: 检查全部软件更新（异步，返回 task_id）
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskResponse"
   /api/check/ids:
     post:
       tags: [Check]
-      summary: 检查指定软件
+      summary: 检查指定软件（单个同步返回结果，批量异步返回 task_id）
       requestBody:
         content:
           application/json:
@@ -99,13 +109,15 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/CheckResponse"
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/CheckResponse"
+                  - $ref: "#/components/schemas/TaskResponse"
   /api/check/tracker:
     post:
       tags: [Check]
-      summary: 检查指定 tracker 内条目
+      summary: 检查指定 tracker（异步，返回 task_id）
       requestBody:
         content:
           application/json:
@@ -120,9 +132,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/CheckResponse"
+                $ref: "#/components/schemas/TaskResponse"
   /api/check/confirm:
     post:
       tags: [Check]
@@ -139,8 +149,7 @@ paths:
                 type: string
               description: "其他 key 为平台名，value 为版本号，如 \"macos\": \"1.0.0\""
       responses:
-        "200":
-          description: OK
+        "200": { description: OK }
   /api/check/temp/{type}:
     get:
       tags: [Check]
@@ -161,17 +170,58 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/TempCheckResult"
+
+  # Progress (SSE)
+  /api/progress/{task_id}:
+    get:
+      tags: [Progress]
+      summary: SSE 进度流
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  每行 `data: <json>\n\n`。
+                  start: {"step":"start","done":0,"total":0}
+                  app:  {"step":"app","name":"Seshat","done":12,"total":30}
+                  list: {"step":"list","name":"SereinRulesList","done":0,"total":0}
+                  file: {"step":"file","name":"app.toml","done":5,"total":131}
+                  skip: {"step":"skip","name":"source_id","done":0,"total":0}
+                  error: {"step":"error","name":"https://... 获取失败","done":0,"total":0}
+                  done: {"step":"done"}
+                  cancelled: {"step":"cancelled"}
+  /api/check/cancel/{task_id}:
+    post:
+      tags: [Progress]
+      summary: 终止任务（退出后端进程）
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: "进程退出" }
+
+  # Rules
   /api/rules/sync:
     post:
       tags: [Rules]
-      summary: 拉取规则源更新
+      summary: 拉取规则源更新（异步，返回 task_id）
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SyncResult"
+                $ref: "#/components/schemas/TaskResponse"
   /api/rules/list/all:
     get:
       tags: [Rules]
@@ -221,18 +271,64 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/RuleItem"
+
+  # Download / Open
+  /api/download:
+    post:
+      tags: [Download]
+      summary: 发送到下载器
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  message: { type: string }
+  /api/open-url:
+    post:
+      tags: [Download]
+      summary: 在浏览器中打开 URL
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string }
+      responses:
+        "200": { description: OK }
+
 components:
   schemas:
+    TaskResponse:
+      type: object
+      properties:
+        task_id: { type: string }
+        total: { type: string }
     TrackerInfo:
       type: object
       properties:
         id: { type: string }
         display_name: { type: string }
+        order: { type: integer }
     TrackerDetail:
       type: object
       properties:
         app_id: { type: string }
         name: { type: string }
+        description: { type: string }
         official_website: { type: string }
         source_id: { type: string }
         source_name: { type: string }
@@ -258,6 +354,7 @@ components:
                   - type: string
                   - type: array
                     items: { type: string }
+              error: { type: string }
     RuleItem:
       type: object
       properties:
@@ -275,6 +372,7 @@ components:
       properties:
         source_id: { type: string }
         name: { type: string }
+        description: { type: string }
         app_count: { type: integer }
     TempCheckResult:
       type: object
@@ -293,17 +391,4 @@ components:
                   - type: string
                   - type: array
                     items: { type: string }
-    SyncResult:
-      type: object
-      properties:
-        synced:
-          type: array
-          items: { type: string }
-        errors:
-          type: array
-          items:
-            type: object
-            properties:
-              id: { type: string }
-              url: { type: string }
-              reason: { type: string }
+              error: { type: string }
