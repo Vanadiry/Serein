@@ -199,9 +199,11 @@
     </div>`;
   }
 
-  function refreshApp(appId) {
+  async function refreshApp(appId) {
     console.log("[check] ids:", appId);
-    asyncCheck("/api/check/ids", [appId], finishCheck);
+    const ld = showLoading("加载中", "正在检查...");
+    const data = await apiPost("/api/check/ids", [appId]);
+    finishCheck(ld, data || []);
   }
 
   async function confirmUpdate(appId) {

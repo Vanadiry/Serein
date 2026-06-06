@@ -63,6 +63,15 @@ func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"task_id": ""})
 		return
 	}
+	// 单个检查直接返回，避免 SSE 竞态
+	if len(entries) <= 1 {
+		store.Logf("[check/ids/direct] %v", ids)
+		checker.ClearURLCache()
+		result := s.runTrackerChecksSync(entries)
+		saveCheckTemp(s.home, "ids", result)
+		writeJSON(w, http.StatusOK, result)
+		return
+	}
 	store.Logf("[check/ids] %v", ids)
 	checker.ClearURLCache()
 	p := store.NewProgress(len(entries))
@@ -146,9 +155,12 @@ func (s *Server) handleCheckConfirm(w http.ResponseWriter, r *http.Request) {
 
 // 异步检查（后台 goroutine，通过 SSE 推送进度）
 
-func (s *Server) runTrackerChecksAsync(entries []store.TrackerEntry, p *store.Progress, tempType string) {
-	defer p.Close()
+type checkJob struct {
+	req  checker.CheckRequest
+	name string
+}
 
+func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) {
 	cfg, _ := store.LoadConfig(s.home)
 	rules, _ := store.LoadRules(s.home)
 	userData, _ := store.LoadUserData(s.home)
@@ -161,10 +173,6 @@ func (s *Server) runTrackerChecksAsync(entries []store.TrackerEntry, p *store.Pr
 		conc = 64
 	}
 
-	type checkJob struct {
-		req  checker.CheckRequest
-		name string
-	}
 	var jobs []checkJob
 	for _, entry := range entries {
 		rule, ok := rules[entry.AppID]
@@ -245,6 +253,62 @@ func (s *Server) runTrackerChecksAsync(entries []store.TrackerEntry, p *store.Pr
 			}, name: jobName})
 		}
 	}
+	return jobs, conc
+}
+
+func runChecksSync(jobs []checkJob, conc int) []checker.CheckResponse {
+	if len(jobs) <= 1 {
+		var results []checker.CheckResponse
+		for _, job := range jobs {
+			resp, err := checker.RunCheck(job.req)
+			if err != nil {
+				continue
+			}
+			results = append(results, resp)
+		}
+		if results == nil {
+			results = []checker.CheckResponse{}
+		}
+		return mergeResults(results)
+	}
+
+	sem := make(chan struct{}, conc)
+	var mu sync.Mutex
+	var results []checker.CheckResponse
+	var wg sync.WaitGroup
+
+	for _, job := range jobs {
+		wg.Add(1)
+		go func(j checkJob) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			resp, err := checker.RunCheck(j.req)
+			if err != nil {
+				return
+			}
+			mu.Lock()
+			results = append(results, resp)
+			mu.Unlock()
+		}(job)
+	}
+	wg.Wait()
+	if results == nil {
+		results = []checker.CheckResponse{}
+	}
+	return mergeResults(results)
+}
+
+func (s *Server) runTrackerChecksSync(entries []store.TrackerEntry) []checker.CheckResponse {
+	jobs, conc := s.buildCheckJobs(entries)
+	return runChecksSync(jobs, conc)
+}
+
+func (s *Server) runTrackerChecksAsync(entries []store.TrackerEntry, p *store.Progress, tempType string) {
+	defer p.Close()
+
+	jobs, conc := s.buildCheckJobs(entries)
 
 	total := len(jobs)
 	if total == 0 {
@@ -279,7 +343,11 @@ func (s *Server) runTrackerChecksAsync(entries []store.TrackerEntry, p *store.Pr
 	}
 	wg.Wait()
 
-	// 合并同 app_id 的结果
+	final := mergeResults(results)
+	saveCheckTemp(s.home, tempType, final)
+}
+
+func mergeResults(results []checker.CheckResponse) []checker.CheckResponse {
 	merged := make(map[string]*checker.CheckResponse)
 	for i := range results {
 		r := &results[i]
@@ -298,8 +366,7 @@ func (s *Server) runTrackerChecksAsync(entries []store.TrackerEntry, p *store.Pr
 	if final == nil {
 		final = []checker.CheckResponse{}
 	}
-
-	saveCheckTemp(s.home, tempType, final)
+	return final
 }
 
 // GET /api/check/temp/{type}
