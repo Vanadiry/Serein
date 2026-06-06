@@ -54,9 +54,9 @@
     showModal(`
       <div class="text-sm font-semibold mb-4">新建 Tracker</div>
       <input id="new-tracker-name" class="w-full bg-[#202028] border border-[rgba(255,255,255,.12)] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#14b8a6] mb-3" placeholder="Tracker 名称">
-      <div class="flex justify-end gap-2">
-        <button onclick="this.closest('.fixed').remove()" class="px-3 py-1 rounded-lg border border-[rgba(255,255,255,.12)] bg-transparent text-sub text-xs cursor-pointer hover:text-white">取消</button>
-        <button id="btn-create-tracker" class="px-3 py-1 rounded-lg bg-[#14b8a6] text-white text-xs font-semibold cursor-pointer hover:opacity-90">创建</button>
+      <div class="flex gap-2">
+        <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 rounded-lg border border-[rgba(255,255,255,.12)] bg-transparent text-sub text-sm cursor-pointer hover:bg-[#30303b] hover:text-white">取消</button>
+        <button id="btn-create-tracker" class="flex-1 px-4 py-2 rounded-lg bg-[#14b8a6] text-white text-sm font-semibold cursor-pointer hover:opacity-90">创建</button>
       </div>`);
     document.getElementById("btn-create-tracker").onclick = async () => {
       const name = document.getElementById("new-tracker-name").value.trim();
@@ -223,9 +223,9 @@
     showModal(`
       <div class="text-sm font-semibold mb-4">编辑版本 — ${appId}</div>
       <div id="edit-platforms" class="flex flex-col gap-2 mb-4"></div>
-      <div class="flex justify-end gap-2">
-        <button onclick="this.closest('.fixed').remove()" class="px-3 py-1 rounded-lg border border-[rgba(255,255,255,.12)] bg-transparent text-sub text-xs cursor-pointer hover:text-white">取消</button>
-        <button id="btn-save-version" class="px-3 py-1 rounded-lg bg-[#14b8a6] text-white text-xs font-semibold cursor-pointer hover:opacity-90">保存</button>
+      <div class="flex gap-2">
+        <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 rounded-lg border border-[rgba(255,255,255,.12)] bg-transparent text-sub text-sm cursor-pointer hover:bg-[#30303b] hover:text-white">取消</button>
+        <button id="btn-save-version" class="flex-1 px-4 py-2 rounded-lg bg-[#14b8a6] text-white text-sm font-semibold cursor-pointer hover:opacity-90">保存</button>
       </div>`);
     const detail = await api("/api/tracker/list/" + currentTracker);
     const entry = (detail || []).find(e => e.app_id === appId);

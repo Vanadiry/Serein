@@ -303,10 +303,10 @@ function openExternalUrl(url) {
   showModal(
     '<div class="text-sm font-semibold mb-3">外部地址</div>' +
     '<p class="text-text text-xs break-all bg-[#1d1d1d] rounded-lg px-3 py-2 border border-[rgba(255,255,255,.08)] mb-4 leading-relaxed">' + url + '</p>' +
-    '<div class="flex justify-end gap-2">' +
-    '<button onclick="this.closest(\'.fixed\').remove()" class="px-3 py-1 rounded-lg border border-[rgba(255,255,255,.12)] bg-transparent text-sub text-xs cursor-pointer hover:text-white">取消</button>' +
-    '<button onclick="var s=this;navigator.clipboard.writeText(\'' + escaped + '\');s.textContent=\'已复制\';setTimeout(function(){s.textContent=\'复制链接\'},1500)" class="px-3 py-1 rounded-lg border border-[rgba(255,255,255,.12)] bg-transparent text-sub text-xs cursor-pointer hover:text-white">复制链接</button>' +
-    '<button onclick="var el=this.closest(\'.fixed\');apiPost(\'/api/open-url\',{url:\'' + escaped + '\'});el.remove()" class="px-3 py-1 rounded-lg bg-[#14b8a6] text-white text-xs font-semibold cursor-pointer hover:opacity-90">确认</button>' +
+    '<div class="flex gap-2">' +
+    '<button onclick="this.closest(\'.fixed\').remove()" class="flex-1 px-4 py-2 rounded-lg border border-[rgba(255,255,255,.12)] bg-transparent text-sub text-sm cursor-pointer hover:bg-[#30303b] hover:text-white">取消</button>' +
+    '<button onclick="var s=this;navigator.clipboard.writeText(\'' + escaped + '\');s.textContent=\'已复制\';setTimeout(function(){s.textContent=\'复制链接\'},1500)" class="flex-1 px-4 py-2 rounded-lg border border-[rgba(255,255,255,.12)] bg-transparent text-sub text-sm cursor-pointer hover:bg-[#30303b] hover:text-white">复制链接</button>' +
+    '<button onclick="var el=this.closest(\'.fixed\');apiPost(\'/api/open-url\',{url:\'' + escaped + '\'});el.remove()" class="flex-1 px-4 py-2 rounded-lg bg-[#14b8a6] text-white text-sm font-semibold cursor-pointer hover:opacity-90">确认</button>' +
     '</div>'
   );
 }
@@ -315,9 +315,9 @@ function openExternalUrl(url) {
 function confirmDialog(msg, cb) {
   showModal(
     '<p class="text-sm mb-4 leading-relaxed">' + msg + '</p>' +
-    '<div class="flex justify-end gap-2">' +
-    '<button onclick="this.closest(\'.fixed\').remove()" class="px-3 py-1 rounded-lg border border-[rgba(255,255,255,.12)] bg-transparent text-sub text-xs cursor-pointer hover:text-white">取消</button>' +
-    '<button id="btn-confirm-exec" class="px-3 py-1 rounded-lg bg-[#14b8a6] text-white text-xs font-semibold cursor-pointer hover:opacity-90">确认</button>' +
+    '<div class="flex gap-2">' +
+    '<button onclick="this.closest(\'.fixed\').remove()" class="flex-1 px-4 py-2 rounded-lg border border-[rgba(255,255,255,.12)] bg-transparent text-sub text-sm cursor-pointer hover:bg-[#30303b] hover:text-white">取消</button>' +
+    '<button id="btn-confirm-exec" class="flex-1 px-4 py-2 rounded-lg bg-[#14b8a6] text-white text-sm font-semibold cursor-pointer hover:opacity-90">确认</button>' +
     '</div>'
   );
   document.getElementById("btn-confirm-exec").onclick = function () {
@@ -332,6 +332,6 @@ function showModal(html) {
   el.className =
     "fixed inset-0 z-50 flex items-center justify-center bg-black/60";
   el.onclick = e => { if (e.target === el) el.remove(); };
-  el.innerHTML = `<div class="bg-[#2a2a2a] border border-[rgba(255,255,255,.12)] rounded-xl p-6 min-w-[360px] max-w-[480px] shadow-2xl">${html}</div>`;
+  el.innerHTML = `<div class="bg-[#2a2a2a] border border-[rgba(255,255,255,.12)] rounded-xl p-6 min-w-[400px] max-w-[520px] shadow-2xl">${html}</div>`;
   document.body.appendChild(el);
 }
