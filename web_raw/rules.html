@@ -12,24 +12,30 @@
 
 <div class="max-w-[1200px] mx-auto p-6 flex gap-6 min-h-[calc(100vh-48px)]">
   <aside class="w-[200px] shrink-0 pr-4 border-r border-[rgba(255,255,255,.08)]">
-    <div class="text-sm text-sub font-semibold mb-2">规则源</div>
+    <button id="btn-search-tab" class="text-left w-full px-3 py-2 text-sm rounded-r-md transition-colors text-white bg-[#202028] border-l-[2px] border-l-[#14b8a6]">搜索规则</button>
+    <div class="text-sm text-sub font-semibold mt-4 mb-2">规则源</div>
     <nav id="source-nav" class="flex flex-col gap-0.5"></nav>
   </aside>
 
   <main class="flex-1 min-w-0">
-    <!-- 搜索视图 -->
-    <div id="search-view" class="hidden">
+    <!-- 搜索视图（默认展示） -->
+    <div id="search-view">
       <div class="flex items-center gap-2 mb-4">
         <span class="w-[3px] h-[18px] bg-[#14b8a6] rounded-sm"></span>
         <span class="font-bold text-sm">搜索规则</span>
       </div>
-      <div class="relative mb-4">
+      <div class="flex gap-2 mb-4">
         <input id="search-input" type="text" placeholder="输入关键词搜索..."
-          class="w-full bg-[#202028] border border-[rgba(255,255,255,.12)] rounded-lg px-4 py-2 text-sm outline-none focus:border-[#14b8a6] placeholder:text-sub"
+          class="flex-1 bg-[#202028] border border-[rgba(255,255,255,.12)] rounded-lg px-4 py-2 text-sm outline-none focus:border-[#14b8a6] placeholder:text-sub"
           onkeydown="if(event.key==='Enter') doSearch()">
+        <button id="btn-search" onclick="doSearch()" class="px-4 py-2 rounded-lg bg-[#14b8a6] text-white text-sm font-semibold cursor-pointer border-0 hover:opacity-90">搜索</button>
       </div>
       <div id="search-results-grid" class="grid grid-cols-5 gap-3"></div>
-      <div id="search-placeholder" class="text-center py-16 text-sub text-sm">输入关键词搜索规则</div>
+      <div id="search-placeholder" class="text-sub text-sm max-w-[600px] pt-[25vh] pl-2">
+        <h2 class="text-base font-semibold text-white mb-3">规则</h2>
+        <p class="mb-2">输入关键词来搜索规则。支持按 app_id 或名称匹配。</p>
+        <p>若是你第一次启动，请点击右上角的「同步规则」来拉取内置的规则表。</p>
+      </div>
     </div>
     <!-- 卡片视图 -->
     <div id="card-view" class="hidden">
@@ -40,12 +46,6 @@
         <span id="filter-platforms" class="flex items-center gap-1"></span>
       </div>
       <div id="card-grid" class="grid grid-cols-5 gap-3"></div>
-    </div>
-    <!-- 初始占位 -->
-    <div id="placeholder" class="text-sub text-sm max-w-[600px] pt-[25vh] pl-2">
-      <h2 class="text-base font-semibold text-white mb-3">规则</h2>
-      <p class="mb-2">在左侧栏选择已拉取的规则源来浏览其中的规则。</p>
-      <p>若是你第一次启动，请点击右上角的「同步规则」来拉取内置的规则表。</p>
     </div>
   </main>
 </div>
@@ -59,34 +59,17 @@
   renderTopbar("规则");
   loadSources();
 
-  document.getElementById("btn-sync").onclick = async () => {
-    const ld = showLoading("加载中", "正在同步规则...");
-    console.log("[sync]"); const result = await apiPost("/api/rules/sync");
-    loadSources();
-    if (result && result.Errors && result.Errors.length) {
-      var msg = "同步完成，" + (result.Synced || []).length + " 个更新，" + (result.Skipped || []).length + " 个跳过，" + result.Errors.length + " 个失败<br><br>" +
-        result.Errors.map(function(e) { return e.url + ": " + e.reason; }).join("<br>");
-      ld.done(msg, true);
-    } else if (result && result.Synced) {
-      var doneMsg = "同步完成（" + result.Synced.length + " 个更新";
-      if (result.Skipped && result.Skipped.length) doneMsg += "，" + result.Skipped.length + " 个跳过";
-      doneMsg += "）";
-      ld.done(doneMsg);
-    } else {
-      ld.done("同步完成");
-    }
-  };
-
-  document.getElementById("btn-search-mode").onclick = () => {
+  document.getElementById("btn-search-tab").onclick = () => {
     currentSource = null;
-    loadSources();
-    document.getElementById("placeholder").classList.add("hidden");
+    updateSidebar();
     document.getElementById("search-view").classList.remove("hidden");
     document.getElementById("card-view").classList.add("hidden");
     document.getElementById("search-results-grid").innerHTML = "";
     document.getElementById("search-placeholder").classList.remove("hidden");
     document.getElementById("search-input").value = "";
   };
+
+  document.getElementById("btn-search").onclick = () => doSearch();
 
   async function loadSources() {
     const sources = await api("/api/rules/list/all") || [];
@@ -97,10 +80,19 @@
     }).join("");
   }
 
+  function updateSidebar() {
+    loadSources();
+    var btn = document.getElementById("btn-search-tab");
+    if (currentSource === null) {
+      btn.className = "text-left w-full px-3 py-2 text-sm rounded-r-md transition-colors text-white bg-[#202028] border-l-[2px] border-l-[#14b8a6]";
+    } else {
+      btn.className = "text-left w-full px-3 py-2 text-sm rounded-r-md transition-colors text-sub hover:text-white border-l-[2px] border-l-transparent hover:bg-[#202028] hover:border-l-[rgba(255,255,255,.12)]";
+    }
+  }
+
   async function selectSource(id) {
     currentSource = id;
-    loadSources();
-    document.getElementById("placeholder").classList.add("hidden");
+    updateSidebar();
     document.getElementById("search-view").classList.add("hidden");
     document.getElementById("card-view").classList.remove("hidden");
     document.getElementById("source-title").textContent = id;

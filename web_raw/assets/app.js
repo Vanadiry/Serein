@@ -39,18 +39,39 @@ function renderTopbar(current) {
           <a href="/rules" class="no-underline px-3 py-1.5 rounded-lg text-sm ${navCls("/rules")}">规则</a>
         </nav>
         <div class="flex-1"></div>
-        ${isIndex ? `
         <nav class="flex gap-1 items-center">
+          ${isIndex ? `
           <button id="btn-read-cache" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-[#30303b] hover:text-white cursor-pointer border-0 bg-transparent">读取缓存</button>
           <button id="btn-check-all" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-[#30303b] hover:text-white cursor-pointer border-0 bg-transparent">检查全部</button>
           <button id="btn-tracker-check" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-[#30303b] hover:text-white cursor-pointer border-0 bg-transparent">检查当前 Tracker</button>
-        </nav>` : `
-        <nav class="flex gap-1 items-center">
-          <button id="btn-search-mode" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-[#30303b] hover:text-white cursor-pointer border-0 bg-transparent">搜索规则</button>
+          ` : `
           <button id="btn-sync" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-[#30303b] hover:text-white cursor-pointer border-0 bg-transparent">同步规则</button>
-        </nav>`}
+          `}
+        </nav>
       </div>
     </div>`;
+  if (!isIndex) {
+    document.getElementById("btn-sync").addEventListener("click", syncRules);
+  }
+}
+
+// ── 同步规则（可从管理弹窗或别处调用）──
+async function syncRules() {
+  var ld = showLoading("加载中", "正在同步规则...");
+  console.log("[sync]"); var result = await apiPost("/api/rules/sync");
+  if (typeof loadSources === "function") loadSources();
+  if (result && result.Errors && result.Errors.length) {
+    var msg = "同步完成，" + (result.Synced || []).length + " 个更新，" + (result.Skipped || []).length + " 个跳过，" + result.Errors.length + " 个失败<br><br>" +
+      result.Errors.map(function(e) { return e.url + ": " + e.reason; }).join("<br>");
+    ld.done(msg, true);
+  } else if (result && result.Synced) {
+    var doneMsg = "同步完成（" + result.Synced.length + " 个更新";
+    if (result.Skipped && result.Skipped.length) doneMsg += "，" + result.Skipped.length + " 个跳过";
+    doneMsg += "）";
+    ld.done(doneMsg);
+  } else {
+    ld.done("同步完成");
+  }
 }
 
 // ── 图标 ──
