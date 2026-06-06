@@ -203,7 +203,10 @@
     console.log("[check] ids:", appId);
     const ld = showLoading("加载中", "正在检查...");
     const data = await apiPost("/api/check/ids", [appId]);
-    finishCheck(ld, data || []);
+    mergeCheckResults(data || []);
+    loadTrackerDetail(currentTracker);
+    var errs = collectErrors(data || []);
+    showCheckDone(errs);
   }
 
   async function confirmUpdate(appId) {
@@ -293,16 +296,29 @@
     return errs;
   }
 
-  function finishCheck(ld, data) {
-    mergeCheckResults(data);
-    loadTrackerDetail(currentTracker);
-    var errs = collectErrors(data);
-    showCheckDone(ld, errs);
+  function finishCheck() {
+    var tempType = "all";
+    // 从 temp 缓存读取结果
+    api("/api/check/temp/all").then(function (data) {
+      mergeCheckResults(data || []);
+      loadTrackerDetail(currentTracker);
+      var errs = collectErrors(data || []);
+      showCheckDone(errs);
+    });
+  }
+
+  function finishCheckTracker() {
+    api("/api/check/temp/tracker").then(function (data) {
+      mergeCheckResults(data || []);
+      loadTrackerDetail(currentTracker);
+      var errs = collectErrors(data || []);
+      showCheckDone(errs);
+    });
   }
 
   function checkTracker() {
     console.log("[check] tracker:", currentTracker);
-    asyncCheck("/api/check/tracker", { tracker_id: currentTracker }, finishCheck);
+    asyncCheck("/api/check/tracker", { tracker_id: currentTracker }, finishCheckTracker);
   }
 
   function checkAll() {
@@ -310,7 +326,8 @@
     asyncCheck("/api/check/all", null, finishCheck);
   }
 
-  function showCheckDone(ld, errs) {
+  function showCheckDone(errs) {
+    var ld = showLoading("检查完成", "");
     if (!errs.length) { ld.done("检查完成"); return; }
     var hasRateLimit = errs.some(function(e) { return e.indexOf("API rate limit exceeded") >= 0; });
     var hasAbuse = errs.some(function(e) { return e.indexOf("abuse detection") >= 0; });

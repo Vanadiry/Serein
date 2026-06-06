@@ -67,21 +67,10 @@ function renderTopbar(current) {
 
 // 同步规则（可从管理弹窗或别处调用）
 async function syncRules() {
-  var ld = showLoading("加载中", "正在同步规则...");
-  console.log("[sync]"); var result = await apiPost("/api/rules/sync");
-  if (typeof loadSources === "function") loadSources();
-  if (result && result.Errors && result.Errors.length) {
-    var msg = "同步完成，" + (result.Synced || []).length + " 个更新，" + (result.Skipped || []).length + " 个跳过，" + result.Errors.length + " 个失败<br><br>" +
-      result.Errors.map(function(e) { return e.url + ": " + e.reason; }).join("<br>");
-    ld.done(msg, true);
-  } else if (result && result.Synced) {
-    var doneMsg = "同步完成（" + result.Synced.length + " 个更新";
-    if (result.Skipped && result.Skipped.length) doneMsg += "，" + result.Skipped.length + " 个跳过";
-    doneMsg += "）";
-    ld.done(doneMsg);
-  } else {
-    ld.done("同步完成");
-  }
+  console.log("[sync]");
+  var res = await apiPost("/api/rules/sync");
+  if (!res || !res.task_id) { return; }
+  startSyncProgress(res.task_id);
 }
 
 // 图标
@@ -344,67 +333,78 @@ function showModal(html) {
   document.body.appendChild(el);
 }
 
-// SSE 进度检查
-// 调用异步 check API，通过 SSE 显示实时进度，完成后回调 onDone(results)
-async function asyncCheck(apiPath, body, onDone) {
-  var ld = showLoading("检查更新", "准备中...");
-  var res = await apiPost(apiPath, body);
-  if (!res || !res.task_id) {
-    ld.done("没有需要检查的条目");
-    return;
+// ── 进度弹窗（全屏遮罩，不可关闭）──
+
+function showProgressModal(title, cancelUrl) {
+  var overlay = document.createElement("div");
+  overlay.className = "fixed inset-0 z-[200] bg-overlay flex items-center justify-center";
+  overlay.id = "progress-overlay";
+
+  var card = document.createElement("div");
+  card.className = "bg-surface-alt border border-bord rounded-xl p-6 w-[440px] max-w-[90vw] shadow-2xl";
+  card.innerHTML =
+    '<div class="flex items-center justify-between mb-4">' +
+    '<h3 id="prog-title" class="text-base font-bold text-text">' + title + '</h3>' +
+    '<button id="prog-cancel" class="px-3 py-1 rounded-lg border border-[rgba(255,0,0,.3)] bg-transparent text-[#dc2626] text-xs cursor-pointer hover:bg-[rgba(255,0,0,.1)]">终止</button>' +
+    '</div>' +
+    '<div class="bg-bg rounded-full h-2 mb-3 overflow-hidden">' +
+    '<div id="prog-bar" class="bg-accent h-full rounded-full transition-all duration-300" style="width:0%"></div>' +
+    '</div>' +
+    '<p id="prog-status" class="text-sub text-sm"></p>';
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+
+  // 终止
+  if (cancelUrl) {
+    card.querySelector("#prog-cancel").onclick = function () {
+      fetch(cancelUrl, { method: "POST" });
+      var bar = card.querySelector("#prog-bar");
+      bar.style.background = "var(--c-warn)";
+      card.querySelector("#prog-title").textContent = title + " - 正在终止...";
+      card.querySelector("#prog-status").textContent = "";
+      card.querySelector("#prog-cancel").remove();
+    };
   }
-  startCheckProgress(res.task_id, parseInt(res.total) || 0, ld, function () {
-    var tempType = apiPath === "/api/check/tracker" ? "tracker" : apiPath === "/api/check/ids" ? "ids" : "all";
-    api("/api/check/temp/" + tempType).then(function (data) { onDone(ld, data || []); });
-  });
+
+  return {
+    setProgress: function (done, total) {
+      var pct = total > 0 ? Math.round(done / total * 100) : 0;
+      card.querySelector("#prog-title").textContent = title + "（" + done + "/" + total + "）";
+      card.querySelector("#prog-bar").style.width = pct + "%";
+    },
+    setStatus: function (text) {
+      card.querySelector("#prog-status").textContent = text || "";
+    },
+    close: function () {
+      overlay.remove();
+    }
+  };
 }
 
-// 建立 SSE 连接，更新进度文字
-function startCheckProgress(taskId, total, ld, onFinish) {
-  var evt = new EventSource(API + "/api/check/progress/" + taskId);
-  var warned = false;
-  var unloadHandler = function (e) { e.preventDefault(); };
-  function pageWarn() {
-    if (warned) return;
-    warned = true;
-    window.addEventListener("beforeunload", unloadHandler);
-  }
-  function cleanup() {
-    if (warned) window.removeEventListener("beforeunload", unloadHandler);
-  }
-  // 终止按钮
-  var titleBar = ld.el.querySelector("div:first-child");
-  var cancelBtn = document.createElement("span");
-  cancelBtn.className = "cursor-pointer opacity-60 hover:opacity-100 text-[12px] font-normal shrink-0 ml-3";
-  cancelBtn.textContent = "终止";
-  cancelBtn.onclick = function (e) {
-    e.stopPropagation();
-    fetch(API + "/api/check/cancel/" + taskId, { method: "POST" });
-    if (titleBar) titleBar.className = "bg-warn text-white font-semibold px-4 py-2 rounded-t-lg flex items-center justify-between";
-    var bodyEl = ld.el.querySelector("div:last-child");
-    if (bodyEl) bodyEl.textContent = "正在终止...";
-    cancelBtn.remove();
-  };
-  if (titleBar) titleBar.appendChild(cancelBtn);
-
+// SSE 进度检查（批量）
+async function asyncCheck(apiPath, body, onDone) {
+  var res = await apiPost(apiPath, body);
+  if (!res || !res.task_id) { return; }
+  var total = parseInt(res.total) || 0;
+  var pm = showProgressModal("检查更新", API + "/api/check/cancel/" + res.task_id);
+  var evt = new EventSource(API + "/api/progress/" + res.task_id);
   evt.onmessage = function (e) {
     var d = JSON.parse(e.data);
-    if (d.step === "done") {
-      evt.close();
-      cleanup();
-      onFinish();
-      return;
-    }
-    if (d.step === "app") {
-      pageWarn();
-      ld.el.querySelector("span:first-child").textContent = "检查更新（" + d.done + "/" + d.total + "）";
-      var bodyEl = ld.el.querySelector("div:last-child");
-      if (bodyEl) bodyEl.textContent = d.name || "";
-    }
+    if (d.step === "done") { evt.close(); pm.close(); onDone(); return; }
+    if (d.step === "app") { pm.setProgress(d.done, d.total); pm.setStatus(d.name); }
   };
-  evt.onerror = function () {
-    evt.close();
-    cleanup();
-    onFinish();
+  evt.onerror = function () { evt.close(); pm.close(); onDone(); };
+}
+
+// SSE 进度同步规则
+function startSyncProgress(taskId) {
+  var pm = showProgressModal("同步规则", API + "/api/check/cancel/" + taskId);
+  var evt = new EventSource(API + "/api/progress/" + taskId);
+  evt.onmessage = function (e) {
+    var d = JSON.parse(e.data);
+    if (d.step === "done") { evt.close(); pm.close(); showLoading("同步规则", "同步完成").done("同步完成"); if (typeof loadSources === "function") loadSources(); return; }
+    if (d.step === "list") { pm.setStatus("正在拉取规则源 " + d.name); return; }
+    if (d.step === "file") { pm.setProgress(d.done, d.total); pm.setStatus(d.name); }
   };
+  evt.onerror = function () { evt.close(); pm.close(); if (typeof loadSources === "function") loadSources(); };
 }
