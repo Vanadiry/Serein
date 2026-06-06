@@ -4,6 +4,7 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"sync"
 
 	"github.com/vanadiry/serein/core/checker"
@@ -22,10 +23,14 @@ func (s *Server) handleCheckAll(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	if len(entries) == 0 {
+		writeJSON(w, http.StatusOK, map[string]string{"task_id": ""})
+		return
+	}
 	checker.ClearURLCache()
-	result := runTrackerChecks(s.home, entries)
-	saveCheckTemp(s.home, "all", result)
-	writeJSON(w, http.StatusOK, result)
+	p := store.NewProgress(len(entries))
+	go s.runTrackerChecksAsync(entries, p, "all")
+	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(len(entries))})
 }
 
 // ── POST /api/check/ids ──
@@ -54,11 +59,15 @@ func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
+	if len(entries) == 0 {
+		writeJSON(w, http.StatusOK, map[string]string{"task_id": ""})
+		return
+	}
 	store.Logf("[check/ids] %v", ids)
 	checker.ClearURLCache()
-	result := runTrackerChecks(s.home, entries)
-	saveCheckTemp(s.home, "ids", result)
-	writeJSON(w, http.StatusOK, result)
+	p := store.NewProgress(len(entries))
+	go s.runTrackerChecksAsync(entries, p, "ids")
+	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(len(entries))})
 }
 
 // ── POST /api/check/tracker ──
@@ -80,11 +89,15 @@ func (s *Server) handleCheckTracker(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	if len(entries) == 0 {
+		writeJSON(w, http.StatusOK, map[string]string{"task_id": ""})
+		return
+	}
 	store.Logf("[check/tracker] %s", body.TrackerID)
 	checker.ClearURLCache()
-	result := runTrackerChecks(s.home, entries)
-	saveCheckTemp(s.home, "tracker", result)
-	writeJSON(w, http.StatusOK, result)
+	p := store.NewProgress(len(entries))
+	go s.runTrackerChecksAsync(entries, p, "tracker")
+	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(len(entries))})
 }
 
 // ── POST /api/check/confirm ──
@@ -125,18 +138,20 @@ func (s *Server) handleCheckConfirm(w http.ResponseWriter, r *http.Request) {
 	}
 	store.Logf("[confirm] %s: %v", appID, userData[appID])
 	writeJSON(w, http.StatusOK, map[string]any{
-		"app_id":   appID,
-		"status":   "ok",
+		"app_id":    appID,
+		"status":    "ok",
 		"platforms": userData[appID],
 	})
 }
 
-// ── 共享检查逻辑 ──
+// ── 异步检查（后台 goroutine，通过 SSE 推送进度）──
 
-func runTrackerChecks(home string, entries []store.TrackerEntry) []checker.CheckResponse {
-	cfg, _ := store.LoadConfig(home)
-	rules, _ := store.LoadRules(home)
-	userData, _ := store.LoadUserData(home)
+func (s *Server) runTrackerChecksAsync(entries []store.TrackerEntry, p *store.Progress, tempType string) {
+	defer p.Close()
+
+	cfg, _ := store.LoadConfig(s.home)
+	rules, _ := store.LoadRules(s.home)
+	userData, _ := store.LoadUserData(s.home)
 
 	conc := cfg.Serein.Concurrency
 	if conc < 1 {
@@ -147,7 +162,8 @@ func runTrackerChecks(home string, entries []store.TrackerEntry) []checker.Check
 	}
 
 	type checkJob struct {
-		req checker.CheckRequest
+		req  checker.CheckRequest
+		name string
 	}
 	var jobs []checkJob
 	for _, entry := range entries {
@@ -155,13 +171,13 @@ func runTrackerChecks(home string, entries []store.TrackerEntry) []checker.Check
 		if !ok {
 			continue
 		}
+		jobName := rule.Info.Name
 		platforms := store.PlatformsFor(entry, cfg.Serein.Platforms)
 
 		var platCfgs []checker.PlatformCheckConfig
 		for _, os := range platforms {
 			platCfg := rule.MergedConfig(os)
 
-			// 执行前置请求链，获取最终 URL
 			preSteps := rule.PreRequestChain(os)
 			if len(preSteps) > 0 {
 				var checkerSteps []checker.PreStep
@@ -212,7 +228,6 @@ func runTrackerChecks(home string, entries []store.TrackerEntry) []checker.Check
 			continue
 		}
 
-		// 按平台实际 type 分组，避免混合 github 和非 github
 		typeGroups := make(map[string][]checker.PlatformCheckConfig)
 		for _, pc := range platCfgs {
 			typeGroups[pc.Type] = append(typeGroups[pc.Type], pc)
@@ -227,28 +242,19 @@ func runTrackerChecks(home string, entries []store.TrackerEntry) []checker.Check
 				Repo:            rule.Config.Repo,
 				GithubToken:     cfg.Serein.GithubToken,
 				Platforms:       group,
-			}})
+			}, name: jobName})
 		}
 	}
 
-	if len(jobs) <= 1 {
-		var results []checker.CheckResponse
-		for _, job := range jobs {
-			resp, err := checker.RunCheck(job.req)
-			if err != nil {
-				continue
-			}
-			results = append(results, resp)
-		}
-		if results == nil {
-			results = []checker.CheckResponse{}
-		}
-		return results
+	total := len(jobs)
+	if total == 0 {
+		return
 	}
 
 	sem := make(chan struct{}, conc)
 	var mu sync.Mutex
 	var results []checker.CheckResponse
+	var doneCount int
 	var wg sync.WaitGroup
 
 	for _, job := range jobs {
@@ -264,7 +270,11 @@ func runTrackerChecks(home string, entries []store.TrackerEntry) []checker.Check
 			}
 			mu.Lock()
 			results = append(results, resp)
+			doneCount++
+			current := doneCount
+			name := j.name
 			mu.Unlock()
+			p.Send(name, current, total)
 		}(job)
 	}
 	wg.Wait()
@@ -274,8 +284,8 @@ func runTrackerChecks(home string, entries []store.TrackerEntry) []checker.Check
 	for i := range results {
 		r := &results[i]
 		if existing, ok := merged[r.AppID]; ok {
-			for os, p := range r.Platforms {
-				existing.Platforms[os] = p
+			for os, pl := range r.Platforms {
+				existing.Platforms[os] = pl
 			}
 		} else {
 			merged[r.AppID] = r
@@ -286,33 +296,10 @@ func runTrackerChecks(home string, entries []store.TrackerEntry) []checker.Check
 		final = append(final, *r)
 	}
 	if final == nil {
-		results = []checker.CheckResponse{}
-	} else {
-		results = final
+		final = []checker.CheckResponse{}
 	}
-	return results
-}
 
-// saveCheckTemp 将检查结果转为 TempCheckResult 并写入缓存。
-func saveCheckTemp(home, typ string, results []checker.CheckResponse) {
-	var temp []store.TempCheckResult
-	for _, r := range results {
-		platforms := make(map[string]store.TempCheckPlatform)
-		for os, p := range r.Platforms {
-			platforms[os] = store.TempCheckPlatform{
-				CurrentVersion: p.CurrentVersion,
-				LatestVersion:  p.LatestVersion,
-				URL:            p.URL,
-				Error:          p.Error,
-			}
-		}
-		temp = append(temp, store.TempCheckResult{
-			AppID:     r.AppID,
-			Name:      r.Name,
-			Platforms: platforms,
-		})
-	}
-	_ = store.SaveCheckTemp(home, typ, temp)
+	saveCheckTemp(s.home, tempType, final)
 }
 
 // ── GET /api/check/temp/{type} ──
@@ -336,4 +323,27 @@ func (s *Server) handleCheckTemp(w http.ResponseWriter, r *http.Request) {
 		results = []store.TempCheckResult{}
 	}
 	writeJSON(w, http.StatusOK, results)
+}
+
+// ── 辅助 ──
+
+func saveCheckTemp(home, typ string, results []checker.CheckResponse) {
+	var temp []store.TempCheckResult
+	for _, r := range results {
+		platforms := make(map[string]store.TempCheckPlatform)
+		for os, p := range r.Platforms {
+			platforms[os] = store.TempCheckPlatform{
+				CurrentVersion: p.CurrentVersion,
+				LatestVersion:  p.LatestVersion,
+				URL:            p.URL,
+				Error:          p.Error,
+			}
+		}
+		temp = append(temp, store.TempCheckResult{
+			AppID:     r.AppID,
+			Name:      r.Name,
+			Platforms: platforms,
+		})
+	}
+	_ = store.SaveCheckTemp(home, typ, temp)
 }

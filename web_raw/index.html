@@ -199,11 +199,9 @@
     </div>`;
   }
 
-  async function refreshApp(appId) {
+  function refreshApp(appId) {
     console.log("[check] ids:", appId);
-    const ld = showLoading("加载中", "正在检查...");
-    const data = await apiPost("/api/check/ids", [appId]);
-    finishCheck(ld, data || []);
+    asyncCheck("/api/check/ids", [appId], finishCheck);
   }
 
   async function confirmUpdate(appId) {
@@ -300,16 +298,14 @@
     showCheckDone(ld, errs);
   }
 
-  async function checkTracker() {
-    const ld = showLoading("加载中", "正在检查当前 Tracker...");
-    try { console.log("[check] tracker:", currentTracker); var data = await apiPost("/api/check/tracker", { tracker_id: currentTracker }); finishCheck(ld, data); }
-    catch(e) { ld.done(e.message || "请求失败", true); }
+  function checkTracker() {
+    console.log("[check] tracker:", currentTracker);
+    asyncCheck("/api/check/tracker", { tracker_id: currentTracker }, finishCheck);
   }
 
-  async function checkAll() {
-    const ld = showLoading("加载中", "正在检查全部更新...");
-    try { console.log("[check] all"); var data = await apiPost("/api/check/all"); finishCheck(ld, data); }
-    catch(e) { ld.done(e.message || "请求失败", true); }
+  function checkAll() {
+    console.log("[check] all");
+    asyncCheck("/api/check/all", null, finishCheck);
   }
 
   function showCheckDone(ld, errs) {

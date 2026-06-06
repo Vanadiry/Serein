@@ -343,3 +343,53 @@ function showModal(html) {
   el.innerHTML = `<div class="bg-surface-alt border border-bord rounded-xl p-6 min-w-[400px] max-w-[520px] shadow-2xl">${html}</div>`;
   document.body.appendChild(el);
 }
+
+// ── SSE 进度检查 ──
+// 调用异步 check API，通过 SSE 显示实时进度，完成后回调 onDone(results)
+async function asyncCheck(apiPath, body, onDone) {
+  var ld = showLoading("检查更新", "准备中...");
+  var res = await apiPost(apiPath, body);
+  if (!res || !res.task_id) {
+    ld.done("没有需要检查的条目");
+    return;
+  }
+  startCheckProgress(res.task_id, parseInt(res.total) || 0, ld, function () {
+    var tempType = apiPath === "/api/check/tracker" ? "tracker" : apiPath === "/api/check/ids" ? "ids" : "all";
+    api("/api/check/temp/" + tempType).then(function (data) { onDone(ld, data || []); });
+  });
+}
+
+// 建立 SSE 连接，更新进度文字
+function startCheckProgress(taskId, total, ld, onFinish) {
+  var evt = new EventSource(API + "/api/check/progress/" + taskId);
+  var warned = false;
+  var unloadHandler = function (e) { e.preventDefault(); };
+  function pageWarn() {
+    if (warned) return;
+    warned = true;
+    window.addEventListener("beforeunload", unloadHandler);
+  }
+  function cleanup() {
+    if (warned) window.removeEventListener("beforeunload", unloadHandler);
+  }
+  evt.onmessage = function (e) {
+    var d = JSON.parse(e.data);
+    if (d.step === "done") {
+      evt.close();
+      cleanup();
+      onFinish();
+      return;
+    }
+    if (d.step === "app") {
+      pageWarn();
+      ld.el.querySelector("span:first-child").textContent = "检查更新（" + d.done + "/" + d.total + "）";
+      var bodyEl = ld.el.querySelector("div:last-child");
+      if (bodyEl) bodyEl.textContent = d.name || "";
+    }
+  };
+  evt.onerror = function () {
+    evt.close();
+    cleanup();
+    onFinish();
+  };
+}
