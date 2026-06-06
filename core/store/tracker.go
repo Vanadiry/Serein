@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -17,11 +18,13 @@ type TrackerEntry struct {
 type TrackerInfo struct {
 	ID          string `json:"id"`
 	DisplayName string `json:"display_name"`
+	Order       int    `json:"order"`
 }
 
 // trackerFile 一个 tracker 文件，可含多条 [[tracker]]
 type trackerFile struct {
 	DisplayName string         `toml:"display_name,omitempty"`
+	Order       int            `toml:"order,omitempty"`
 	Trackers    []TrackerEntry `toml:"tracker"`
 }
 
@@ -51,8 +54,14 @@ func LoadAllTrackerInfo(home string) ([]TrackerInfo, error) {
 		if name == "" {
 			name = id
 		}
-		list = append(list, TrackerInfo{ID: id, DisplayName: name})
+		list = append(list, TrackerInfo{ID: id, DisplayName: name, Order: tf.Order})
 	}
+	sort.Slice(list, func(i, j int) bool {
+		if list[i].Order != list[j].Order {
+			return list[i].Order < list[j].Order
+		}
+		return list[i].DisplayName < list[j].DisplayName
+	})
 	return list, nil
 }
 

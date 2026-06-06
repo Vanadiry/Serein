@@ -24,6 +24,7 @@ url = "https://raw.githubusercontent.com/Vanadiry/SereinRulesList/refs/heads/mai
 // tracker/*.toml 格式说明，每个文件可含多条 [[tracker]]
 const DefaultTrackerTOML = `# Serein Tracker
 display_name = "新建追踪列表"    # 可选，仅供前端展示
+# order = 1                    # 可选，排序（数字小的在前）
 
 # [[tracker]]
 # app_id = "abc-123"
