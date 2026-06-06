@@ -10,7 +10,7 @@ platforms = ["macos", "windows"]  # 全局平台偏好，可被 Tracker 中的�
 
 [download]
 concurrency = 8                   # 检查更新时的并发数，最大允许 64
-# downloader = ""                 # 下载器：空 = 浏览器，ndm = Neat Download Manager，也可填入命令行（{url} 替换为链接）
+# downloader = ""                 # 下载器：空=浏览器，ndm=NeatDM，也可填入命令行（{url}替换为链接）
 
 [access]
 # github_token = "github_xxx"     # GitHub 令牌，用于提升请求限制
