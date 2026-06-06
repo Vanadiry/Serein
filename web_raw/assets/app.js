@@ -123,9 +123,10 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
   }
 
   var el = document.createElement("div");
-  el.className = "fixed bottom-4 right-4 z-[100] rounded-lg shadow-xl text-sm transition-opacity duration-200";
+  el.className = "fixed bottom-4 left-4 right-4 z-[100] rounded-lg shadow-xl text-sm transition-opacity duration-200";
   el.style.opacity = "0";
-  el.style.maxWidth = "calc(100vw - 32px)";
+  el.style.width = "fit-content";
+  el.style.marginLeft = "auto";
   el.innerHTML =
     '<div class="' + titleBg + ' text-white font-semibold px-4 py-2 rounded-t-lg flex items-center justify-between">' +
     '<span>' + title + '</span>' +
