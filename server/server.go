@@ -2,6 +2,7 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -31,6 +32,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 
 func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/open-url", s.handleOpenURL)
+	s.mux.HandleFunc("POST /api/download", s.handleDownload)
 
 	s.mux.HandleFunc("/api/tracker/list/all", s.handleTrackerListAll)
 	s.mux.HandleFunc("/api/tracker/list/", s.handleTrackerListByID)
@@ -51,18 +53,40 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/rules/list/search", s.handleRulesListSearch)
 	s.mux.HandleFunc("/api/rules/list/", s.handleRulesListBySource)
 
+	dlDesc := parseDownloaderDesc(s.config.Download.Downloader)
 	if s.webFS != nil {
 		fileServer := http.FileServer(http.FS(s.webFS))
 		s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			// 无后缀 → 尝试补 .html
 			if !strings.Contains(r.URL.Path, ".") {
 				htmlPath := strings.TrimSuffix(r.URL.Path, "/") + ".html"
 				if _, err := fs.Stat(s.webFS, strings.TrimPrefix(htmlPath, "/")); err == nil {
 					r.URL.Path = htmlPath
 				}
 			}
+			if r.URL.Path == "/assets/app.min.js" {
+				data, err := fs.ReadFile(s.webFS, "assets/app.min.js")
+				if err == nil {
+					w.Header().Set("Content-Type", "application/javascript")
+					w.Write(bytes.Replace(data, []byte(`"__DL__"`), []byte(dlDesc), 1))
+					return
+				}
+			}
 			fileServer.ServeHTTP(w, r)
 		})
+	}
+}
+
+func parseDownloaderDesc(dl string) string {
+	dl = strings.TrimSpace(dl)
+	switch {
+	case dl == "":
+		return `"无"`
+	case dl == "ndm":
+		return `"Neat Download Manager（内建）"`
+	case strings.Contains(dl, "{url}"):
+		return `"自定义命令"`
+	default:
+		return `"无"`
 	}
 }
 
