@@ -499,7 +499,7 @@ async function asyncCheck(apiPath, body, onDone) {
 
 // SSE 进度同步规则
 function startSyncProgress(taskId) {
-  var skipped = 0, updated = 0;
+  var skipped = 0, updated = 0, errors = 0;
   var pm = showProgressModal("同步规则", API + "/api/check/cancel/" + taskId);
   var evt = new EventSource(API + "/api/progress/" + taskId);
   evt.onmessage = function (e) {
@@ -510,10 +510,15 @@ function startSyncProgress(taskId) {
       if (updated > 0) msg += "（" + updated + " 个更新";
       if (skipped > 0) msg += (updated > 0 ? "，" : "（") + skipped + " 个跳过";
       if (updated > 0 || skipped > 0) msg += "）";
-      showLoading("同步规则", msg).done(msg);
+      if (errors > 0) {
+        msg += "，" + errors + " 个失败";
+        flashOverlay();
+      }
+      showLoading("同步规则", msg).done(msg, errors > 0);
       if (typeof loadSources === "function") loadSources();
       return;
     }
+    if (d.step === "error") { errors++; pm.setStatus(d.name); return; }
     if (d.step === "list") { pm.setStatus("正在拉取规则源 " + d.name); return; }
     if (d.step === "skip") { skipped++; pm.setStatus(d.name + "（已是最新，跳过）"); return; }
     if (d.step === "file") { if (d.done === d.total) updated = d.total; pm.setProgress(d.done, d.total); pm.setStatus(d.name); }

@@ -208,6 +208,7 @@ func gatherLeaves(sources []RuleSource, concurrency int, p *Progress) []leafSrc 
 			js, raw, err := fetchSourceJSON(src.URL)
 			<-sem
 			if err != nil {
+				p.Send("error", src.URL+" 获取失败", 0, 0)
 				return
 			}
 			mu.Lock()
@@ -219,7 +220,7 @@ func gatherLeaves(sources []RuleSource, concurrency int, p *Progress) []leafSrc 
 			mu.Unlock()
 
 			p.Send("list", js.ID, 0, 0)
-			sub := resolveLeaves(js, raw, src.URL, js.ID, usedIDs, sem, &mu)
+			sub := resolveLeaves(js, raw, src.URL, js.ID, usedIDs, sem, &mu, p)
 			mu.Lock()
 			leaves = append(leaves, sub...)
 			mu.Unlock()
@@ -229,7 +230,7 @@ func gatherLeaves(sources []RuleSource, concurrency int, p *Progress) []leafSrc 
 	return leaves
 }
 
-func resolveLeaves(s *SourceJSON, rawBody []byte, sourceURL, destRel string, usedIDs map[string]bool, sem chan struct{}, mu *sync.Mutex) []leafSrc {
+func resolveLeaves(s *SourceJSON, rawBody []byte, sourceURL, destRel string, usedIDs map[string]bool, sem chan struct{}, mu *sync.Mutex, p *Progress) []leafSrc {
 	isLocal := !strings.HasPrefix(sourceURL, "http://") && !strings.HasPrefix(sourceURL, "https://")
 	baseURL := s.BaseURL
 	if baseURL == "" {
@@ -258,7 +259,11 @@ func resolveLeaves(s *SourceJSON, rawBody []byte, sourceURL, destRel string, use
 		sem <- struct{}{}
 		subJSON, subRaw, err := fetchSourceJSON(subURL)
 		<-sem
-		if err != nil || subJSON.ID != subDir {
+		if err != nil {
+			p.Send("error", subURL+" 获取失败", 0, 0)
+			continue
+		}
+		if subJSON.ID != subDir {
 			continue
 		}
 		mu.Lock()
@@ -268,7 +273,7 @@ func resolveLeaves(s *SourceJSON, rawBody []byte, sourceURL, destRel string, use
 		}
 		usedIDs[subJSON.ID] = true
 		mu.Unlock()
-		result = append(result, resolveLeaves(subJSON, subRaw, subURL, filepath.Join(destRel, subDir), usedIDs, sem, mu)...)
+		result = append(result, resolveLeaves(subJSON, subRaw, subURL, filepath.Join(destRel, subDir), usedIDs, sem, mu, p)...)
 	}
 	return result
 }
