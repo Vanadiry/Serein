@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN" class="bg-[#1d1d1d]">
+<html lang="zh-CN" class="bg-bg">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,28 +7,28 @@
 <link rel="icon" href="/assets/favicon.svg">
 <link rel="stylesheet" href="/assets/style.css">
 </head>
-<body class="text-[rgba(255,255,255,.88)] min-h-screen">
+<body class="text-text min-h-screen">
 <div id="topbar"></div>
 
 <div class="max-w-[1200px] mx-auto p-6 flex gap-6 min-h-[calc(100vh-49px)]">
-  <aside class="w-[200px] shrink-0 pr-4 border-r border-[rgba(255,255,255,.08)]">
+  <aside class="w-[200px] shrink-0 pr-4 border-r border-bord-mid">
     <div class="sticky top-6">
       <div class="text-sm text-sub font-semibold mb-2">Tracker</div>
       <nav id="tracker-nav" class="flex flex-col gap-0.5"></nav>
-      <button id="btn-new-tracker" class="mt-3 w-full text-center text-xs text-sub hover:text-white border border-dashed border-[rgba(255,255,255,.15)] rounded-lg py-1.5 cursor-pointer hover:border-[#14b8a6] transition-colors">新建 Tracker</button>
+      <button id="btn-new-tracker" class="mt-3 w-full text-center text-xs text-sub hover:text-text border border-dashed border-bord-strong rounded-lg py-1.5 cursor-pointer hover:border-accent transition-colors">新建 Tracker</button>
     </div>
   </aside>
 
   <main class="flex-1 min-w-0">
     <div id="placeholder" class="text-sub text-sm max-w-[600px] pt-[25vh] pl-2">
-      <h2 class="text-lg font-semibold text-white mb-3">欢迎使用 Serein</h2>
+      <h2 class="text-lg font-semibold text-text mb-3">欢迎使用 Serein</h2>
       <p class="mb-2">在左侧栏选择一个 Tracker 来查看对应列表中追踪的软件。</p>
       <p class="mb-4">点击右上角的按钮，能够检查软件更新。</p>
-      <p class="mb-8">若是你第一次启动，请前往<a href="/rules" class="text-[#14b8a6] hover:underline">规则页</a>，点击右上角的「同步规则」来拉取内置的规则表。</p>
+      <p class="mb-8">若是你第一次启动，请前往<a href="/rules" class="text-accent hover:underline">规则页</a>，点击右上角的「同步规则」来拉取内置的规则表。</p>
 
-      <h2 class="text-lg font-semibold text-white mb-3">关于</h2>
-      <p class="mb-2">Serein 在 <a href="#" onclick="event.preventDefault();openExternalUrl('https://github.com/Vanadiry/Serein/')" class="text-[#14b8a6] hover:underline">GitHub</a> 开源。前后端分离，你可以在 GitHub 项目中查看 API 文档。</p>
-      <p>规则表也依赖于社区贡献，内置的规则表项目：<a href="#" onclick="event.preventDefault();openExternalUrl('https://github.com/Vanadiry/SereinRulesList/')" class="text-[#14b8a6] hover:underline">SereinRulesList</a>。</p>
+      <h2 class="text-lg font-semibold text-text mb-3">关于</h2>
+      <p class="mb-2">Serein 在 <a href="#" onclick="event.preventDefault();openExternalUrl('https://github.com/Vanadiry/Serein/')" class="text-accent hover:underline">GitHub</a> 开源。前后端分离，你可以在 GitHub 项目中查看 API 文档。</p>
+      <p>规则表也依赖于社区贡献，内置的规则表项目：<a href="#" onclick="event.preventDefault();openExternalUrl('https://github.com/Vanadiry/SereinRulesList/')" class="text-accent hover:underline">SereinRulesList</a>。</p>
 
     </div>
     <div id="software-list" class="flex flex-col gap-0 hidden"></div>
@@ -55,10 +55,10 @@
   document.getElementById("btn-new-tracker").onclick = () => {
     showModal(`
       <div class="text-sm font-semibold mb-4">新建 Tracker</div>
-      <input id="new-tracker-name" class="w-full bg-[#202028] border border-[rgba(255,255,255,.12)] rounded-lg px-3 py-2 text-sm outline-none focus:border-[#14b8a6] mb-3" placeholder="Tracker 名称">
+      <input id="new-tracker-name" class="w-full bg-surface border border-bord rounded-lg px-3 py-2 text-sm outline-none focus:border-accent mb-3" placeholder="Tracker 名称">
       <div class="flex gap-2">
-        <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 rounded-lg border border-[rgba(255,255,255,.12)] bg-transparent text-sub text-sm cursor-pointer hover:bg-[#30303b] hover:text-white">取消</button>
-        <button id="btn-create-tracker" class="flex-1 px-4 py-2 rounded-lg bg-[#14b8a6] text-white text-sm font-semibold cursor-pointer hover:opacity-90">创建</button>
+        <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>
+        <button id="btn-create-tracker" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">创建</button>
       </div>`);
     document.getElementById("btn-create-tracker").onclick = async () => {
       const name = document.getElementById("new-tracker-name").value.trim();
@@ -73,7 +73,7 @@
     const list = await api("/api/tracker/list/all") || [];
     const nav = document.getElementById("tracker-nav");
     nav.innerHTML = list.map(t => {
-      const active = t.id === currentTracker && currentTracker ? "text-white bg-[#202028] border-l-[2px] border-l-[#14b8a6]" : "text-sub hover:text-white border-l-[2px] border-l-transparent hover:bg-[#202028] hover:border-l-[rgba(255,255,255,.12)]";
+      const active = t.id === currentTracker && currentTracker ? "text-text bg-surface border-l-[2px] border-l-accent" : "text-sub hover:text-text border-l-[2px] border-l-transparent hover:bg-surface hover:border-l-bord";
       return `<button onclick="selectTracker('${t.id}')" class="text-left px-3 py-2 text-sm rounded-r-md transition-colors ${active}">${t.display_name || t.id}</button>`;
     }).join("");
   }
@@ -91,7 +91,7 @@
     const placeholder = document.getElementById("placeholder");
     if (!data.length) {
       placeholder.classList.remove("hidden");
-      placeholder.innerHTML = '<h2 class="text-lg font-semibold text-white mb-2">空的 Tracker</h2><p>这个 Tracker 还没有添加任何软件。前往<a href="/rules" class="text-[#14b8a6] hover:underline">规则页面</a>搜索并添加软件。</p>';
+      placeholder.innerHTML = '<h2 class="text-lg font-semibold text-text mb-2">空的 Tracker</h2><p>这个 Tracker 还没有添加任何软件。前往<a href="/rules" class="text-accent hover:underline">规则页面</a>搜索并添加软件。</p>';
       list.classList.add("hidden");
       return;
     }
@@ -190,9 +190,9 @@
     rightIcons += `<span onclick="event.stopPropagation(); refreshApp('${d.app_id}')" ${tipAttr("检查更新")}>${iconImg("refresh", "检查更新", "w-5 h-5")}</span>`;
     rightIcons += `</span>`;
 
-    return `<div class="flex items-center bg-[#2a2a2a] border border-[rgba(255,255,255,.08)] rounded-lg pl-2 pr-4 h-16 hover:border-[rgba(255,255,255,.12)] transition-colors mb-2 overflow-hidden">
+    return `<div class="flex items-center bg-surface-alt border border-bord-mid rounded-lg pl-2 pr-4 h-16 hover:border-bord transition-colors mb-2 overflow-hidden">
       <div class="flex-1 min-w-0 pr-4 flex flex-col justify-center">
-        <div class="text-base font-semibold truncate pl-1"><span ${tipAttr((d.app_id || '') + (d.description ? '<br>' + d.description : '') + (d.status && d.status.length && d.status[0] ? '<br>状态：' + d.status.join(', ') : ''))}>${d.name || d.app_id}</span>${(d.status && d.status.length && d.status[0]) ? ' <span class="inline-block w-2 h-2 rounded-full bg-[#e8a040] align-middle"></span>' : ''}</div>
+        <div class="text-base font-semibold truncate pl-1"><span ${tipAttr((d.app_id || '') + (d.description ? '<br>' + d.description : '') + (d.status && d.status.length && d.status[0] ? '<br>状态：' + d.status.join(', ') : ''))}>${d.name || d.app_id}</span>${(d.status && d.status.length && d.status[0]) ? ' <span class="inline-block w-2 h-2 rounded-full bg-warn align-middle"></span>' : ''}</div>
         <div class="mt-0.5">${versionHTML}</div>
       </div>
       ${rightIcons}
@@ -224,15 +224,15 @@
       <div class="text-sm font-semibold mb-4">编辑版本 — ${appId}</div>
       <div id="edit-platforms" class="flex flex-col gap-2 mb-4"></div>
       <div class="flex gap-2">
-        <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 rounded-lg border border-[rgba(255,255,255,.12)] bg-transparent text-sub text-sm cursor-pointer hover:bg-[#30303b] hover:text-white">取消</button>
-        <button id="btn-save-version" class="flex-1 px-4 py-2 rounded-lg bg-[#14b8a6] text-white text-sm font-semibold cursor-pointer hover:opacity-90">保存</button>
+        <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>
+        <button id="btn-save-version" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">保存</button>
       </div>`);
     const detail = await api("/api/tracker/list/" + currentTracker);
     const entry = (detail || []).find(e => e.app_id === appId);
     var platforms = (entry && entry.current_version) ? Object.keys(entry.current_version) : [];
     document.getElementById("edit-platforms").innerHTML = platforms.map(os => {
       const cur = (entry && entry.current_version && entry.current_version[os]) || "";
-      return `<div class="flex items-center gap-2"><span class="text-xs text-sub w-16">${os}</span><input class="flex-1 bg-[#202028] border border-[rgba(255,255,255,.12)] rounded-lg px-3 py-1.5 text-sm outline-none focus:border-[#14b8a6]" value="${cur}" data-os="${os}"></div>`;
+      return `<div class="flex items-center gap-2"><span class="text-xs text-sub w-16">${os}</span><input class="flex-1 bg-surface border border-bord rounded-lg px-3 py-1.5 text-sm outline-none focus:border-accent" value="${cur}" data-os="${os}"></div>`;
     }).join("");
     document.getElementById("btn-save-version").onclick = async () => {
       const body = { app_id: appId };
@@ -286,7 +286,7 @@
               msg = 'HTTP 403';
             }
           }
-          errs.push('<span class="text-[#e8a040]">' + r.name + " " + os + "</span>: " + msg);
+          errs.push('<span class="text-warn">' + r.name + " " + os + "</span>: " + msg);
         }
       }
     }

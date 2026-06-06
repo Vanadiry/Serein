@@ -1,6 +1,14 @@
 // Serein shared JS — API 封装、顶栏、公共函数
 const API = window.location.origin;
 
+// ── 主题：跟随系统 ──
+(function () {
+  var mq = window.matchMedia("(prefers-color-scheme: light)");
+  function apply(e) { document.documentElement.classList.toggle("light", e.matches); }
+  apply(mq);
+  mq.addEventListener("change", apply);
+})();
+
 // ── API ──
 async function api(path) {
   const r = await fetch(API + path);
@@ -23,15 +31,15 @@ function renderTopbar(current) {
   tb.style.cssText = "position:sticky;top:0;z-index:50";
 
   function navCls(href) {
-    if (href === "/" && path === "/") return "bg-[#30303b] text-white";
-    if (href !== "/" && path.startsWith(href)) return "bg-[#30303b] text-white";
-    return "text-sub hover:bg-[#30303b] hover:text-white";
+    if (href === "/" && path === "/") return "bg-active text-text";
+    if (href !== "/" && path.startsWith(href)) return "bg-active text-text";
+    return "text-sub hover:bg-active hover:text-text";
   }
 
   const isIndex = path === "/" || path === "/index.html" || path === "";
 
   tb.innerHTML = `
-    <div class="bg-[#1d1d1d] border-b border-[rgba(255,255,255,.06)]">
+    <div class="bg-bg border-b border-bord-light">
       <div class="max-w-[1200px] mx-auto px-5 flex items-center gap-3 h-12 relative">
         <h1 class="text-lg font-bold cursor-pointer shrink-0" onclick="location.href='/'">Serein</h1>
         <nav class="flex gap-1 ml-2 items-center">
@@ -41,11 +49,11 @@ function renderTopbar(current) {
         <div class="flex-1"></div>
         <nav class="flex gap-1 items-center">
           ${isIndex ? `
-          <button id="btn-read-cache" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-[#30303b] hover:text-white cursor-pointer border-0 bg-transparent">读取缓存</button>
-          <button id="btn-check-all" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-[#30303b] hover:text-white cursor-pointer border-0 bg-transparent">检查全部</button>
-          <button id="btn-tracker-check" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-[#30303b] hover:text-white cursor-pointer border-0 bg-transparent">检查当前 Tracker</button>
+          <button id="btn-read-cache" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">读取缓存</button>
+          <button id="btn-check-all" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">检查全部</button>
+          <button id="btn-tracker-check" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">检查当前 Tracker</button>
           ` : `
-          <button id="btn-sync" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-[#30303b] hover:text-white cursor-pointer border-0 bg-transparent">同步规则</button>
+          <button id="btn-sync" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">同步规则</button>
           `}
         </nav>
       </div>
@@ -160,12 +168,12 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
     el: el,
     done: function(okBody, isError, titleText) {
       if (closed) {
-        var t = _makeToast(isError ? "错误" : "成功", okBody, isError ? "bg-[#dc2626]" : "bg-[#68a868]", isError ? "bg-[#dc2626]/80" : "bg-[#68a868]/80", isError ? 0 : 5);
+        var t = _makeToast(isError ? "错误" : "成功", okBody, isError ? "bg-err" : "bg-ok", isError ? "bg-err/80" : "bg-ok/80", isError ? 0 : 5);
         if (titleText) t.el.querySelector("span:first-child").textContent = titleText;
         return;
       }
-      var tb = isError ? "bg-[#dc2626]" : "bg-[#68a868]";
-      var bb = isError ? "bg-[#dc2626]/80" : "bg-[#68a868]/80";
+      var tb = isError ? "bg-err" : "bg-ok";
+      var bb = isError ? "bg-err/80" : "bg-ok/80";
       var tt = titleText || (isError ? "错误" : "成功");
       el.querySelector("div:first-child").className = tb + " text-white font-semibold px-4 py-2 rounded-t-lg flex items-center justify-between";
       el.querySelector("span:first-child").textContent = tt;
@@ -182,7 +190,7 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
 }
 
 function showLoading(title, body) {
-  return _makeToast(title || "加载中", body || "", "bg-[#e8a040]", "bg-[#e8a040]/80", 0);
+  return _makeToast(title || "加载中", body || "", "bg-warn", "bg-warn/80", 0);
 }
 
 // ── 通用悬停提示（全局单例）──
@@ -190,7 +198,7 @@ var _tooltipEl = null;
 function _ensureTooltip() {
   if (!_tooltipEl) {
     _tooltipEl = document.createElement("div");
-    _tooltipEl.className = "fixed bg-[#1c1c22] border border-[rgba(255,255,255,.15)] text-xs text-sub rounded-lg px-3 py-2 shadow-xl pointer-events-none z-[200]";
+    _tooltipEl.className = "fixed bg-surface-raised border border-bord-strong text-xs text-sub rounded-lg px-3 py-2 shadow-xl pointer-events-none z-[200]";
     _tooltipEl.style.display = "none";
     _tooltipEl.style.opacity = "0";
     _tooltipEl.style.lineHeight = "1.4";
@@ -302,11 +310,11 @@ function openExternalUrl(url) {
   var escaped = url.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
   showModal(
     '<div class="text-sm font-semibold mb-3">外部地址</div>' +
-    '<p class="text-text text-xs break-all bg-[#1d1d1d] rounded-lg px-3 py-2 border border-[rgba(255,255,255,.08)] mb-4 leading-relaxed">' + url + '</p>' +
+    '<p class="text-text text-xs break-all bg-bg rounded-lg px-3 py-2 border border-bord-mid mb-4 leading-relaxed">' + url + '</p>' +
     '<div class="flex gap-2">' +
-    '<button onclick="this.closest(\'.fixed\').remove()" class="flex-1 px-4 py-2 rounded-lg border border-[rgba(255,255,255,.12)] bg-transparent text-sub text-sm cursor-pointer hover:bg-[#30303b] hover:text-white">取消</button>' +
-    '<button onclick="var s=this;navigator.clipboard.writeText(\'' + escaped + '\');s.textContent=\'已复制\';setTimeout(function(){s.textContent=\'复制链接\'},1500)" class="flex-1 px-4 py-2 rounded-lg border border-[rgba(255,255,255,.12)] bg-transparent text-sub text-sm cursor-pointer hover:bg-[#30303b] hover:text-white">复制链接</button>' +
-    '<button onclick="var el=this.closest(\'.fixed\');apiPost(\'/api/open-url\',{url:\'' + escaped + '\'});el.remove()" class="flex-1 px-4 py-2 rounded-lg bg-[#14b8a6] text-white text-sm font-semibold cursor-pointer hover:opacity-90">确认</button>' +
+    '<button onclick="this.closest(\'.fixed\').remove()" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>' +
+    '<button onclick="var s=this;navigator.clipboard.writeText(\'' + escaped + '\');s.textContent=\'已复制\';setTimeout(function(){s.textContent=\'复制链接\'},1500)" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">复制链接</button>' +
+    '<button onclick="var el=this.closest(\'.fixed\');apiPost(\'/api/open-url\',{url:\'' + escaped + '\'});el.remove()" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">确认</button>' +
     '</div>'
   );
 }
@@ -316,8 +324,8 @@ function confirmDialog(msg, cb) {
   showModal(
     '<p class="text-sm mb-4 leading-relaxed">' + msg + '</p>' +
     '<div class="flex gap-2">' +
-    '<button onclick="this.closest(\'.fixed\').remove()" class="flex-1 px-4 py-2 rounded-lg border border-[rgba(255,255,255,.12)] bg-transparent text-sub text-sm cursor-pointer hover:bg-[#30303b] hover:text-white">取消</button>' +
-    '<button id="btn-confirm-exec" class="flex-1 px-4 py-2 rounded-lg bg-[#14b8a6] text-white text-sm font-semibold cursor-pointer hover:opacity-90">确认</button>' +
+    '<button onclick="this.closest(\'.fixed\').remove()" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>' +
+    '<button id="btn-confirm-exec" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">确认</button>' +
     '</div>'
   );
   document.getElementById("btn-confirm-exec").onclick = function () {
@@ -332,6 +340,6 @@ function showModal(html) {
   el.className =
     "fixed inset-0 z-50 flex items-center justify-center bg-black/60";
   el.onclick = e => { if (e.target === el) el.remove(); };
-  el.innerHTML = `<div class="bg-[#2a2a2a] border border-[rgba(255,255,255,.12)] rounded-xl p-6 min-w-[400px] max-w-[520px] shadow-2xl">${html}</div>`;
+  el.innerHTML = `<div class="bg-surface-alt border border-bord rounded-xl p-6 min-w-[400px] max-w-[520px] shadow-2xl">${html}</div>`;
   document.body.appendChild(el);
 }
