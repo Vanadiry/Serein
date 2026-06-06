@@ -5,10 +5,11 @@ ROOT = Path(__file__).resolve().parent.parent
 
 CLEAN = [
     "build",
+    "src-tauri/target",
+    "src-tauri/gen/schemas",
     "web/*.html",
-    "web/assets/app.min.js"
+    "web/assets/app.min.js",
 ]
-
 
 def main():
     for pattern in CLEAN:
@@ -18,7 +19,6 @@ def main():
             else:
                 p.unlink()
             print(f"OK. removed {p}")
-
 
 if __name__ == "__main__":
     main()
