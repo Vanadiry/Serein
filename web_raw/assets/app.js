@@ -65,7 +65,7 @@ function platformIcon(os, cls) {
   const label = platformLabel(os);
   const sz = cls || "w-5 h-5";
   if (name) return `<span class="icon-bg inline-flex">${iconImgRaw(name, label, sz)}</span>`;
-  return `<span class="icon-bg inline-flex"><span class="${sz} text-xs text-sub font-semibold inline-flex items-center justify-center" title="${label}">${os.slice(0, 2).toUpperCase()}</span></span>`;
+  return `<span class="icon-bg inline-flex"><span class="${sz} text-xs text-sub font-semibold inline-flex items-center justify-center" ${tipAttr(label)}>${os.slice(0, 2).toUpperCase()}</span></span>`;
 }
 
 function iconImg(file, alt, cls) {
@@ -77,7 +77,7 @@ function iconYes(alt, cls) {
 }
 
 function iconImgRaw(file, alt, sz) {
-  return `<img src="/assets/${file}.svg" class="${sz} inline-block" alt="${alt}" title="${alt}" draggable="false">`;
+  return `<img src="/assets/${file}.svg" class="${sz} inline-block" alt="${alt}" draggable="false">`;
 }
 
 // ── 工具 ──
@@ -167,12 +167,9 @@ var _tooltipEl = null;
 function _ensureTooltip() {
   if (!_tooltipEl) {
     _tooltipEl = document.createElement("div");
-    _tooltipEl.className = "fixed bg-[#1c1c22] border border-[rgba(255,255,255,.15)] text-xs text-sub rounded-lg px-3 py-2 shadow-xl pointer-events-none z-[200] transition-opacity duration-150";
+    _tooltipEl.className = "fixed bg-[#1c1c22] border border-[rgba(255,255,255,.15)] text-xs text-sub rounded-lg px-3 py-2 shadow-xl pointer-events-none z-[200]";
     _tooltipEl.style.display = "none";
     _tooltipEl.style.opacity = "0";
-    _tooltipEl.style.maxWidth = (window.innerWidth - 32) + "px";
-    _tooltipEl.style.whiteSpace = "normal";
-    _tooltipEl.style.wordBreak = "break-all";
     _tooltipEl.style.lineHeight = "1.4";
     document.body.appendChild(_tooltipEl);
   }
@@ -181,14 +178,37 @@ function _ensureTooltip() {
 
 function _positionTooltip(e) {
   var tip = _ensureTooltip();
+  var maxW = window.innerWidth - 32;
   var rect = e.target.getBoundingClientRect();
+
+  // 先隐藏，测量自然宽度后再决定是否换行
+  tip.style.opacity = "0";
+  tip.style.display = "block";
+  tip.style.visibility = "hidden";
+  tip.style.whiteSpace = "nowrap";
+  tip.style.maxWidth = "";
+  tip.style.wordBreak = "";
+  tip.style.overflowWrap = "";
+  tip.style.left = "0px";
+  tip.style.top = "0px";
+  tip.style.transform = "";
+  tip.style.right = "";
+
+  // 测量自然单行宽度
+  var naturalW = tip.getBoundingClientRect().width;
+  if (naturalW > maxW) {
+    tip.style.maxWidth = maxW + "px";
+    tip.style.whiteSpace = "normal";
+    tip.style.overflowWrap = "break-word";
+  }
+
+  // 定位
   var left = rect.left + rect.width / 2;
   var above = true;
   tip.style.left = left + "px";
   tip.style.top = (rect.top - 8) + "px";
   tip.style.transform = "translate(-50%, -100%)";
-  tip.style.display = "block";
-  requestAnimationFrame(function() { tip.style.opacity = "1"; });
+  tip.style.visibility = "";
 
   var tipRect = tip.getBoundingClientRect();
   // 顶部溢出：翻转到元素下方
@@ -207,6 +227,8 @@ function _positionTooltip(e) {
     tip.style.left = "16px";
     tip.style.transform = above ? "translate(0, -100%)" : "translate(0, 0)";
   }
+
+  tip.style.opacity = "1";
 }
 
 function showTooltip(e, html) {

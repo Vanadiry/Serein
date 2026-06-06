@@ -186,7 +186,7 @@
 
     return `<div class="flex items-center bg-[#2a2a2a] border border-[rgba(255,255,255,.08)] rounded-lg pl-2 pr-4 h-16 hover:border-[rgba(255,255,255,.12)] transition-colors mb-2 overflow-hidden">
       <div class="flex-1 min-w-0 pr-4 flex flex-col justify-center">
-        <div class="text-base font-semibold truncate pl-1"><span ${tipAttr((d.app_id || '') + (d.description ? '<br>' + d.description : '') + (d.status && d.status.length && d.status[0] ? '<br>状态：' + d.status.join(', ') : ''))}>${d.name || d.app_id}</span>${(d.status && d.status.length && d.status[0]) ? ' <span class="inline-block w-2 h-2 rounded-full bg-[#e8a040] align-middle" title="' + d.status.join(', ') + '"></span>' : ''}</div>
+        <div class="text-base font-semibold truncate pl-1"><span ${tipAttr((d.app_id || '') + (d.description ? '<br>' + d.description : '') + (d.status && d.status.length && d.status[0] ? '<br>状态：' + d.status.join(', ') : ''))}>${d.name || d.app_id}</span>${(d.status && d.status.length && d.status[0]) ? ' <span class="inline-block w-2 h-2 rounded-full bg-[#e8a040] align-middle"></span>' : ''}</div>
         <div class="mt-0.5">${versionHTML}</div>
       </div>
       ${rightIcons}
