@@ -199,7 +199,7 @@
 
     const rules = await api("/api/rules/list/search?q=" + encodeURIComponent(q)) || [];
     if (!rules.length) {
-      grid.innerHTML = '<div class="col-span-full text-center py-10 text-sub text-sm">未找到结果</div>';
+      grid.innerHTML = '<div class="col-span-full text-center py-10 text-sub text-sm">未找到结果<br><span class="text-xs">请尝试点击右上角「同步规则」拉取最新的规则表</span></div>';
       return;
     }
     grid.innerHTML = renderCards(rules);
