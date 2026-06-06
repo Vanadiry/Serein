@@ -1,0 +1,132 @@
+name: Build
+
+permissions:
+  contents: write
+  actions: read
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            goarch: arm64
+            label: macos
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            goarch: amd64
+            label: windows
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "9"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: System deps (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libfuse2 libgtk-3-dev
+
+      - run: pnpm install
+
+      - name: Build Tauri
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: --target ${{ matrix.target }}
+
+      - name: Collect artifacts
+        shell: bash
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          ext=""; [ "${{ matrix.label }}" = "windows" ] && ext=".exe"
+          arch="${{ matrix.goarch }}"
+          label="${{ matrix.label }}"
+
+          # Desktop: bundle
+          mkdir -p dist/desktop
+          bundle="src-tauri/target/${{ matrix.target }}/release/bundle"
+          case "${{ runner.os }}" in
+            macOS)
+              find "$bundle/dmg" -name "*.dmg" -exec cp {} "dist/desktop/serein-desktop-${V}-${label}-${arch}.dmg" \; ;;
+            Windows)
+              find "$bundle/nsis" -name "*.exe" -exec cp {} "dist/desktop/serein-desktop-${V}-${label}-${arch}.exe" \; ;;
+            Linux)
+              find "$bundle/appimage" -name "*.AppImage" -exec cp {} "dist/desktop/serein-desktop-${V}-${label}-${arch}.AppImage" \; ;;
+          esac
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.label }}-${{ matrix.goarch }}
+          path: dist/
+
+  server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: "9"
+      - run: pnpm install && pnpm run build
+
+      - name: Build Server
+        run: |
+          mkdir -p dist/server
+          V="${GITHUB_REF_NAME#v}"
+          TARGETS="darwin/arm64 darwin/amd64 linux/amd64 linux/arm64 windows/amd64"
+          for t in $TARGETS; do
+            goos=${t%/*}; goarch=${t#*/}
+            ext=""; [ "$goos" = "windows" ] && ext=".exe"
+            label=$(echo "$goos" | sed 's/darwin/macos/;s/linux/linux/;s/windows/windows/')
+            name="serein-server-${V}-${label}-${goarch}${ext}"
+            out="dist/server/${name}"
+            GOOS=$goos GOARCH=$goarch go build -ldflags="-s -w" -o "$out" .
+            echo "OK. $name"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server
+          path: dist/server/
+
+  release:
+    needs: [build, server]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Flatten artifacts
+        run: |
+          mkdir release
+          find dist -type f -not -name "*.md" | while read f; do
+            cp "$f" "release/$(basename "$f")"
+          done
+      - name: Extract changelog
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          mkdir -p /tmp/release
+          sed -n "/^## \[$V\]/,/^## \[/p" CHANGELOG.md | sed '$d' > /tmp/release/body.md
+      - uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body_path: /tmp/release/body.md
+          files: |
+            release/*
+          draft: true
