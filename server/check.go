@@ -165,7 +165,7 @@ func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) 
 	rules, _ := store.LoadRules(s.home)
 	userData, _ := store.LoadUserData(s.home)
 
-	conc := cfg.Serein.Concurrency
+	conc := cfg.Download.Concurrency
 	if conc < 1 {
 		conc = 1
 	}
@@ -180,7 +180,7 @@ func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) 
 			continue
 		}
 		jobName := rule.Info.Name
-		platforms := store.PlatformsFor(entry, cfg.Serein.Platforms)
+		platforms := store.PlatformsFor(entry, cfg.Tracker.Platforms)
 
 		var platCfgs []checker.PlatformCheckConfig
 		for _, os := range platforms {
@@ -248,7 +248,7 @@ func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) 
 				RuleType:        typ,
 				Owner:           rule.Config.Owner,
 				Repo:            rule.Config.Repo,
-				GithubToken:     cfg.Serein.GithubToken,
+				GithubToken:     cfg.Access.GithubToken,
 				Platforms:       group,
 			}, name: jobName})
 		}

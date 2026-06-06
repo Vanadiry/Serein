@@ -13,24 +13,41 @@ type RuleSource struct {
 }
 
 type Config struct {
-	Serein      SereinConfig `toml:"serein"`
-	RuleSources []RuleSource `toml:"rule_sources"`
+	Serein      SereinConfig   `toml:"serein"`
+	Tracker     TrackerConfig  `toml:"tracker"`
+	Download    DownloadConfig `toml:"download"`
+	Access      AccessConfig   `toml:"access"`
+	RuleSources []RuleSource   `toml:"rule_sources"`
 }
 
 type SereinConfig struct {
-	Host        string   `toml:"host"`
-	Port        int      `toml:"port"`
-	Platforms   []string `toml:"platforms"`
-	Concurrency int      `toml:"concurrency"`
-	GithubToken string   `toml:"github_token,omitempty"`
+	Host string `toml:"host"`
+	Port int    `toml:"port"`
+}
+
+type TrackerConfig struct {
+	Platforms []string `toml:"platforms"`
+}
+
+type DownloadConfig struct {
+	Concurrency int    `toml:"concurrency"`
+	Downloader  string `toml:"downloader,omitempty"`
+}
+
+type AccessConfig struct {
+	GithubToken string `toml:"github_token,omitempty"`
 }
 
 func DefaultConfig() Config {
 	return Config{
 		Serein: SereinConfig{
-			Host:        "127.0.0.1",
-			Port:        12510,
-			Platforms:   []string{"macos", "windows"},
+			Host: "127.0.0.1",
+			Port: 12510,
+		},
+		Tracker: TrackerConfig{
+			Platforms: []string{"macos", "windows"},
+		},
+		Download: DownloadConfig{
 			Concurrency: 8,
 		},
 	}

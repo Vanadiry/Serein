@@ -22,7 +22,7 @@ func (s *Server) handleRulesSync(w http.ResponseWriter, r *http.Request) {
 	}
 	store.Logf("[sync] %d sources", len(s.config.RuleSources))
 	p := store.NewProgress(0)
-	go store.SyncAllSourcesAsync(s.home, s.config.RuleSources, s.config.Serein.Concurrency, p)
+	go store.SyncAllSourcesAsync(s.home, s.config.RuleSources, s.config.Download.Concurrency, p)
 	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID})
 }
 
