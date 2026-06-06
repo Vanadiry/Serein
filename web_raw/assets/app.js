@@ -487,7 +487,7 @@ async function asyncCheck(apiPath, body, onDone) {
   var res = await apiPost(apiPath, body);
   if (!res || !res.task_id) { return; }
   var total = parseInt(res.total) || 0;
-  var pm = showProgressModal("检查更新", API + "/api/check/cancel/" + res.task_id);
+  var pm = showProgressModal, skipped = 0, updated = 0("检查更新", API + "/api/check/cancel/" + res.task_id);
   var evt = new EventSource(API + "/api/progress/" + res.task_id);
   evt.onmessage = function (e) {
     var d = JSON.parse(e.data);
@@ -499,13 +499,24 @@ async function asyncCheck(apiPath, body, onDone) {
 
 // SSE 进度同步规则
 function startSyncProgress(taskId) {
+  var skipped = 0, updated = 0;
   var pm = showProgressModal("同步规则", API + "/api/check/cancel/" + taskId);
   var evt = new EventSource(API + "/api/progress/" + taskId);
   evt.onmessage = function (e) {
     var d = JSON.parse(e.data);
-    if (d.step === "done") { evt.close(); pm.close(); showLoading("同步规则", "同步完成").done("同步完成"); if (typeof loadSources === "function") loadSources(); return; }
+    if (d.step === "done") {
+      evt.close(); pm.close();
+      var msg = "同步完成";
+      if (updated > 0) msg += "（" + updated + " 个更新";
+      if (skipped > 0) msg += (updated > 0 ? "，" : "（") + skipped + " 个跳过";
+      if (updated > 0 || skipped > 0) msg += "）";
+      showLoading("同步规则", msg).done(msg);
+      if (typeof loadSources === "function") loadSources();
+      return;
+    }
     if (d.step === "list") { pm.setStatus("正在拉取规则源 " + d.name); return; }
-    if (d.step === "file") { pm.setProgress(d.done, d.total); pm.setStatus(d.name); }
+    if (d.step === "skip") { skipped++; pm.setStatus(d.name + "（已是最新，跳过）"); return; }
+    if (d.step === "file") { if (d.done === d.total) updated = d.total; pm.setProgress(d.done, d.total); pm.setStatus(d.name); }
   };
   evt.onerror = function () { evt.close(); pm.close(); if (typeof loadSources === "function") loadSources(); };
 }

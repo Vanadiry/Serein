@@ -105,6 +105,7 @@ type leafSrc struct {
 	baseURL string
 	files   []string
 	isWeb   bool
+	version int
 }
 
 // SyncAllSourcesAsync 两阶段同步：
@@ -119,15 +120,31 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 		concurrency = 64
 	}
 
+	rulesDir := filepath.Join(home, "rules")
+
 	// Phase 1: 遍历
 	leaves := gatherLeaves(sources, concurrency, p)
 	if len(leaves) == 0 {
 		return
 	}
 
+	// 过滤版本未变的叶子源
+	var fresh []leafSrc
+	for _, l := range leaves {
+		if l.version > 0 && loadLocalSourceVersion(filepath.Join(rulesDir, l.destDir)) == l.version {
+			p.Send("skip", l.id, 0, 0)
+			continue
+		}
+		fresh = append(fresh, l)
+	}
+	leaves = fresh
+
 	total := 0
 	for _, l := range leaves {
 		total += len(l.files)
+	}
+	if total == 0 {
+		return
 	}
 
 	// Phase 2: 并发下载
@@ -135,7 +152,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 	var mu sync.Mutex
 	var done int
 	var wg sync.WaitGroup
-	rulesDir := filepath.Join(home, "rules")
+	rulesDir = filepath.Join(home, "rules")
 
 	for _, l := range leaves {
 		dest := filepath.Join(rulesDir, l.destDir)
@@ -224,7 +241,7 @@ func resolveLeaves(s *SourceJSON, rawBody []byte, sourceURL, destRel string, use
 		}
 	}
 	if s.Type != "list" {
-		return []leafSrc{{id: s.ID, rawBody: rawBody, destDir: destRel, baseURL: baseURL, files: s.Files, isWeb: !isLocal}}
+		return []leafSrc{{id: s.ID, rawBody: rawBody, destDir: destRel, baseURL: baseURL, files: s.Files, isWeb: !isLocal, version: s.Version}}
 	}
 	var result []leafSrc
 	for _, f := range s.Files {
