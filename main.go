@@ -5,29 +5,13 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 
 	"github.com/vanadiry/serein/server"
 )
 
 //go:embed web
 var webFiles embed.FS
-
-// openBrowser 打开浏览器
-func openBrowser(url string) {
-	var c *exec.Cmd
-	switch runtime.GOOS {
-	case "darwin":
-		c = exec.Command("open", url)
-	case "windows":
-		c = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
-	default:
-		c = exec.Command("xdg-open", url)
-	}
-	_ = c.Start()
-}
 
 func main() {
 	home := sereinHome()
@@ -79,7 +63,7 @@ func startServer(home string, openBrowser_ bool) {
 	if openBrowser_ {
 		go func() {
 			addr := "http://" + s.Addr()
-			openBrowser(addr)
+			server.OpenBrowser(addr)
 		}()
 	}
 	if err := s.Run(); err != nil {

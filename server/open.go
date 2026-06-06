@@ -7,7 +7,7 @@ import (
 	"runtime"
 )
 
-func openBrowser(url string) {
+func OpenBrowser(url string) {
 	var c *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
@@ -28,6 +28,6 @@ func (s *Server) handleOpenURL(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "missing url")
 		return
 	}
-	openBrowser(body.URL)
+	OpenBrowser(body.URL)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }

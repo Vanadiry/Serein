@@ -24,14 +24,14 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case dl == "":
-		openBrowser(body.URL)
+		OpenBrowser(body.URL)
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "message": "已在浏览器中打开"})
 
 	case dl == "ndm":
 		err := sendToNDM(body.URL)
 		if err != nil {
 			store.Logf("[download] ndm: %v, fallback to browser", err)
-			openBrowser(body.URL)
+			OpenBrowser(body.URL)
 			writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "message": "Neat Download Manager 未运行，已在浏览器中打开"})
 			return
 		}
@@ -42,7 +42,7 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Fields(cmd)
 		if _, err := exec.LookPath(parts[0]); err != nil {
 			store.Logf("[download] %s not found, fallback to browser", parts[0])
-			openBrowser(body.URL)
+			OpenBrowser(body.URL)
 			writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "message": fmt.Sprintf("%s 未找到，已在浏览器中打开", parts[0])})
 			return
 		}
@@ -51,7 +51,7 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 
 	default:
 		store.Logf("[download] unknown downloader %q, fallback to browser", dl)
-		openBrowser(body.URL)
+		OpenBrowser(body.URL)
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "message": "下载器配置未知，已在浏览器中打开"})
 	}
 }
