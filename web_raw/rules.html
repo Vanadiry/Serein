@@ -10,11 +10,13 @@
 <body class="text-[rgba(255,255,255,.88)] font-[system-ui] min-h-screen">
 <div id="topbar"></div>
 
-<div class="max-w-[1200px] mx-auto p-6 flex gap-6 min-h-[calc(100vh-48px)]">
+<div class="max-w-[1200px] mx-auto p-6 flex gap-6 min-h-[calc(100vh-49px)]">
   <aside class="w-[200px] shrink-0 pr-4 border-r border-[rgba(255,255,255,.08)]">
-    <button id="btn-search-tab" class="text-left w-full px-3 py-2 text-sm rounded-r-md transition-colors text-white bg-[#202028] border-l-[2px] border-l-[#14b8a6]">搜索规则</button>
-    <div class="text-sm text-sub font-semibold mt-4 mb-2">规则源</div>
-    <nav id="source-nav" class="flex flex-col gap-0.5"></nav>
+    <div class="sticky top-6">
+      <button id="btn-search-tab" class="text-left w-full px-3 py-2 text-sm rounded-r-md transition-colors text-white bg-[#202028] border-l-[2px] border-l-[#14b8a6]">搜索规则</button>
+      <div class="text-sm text-sub font-semibold mt-4 mb-2">规则源</div>
+      <nav id="source-nav" class="flex flex-col gap-0.5"></nav>
+    </div>
   </aside>
 
   <main class="flex-1 min-w-0">
