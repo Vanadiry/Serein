@@ -57,14 +57,14 @@
       <div class="text-sm font-semibold mb-4">新建 Tracker</div>
       <input id="new-tracker-name" class="w-full bg-surface border border-bord rounded-lg px-3 py-2 text-sm outline-none focus:border-accent mb-3" placeholder="Tracker 名称">
       <div class="flex gap-2">
-        <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>
+        <button onclick="closeModal(this.closest('.fixed'))" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>
         <button id="btn-create-tracker" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">创建</button>
       </div>`);
     document.getElementById("btn-create-tracker").onclick = async () => {
       const name = document.getElementById("new-tracker-name").value.trim();
       if (!name) return;
       await apiPost("/api/tracker/new", { id: name });
-      document.querySelector(".fixed")?.remove();
+      closeModal(document.querySelector(".fixed"));
       loadTrackers();
     };
   };
@@ -81,7 +81,7 @@
   async function selectTracker(id) {
     currentTracker = id;
     loadTrackers();
-    document.getElementById("placeholder").classList.add("hidden");
+    hideView(document.getElementById("placeholder"));
     await loadTrackerDetail(id);
   }
 
@@ -90,14 +90,16 @@
     const list = document.getElementById("software-list");
     const placeholder = document.getElementById("placeholder");
     if (!data.length) {
-      placeholder.classList.remove("hidden");
       placeholder.innerHTML = '<h2 class="text-lg font-semibold text-text mb-2">空的 Tracker</h2><p>这个 Tracker 还没有添加任何软件。前往<a href="/rules" class="text-accent hover:underline">规则页面</a>搜索并添加软件。</p>';
-      list.classList.add("hidden");
+      swapView(list, placeholder);
       return;
     }
-    placeholder.classList.add("hidden");
-    list.classList.remove("hidden");
-    list.innerHTML = data.map(d => renderSoftwareRow(d)).join("");
+    if (list.classList.contains("hidden")) {
+      list.innerHTML = data.map(d => renderSoftwareRow(d)).join("");
+      swapView(placeholder, list);
+    } else {
+      refreshView(list, function () { list.innerHTML = data.map(d => renderSoftwareRow(d)).join(""); });
+    }
   }
 
   function renderSoftwareRow(d) {
@@ -227,7 +229,7 @@
       <div class="text-sm font-semibold mb-4">编辑版本 — ${appId}</div>
       <div id="edit-platforms" class="flex flex-col gap-2 mb-4"></div>
       <div class="flex gap-2">
-        <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>
+        <button onclick="closeModal(this.closest('.fixed'))" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>
         <button id="btn-save-version" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">保存</button>
       </div>`);
     const detail = await api("/api/tracker/list/" + currentTracker);
@@ -241,7 +243,7 @@
       const body = { app_id: appId };
       document.querySelectorAll("#edit-platforms input").forEach(inp => { body[inp.dataset.os] = inp.value.trim(); });
       await apiPost("/api/check/confirm", body);
-      document.querySelector(".fixed")?.remove();
+      closeModal(document.querySelector(".fixed"));
       loadTrackerDetail(currentTracker);
     };
   }

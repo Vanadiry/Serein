@@ -187,7 +187,7 @@ var _tooltipEl = null;
 function _ensureTooltip() {
   if (!_tooltipEl) {
     _tooltipEl = document.createElement("div");
-    _tooltipEl.className = "fixed bg-surface-raised border border-bord-strong text-xs text-sub rounded-lg px-3 py-2 shadow-xl pointer-events-none z-[200]";
+    _tooltipEl.className = "fixed bg-surface-raised border border-bord-strong text-xs text-sub rounded-lg px-3 py-2 shadow-xl pointer-events-none z-[200] transition-opacity duration-150";
     _tooltipEl.style.display = "none";
     _tooltipEl.style.opacity = "0";
     _tooltipEl.style.lineHeight = "1.4";
@@ -301,9 +301,9 @@ function openExternalUrl(url) {
     '<div class="text-sm font-semibold mb-3">外部地址</div>' +
     '<p class="text-text text-xs break-all bg-bg rounded-lg px-3 py-2 border border-bord-mid mb-4 leading-relaxed">' + url + '</p>' +
     '<div class="flex gap-2">' +
-    '<button onclick="this.closest(\'.fixed\').remove()" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>' +
+    '<button onclick="closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>' +
     '<button onclick="var s=this;navigator.clipboard.writeText(\'' + escaped + '\');s.textContent=\'已复制\';setTimeout(function(){s.textContent=\'复制链接\'},1500)" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">复制链接</button>' +
-    '<button onclick="var el=this.closest(\'.fixed\');apiPost(\'/api/open-url\',{url:\'' + escaped + '\'});el.remove()" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">确认</button>' +
+    '<button onclick="var el=this.closest(\'.fixed\');apiPost(\'/api/open-url\',{url:\'' + escaped + '\'});closeModal(el)" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">确认</button>' +
     '</div>'
   );
 }
@@ -313,12 +313,12 @@ function confirmDialog(msg, cb) {
   showModal(
     '<p class="text-sm mb-4 leading-relaxed">' + msg + '</p>' +
     '<div class="flex gap-2">' +
-    '<button onclick="this.closest(\'.fixed\').remove()" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>' +
+    '<button onclick="closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>' +
     '<button id="btn-confirm-exec" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">确认</button>' +
     '</div>'
   );
   document.getElementById("btn-confirm-exec").onclick = function () {
-    this.closest(".fixed").remove();
+    closeModal(this.closest(".fixed"));
     cb();
   };
 }
@@ -326,22 +326,78 @@ function confirmDialog(msg, cb) {
 // 弹窗
 function showModal(html) {
   const el = document.createElement("div");
-  el.className =
-    "fixed inset-0 z-50 flex items-center justify-center bg-black/60";
+  el.className = "fixed inset-0 z-50 flex items-center justify-center bg-overlay transition-opacity duration-200";
+  el.style.opacity = "0";
   el.onclick = e => { if (e.target === el) el.remove(); };
-  el.innerHTML = `<div class="bg-surface-alt border border-bord rounded-xl p-6 min-w-[400px] max-w-[520px] shadow-2xl">${html}</div>`;
+  el.innerHTML = `<div class="bg-surface-alt border border-bord rounded-xl p-6 min-w-[400px] max-w-[520px] shadow-2xl transition-all duration-200" style="opacity:0;transform:scale(.95)">${html}</div>`;
   document.body.appendChild(el);
+  requestAnimationFrame(function () {
+    el.style.opacity = "1";
+    el.firstElementChild.style.opacity = "1";
+    el.firstElementChild.style.transform = "scale(1)";
+  });
+  return el;
+}
+
+function closeModal(el) {
+  if (!el) return;
+  el.style.opacity = "0";
+  if (el.firstElementChild) {
+    el.firstElementChild.style.opacity = "0";
+    el.firstElementChild.style.transform = "scale(.95)";
+  }
+  setTimeout(function () { el.remove(); }, 200);
+}
+
+// ── 视图切换动画 ──
+function showView(el) {
+  if (!el || !el.classList.contains("hidden")) return;
+  el.classList.remove("hidden");
+  el.style.animation = "none";
+  el.offsetHeight; // force reflow
+  el.style.animation = "";
+}
+
+function hideView(el) {
+  if (!el || el.classList.contains("hidden")) return;
+  el.style.opacity = "0";
+  el.style.transition = "opacity .1s ease";
+  setTimeout(function () {
+    el.classList.add("hidden");
+    el.style.opacity = "";
+    el.style.transition = "";
+  }, 100);
+}
+
+function swapView(hideEl, showEl) {
+  if (hideEl) hideView(hideEl);
+  if (showEl) setTimeout(function () { showView(showEl); }, hideEl ? 60 : 0);
+}
+
+// 原地刷新：淡出 → 回调 → 淡入（总耗时尽量短）
+function refreshView(el, updateFn) {
+  if (!el || el.classList.contains("hidden")) { updateFn(); showView(el); return; }
+  el.style.transition = "opacity .1s ease";
+  el.style.opacity = "0";
+  setTimeout(function () {
+    updateFn();
+    el.style.opacity = "1";
+    setTimeout(function () { el.style.transition = ""; }, 100);
+  }, 80);
 }
 
 // ── 进度弹窗（全屏遮罩，不可关闭）──
 
 function showProgressModal(title, cancelUrl) {
   var overlay = document.createElement("div");
-  overlay.className = "fixed inset-0 z-[200] bg-overlay flex items-center justify-center";
+  overlay.className = "fixed inset-0 z-[200] bg-overlay flex items-center justify-center transition-opacity duration-200";
+  overlay.style.opacity = "0";
   overlay.id = "progress-overlay";
 
   var card = document.createElement("div");
-  card.className = "bg-surface-alt border border-bord rounded-xl p-6 w-[440px] max-w-[90vw] shadow-2xl";
+  card.className = "bg-surface-alt border border-bord rounded-xl p-6 w-[440px] max-w-[90vw] shadow-2xl transition-all duration-200";
+  card.style.opacity = "0";
+  card.style.transform = "scale(.95)";
   card.innerHTML =
     '<div class="flex items-center justify-between mb-4">' +
     '<h3 id="prog-title" class="text-base font-bold text-text">' + title + '</h3>' +
@@ -350,9 +406,14 @@ function showProgressModal(title, cancelUrl) {
     '<div class="bg-bg rounded-full h-2 mb-3 overflow-hidden">' +
     '<div id="prog-bar" class="bg-accent h-full rounded-full transition-all duration-300" style="width:0%"></div>' +
     '</div>' +
-    '<p id="prog-status" class="text-sub text-sm"></p>';
+    '<p id="prog-status" class="text-sub text-sm">准备中...</p>';
   overlay.appendChild(card);
   document.body.appendChild(overlay);
+  requestAnimationFrame(function () {
+    overlay.style.opacity = "1";
+    card.style.opacity = "1";
+    card.style.transform = "scale(1)";
+  });
 
   // 终止
   if (cancelUrl) {
@@ -376,7 +437,10 @@ function showProgressModal(title, cancelUrl) {
       card.querySelector("#prog-status").textContent = text || "";
     },
     close: function () {
-      overlay.remove();
+      overlay.style.opacity = "0";
+      card.style.opacity = "0";
+      card.style.transform = "scale(.95)";
+      setTimeout(function () { overlay.remove(); }, 200);
     }
   };
 }

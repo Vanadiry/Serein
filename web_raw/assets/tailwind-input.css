@@ -86,3 +86,7 @@ img { -webkit-user-drag: none; user-select: none; }
 .icon-bg-green img { display: block; }
 /* 浅色模式下翻转 icon-bg 内的白色图标 */
 html.light .icon-bg img { filter: invert(1); }
+
+/* 页面内容渐入 */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+main > div:not(.hidden) { animation: fadeIn .15s ease; }

@@ -64,11 +64,10 @@
   document.getElementById("btn-search-tab").onclick = () => {
     currentSource = null;
     updateSidebar();
-    document.getElementById("search-view").classList.remove("hidden");
-    document.getElementById("card-view").classList.add("hidden");
     document.getElementById("search-results-grid").innerHTML = "";
     document.getElementById("search-placeholder").classList.remove("hidden");
     document.getElementById("search-input").value = "";
+    swapView(document.getElementById("card-view"), document.getElementById("search-view"));
   };
 
   document.getElementById("btn-search").onclick = () => doSearch();
@@ -95,9 +94,11 @@
   async function selectSource(id) {
     currentSource = id;
     updateSidebar();
-    document.getElementById("search-view").classList.add("hidden");
-    document.getElementById("card-view").classList.remove("hidden");
     document.getElementById("source-title").textContent = id;
+
+    var cardView = document.getElementById("card-view");
+    var searchView = document.getElementById("search-view");
+    var isNew = cardView.classList.contains("hidden");
 
     var rules = await api("/api/rules/list/" + id) || [];
     allSourceRules = rules;
@@ -105,7 +106,13 @@
     showTrackedOnly = false;
     showUntrackedOnly = false;
     buildPlatformFilters(rules);
-    document.getElementById("card-grid").innerHTML = renderCards(rules);
+
+    if (isNew) {
+      document.getElementById("card-grid").innerHTML = renderCards(rules);
+      swapView(searchView, cardView);
+    } else {
+      refreshView(cardView, function () { document.getElementById("card-grid").innerHTML = renderCards(rules); });
+    }
   }
 
   var trackedApps = [];
@@ -179,13 +186,14 @@
         return (r.platforms || []).some(function(p) { return activeFilters[p]; });
       });
     }
-    document.getElementById("card-grid").innerHTML = renderCards(filtered);
+    var grid = document.getElementById("card-grid");
+    refreshView(grid, function () { grid.innerHTML = renderCards(filtered); });
   }
 
   async function doSearch() {
     const q = document.getElementById("search-input").value.trim();
     if (!q) return;
-    document.getElementById("search-placeholder").classList.add("hidden");
+    hideView(document.getElementById("search-placeholder"));
     const grid = document.getElementById("search-results-grid");
     grid.innerHTML = '<div class="col-span-full text-center py-10 text-sub text-sm">搜索中...</div>';
 
