@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"sync"
 )
 
@@ -80,6 +81,14 @@ func GetProgress(id string) *Progress {
 	progressMu.Lock()
 	defer progressMu.Unlock()
 	return progressMap[id]
+}
+
+// HandleProgressCancel 终止端点：POST /api/check/cancel/{task_id}
+func HandleProgressCancel(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"status": "cancelled"})
+	os.Exit(0)
 }
 
 // HandleProgressSSE SSE 端点：GET /api/check/progress/{task_id}

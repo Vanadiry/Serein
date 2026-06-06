@@ -372,6 +372,21 @@ function startCheckProgress(taskId, total, ld, onFinish) {
   function cleanup() {
     if (warned) window.removeEventListener("beforeunload", unloadHandler);
   }
+  // 终止按钮
+  var titleBar = ld.el.querySelector("div:first-child");
+  var cancelBtn = document.createElement("span");
+  cancelBtn.className = "cursor-pointer opacity-60 hover:opacity-100 text-[12px] font-normal shrink-0 ml-3";
+  cancelBtn.textContent = "终止";
+  cancelBtn.onclick = function (e) {
+    e.stopPropagation();
+    fetch(API + "/api/check/cancel/" + taskId, { method: "POST" });
+    if (titleBar) titleBar.className = "bg-warn text-white font-semibold px-4 py-2 rounded-t-lg flex items-center justify-between";
+    var bodyEl = ld.el.querySelector("div:last-child");
+    if (bodyEl) bodyEl.textContent = "正在终止...";
+    cancelBtn.remove();
+  };
+  if (titleBar) titleBar.appendChild(cancelBtn);
+
   evt.onmessage = function (e) {
     var d = JSON.parse(e.data);
     if (d.step === "done") {
