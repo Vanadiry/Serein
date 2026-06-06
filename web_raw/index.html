@@ -59,7 +59,7 @@
   };
   document.getElementById("btn-new-tracker").onclick = () => {
     showModal(`
-      <div class="text-sm font-semibold mb-4">新建 Tracker</div>
+      <div class="text-base font-bold mb-4">新建 Tracker</div>
       <input id="new-tracker-name" class="w-full bg-surface border border-bord rounded-lg px-3 py-2 text-sm outline-none focus:border-accent mb-3" placeholder="Tracker 名称">
       <div class="flex gap-2">
         <button onclick="closeModal(this.closest('.fixed'))" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>
@@ -231,7 +231,7 @@
 
   async function editVersion(appId) {
     showModal(`
-      <div class="text-sm font-semibold mb-4">编辑版本 — ${appId}</div>
+      <div class="text-base font-bold mb-4">编辑版本 — ${appId}</div>
       <div id="edit-platforms" class="flex flex-col gap-2 mb-4"></div>
       <div class="flex gap-2">
         <button onclick="closeModal(this.closest('.fixed'))" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>

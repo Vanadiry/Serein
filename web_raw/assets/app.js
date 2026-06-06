@@ -296,7 +296,7 @@ function linkWithTooltip(href, innerHTML, os) {
       ' onmouseenter="showTooltip(event)" onmouseleave="hideTooltip()">' +
       innerHTML + "</a>";
   }
-  return '<a href="' + href + '" onclick="event.stopPropagation();event.preventDefault();openExternalUrl(\'' + escapedHref + '\')" class="no-underline"' +
+  return '<a href="' + href + '" onclick="event.stopPropagation();event.preventDefault();openDownloadPage(\'' + escapedHref + '\')" class="no-underline"' +
     ' data-tip="' + tipHTML.replace(/"/g, "&quot;") + '"' +
     ' onmouseenter="showTooltip(event)" onmouseleave="hideTooltip()">' +
     innerHTML + "</a>";
@@ -315,15 +315,33 @@ function tipAttr(html) {
 }
 
 // 外部链接弹窗（桌面壳内无法拉起浏览器时展示）
+// 非白名单下载链接弹窗
+function openDownloadPage(url) {
+  var escaped = url.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  var hasDL = typeof SEREIN_DOWNLOADER !== "undefined" && SEREIN_DOWNLOADER !== "无";
+  var row1 = '<button onclick="closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>' +
+    '<button onclick="var s=this;navigator.clipboard.writeText(\'' + escaped + '\');s.textContent=\'已复制\';setTimeout(function(){s.textContent=\'复制链接\'},1500)" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">复制链接</button>' +
+    '<button onclick="var el=this.closest(\'.fixed\');apiPost(\'/api/open-url\',{url:\'' + escaped + '\'});closeModal(el)" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">打开</button>';
+  var row2 = hasDL ? '<button onclick="var el=this.closest(\'.fixed\');downloadFile(\'' + escaped + '\');closeModal(el)" class="w-full px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">仍然发送到下载器</button>' : '';
+  showModal(
+    '<div class="text-base font-bold mb-3">外部地址</div>' +
+    '<p class="text-text text-sm mb-3 leading-relaxed">此链接看起来不是一个常见的文件，或许是一个网页而非安装包。<br />是否要在外部浏览器打开？</p>' +
+    '<p class="select-text text-text text-xs break-all bg-bg rounded-lg px-3 py-2 border border-bord-mid mb-4 leading-relaxed">' + url + '</p>' +
+    '<div class="flex gap-2 mb-2">' + row1 + '</div>' +
+    (row2 ? row2 : '')
+  );
+}
+
 function openExternalUrl(url) {
   var escaped = url.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
   showModal(
-    '<div class="text-sm font-semibold mb-3">外部地址</div>' +
+    '<div class="text-base font-bold mb-3">外部地址</div>' +
+    '<p class="text-text text-sm mb-3 leading-relaxed">将会在浏览器中打开此链接。</p>' +
     '<p class="select-text text-text text-xs break-all bg-bg rounded-lg px-3 py-2 border border-bord-mid mb-4 leading-relaxed">' + url + '</p>' +
     '<div class="flex gap-2">' +
     '<button onclick="closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>' +
     '<button onclick="var s=this;navigator.clipboard.writeText(\'' + escaped + '\');s.textContent=\'已复制\';setTimeout(function(){s.textContent=\'复制链接\'},1500)" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">复制链接</button>' +
-    '<button onclick="var el=this.closest(\'.fixed\');apiPost(\'/api/open-url\',{url:\'' + escaped + '\'});closeModal(el)" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">确认</button>' +
+    '<button onclick="var el=this.closest(\'.fixed\');apiPost(\'/api/open-url\',{url:\'' + escaped + '\'});closeModal(el)" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">打开</button>' +
     '</div>'
   );
 }
