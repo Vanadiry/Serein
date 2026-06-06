@@ -127,7 +127,7 @@ func doRequest(client *http.Client, url, ua string, headers map[string]string) (
 	return body, nil
 }
 
-// ── JSON ──
+// JSON
 
 func extractFromJSON(body []byte, pos any, baseURL string) (string, error) {
 	root, err := parseJSON(body)
@@ -145,7 +145,7 @@ func extractFromJSON(body []byte, pos any, baseURL string) (string, error) {
 	return applyBaseURL(fmt.Sprintf("%v", v), baseURL), nil
 }
 
-// ── XML ──
+// XML
 
 func extractFromXML(body []byte, pos any, baseURL string) (string, error) {
 	root, err := parseXML(body)
@@ -163,7 +163,7 @@ func extractFromXML(body []byte, pos any, baseURL string) (string, error) {
 	return applyBaseURL(fmt.Sprintf("%v", v), baseURL), nil
 }
 
-// ── 正则 ──
+// 正则
 
 func extractFromRegex(body []byte, pos any) (string, error) {
 	pattern, ok := pos.(string)
@@ -173,7 +173,7 @@ func extractFromRegex(body []byte, pos any) (string, error) {
 	return matchRegex(string(body), pattern)
 }
 
-// ── html_selector ──
+// html_selector
 
 func extractFromHTMLSelector(body []byte, pos any, baseURL string) (string, error) {
 	sel, err := parseHTML(body)
@@ -209,7 +209,7 @@ func extractFromHTMLSelector(body []byte, pos any, baseURL string) (string, erro
 	return applyBaseURL(val, baseURL), nil
 }
 
-// ── html_xpath ──
+// html_xpath
 
 func extractFromHTMLXPath(body []byte, pos any, baseURL string) (string, error) {
 	sel, err := parseHTML(body)
@@ -227,7 +227,7 @@ func extractFromHTMLXPath(body []byte, pos any, baseURL string) (string, error) 
 	return applyBaseURL(val, baseURL), nil
 }
 
-// ── 辅助 ──
+// 辅助
 
 func applyBaseURL(val, baseURL string) string {
 	if baseURL == "" || !strings.HasPrefix(val, "/") {

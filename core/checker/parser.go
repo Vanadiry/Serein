@@ -12,7 +12,7 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-// ── JSON 解析 ──
+// JSON 解析
 
 func parseJSON(body []byte) (any, error) {
 	var root any
@@ -51,7 +51,7 @@ func convertNumbers(v any) any {
 	}
 }
 
-// ── XML 解析 ──
+// XML 解析
 
 func parseXML(body []byte) (any, error) {
 	decoder := xml.NewDecoder(bytes.NewReader(body))
@@ -175,7 +175,7 @@ func buildXMLResult(children []any, attrs map[string]any) any {
 	return result
 }
 
-// ── HTML 解析 ──
+// HTML 解析
 
 func parseHTML(body []byte) (*goquery.Document, error) {
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(body))
@@ -185,7 +185,7 @@ func parseHTML(body []byte) (*goquery.Document, error) {
 	return doc, nil
 }
 
-// ── 正则 ──
+// 正则
 
 func matchRegex(body, pattern string) (string, error) {
 	re, err := regexp.Compile(pattern)
@@ -203,7 +203,7 @@ func matchRegexString(text, pattern string) (string, error) {
 	return matchRegex(text, pattern)
 }
 
-// ── XPath ──
+// XPath
 
 func evalXPath(doc *goquery.Document, expr string) (string, error) {
 	// XPath 简化实现：支持少量常用语法

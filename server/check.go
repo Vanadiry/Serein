@@ -11,7 +11,7 @@ import (
 	"github.com/vanadiry/serein/core/store"
 )
 
-// ── POST /api/check/all ──
+// POST /api/check/all
 
 func (s *Server) handleCheckAll(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -33,7 +33,7 @@ func (s *Server) handleCheckAll(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(len(entries))})
 }
 
-// ── POST /api/check/ids ──
+// POST /api/check/ids
 
 func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -70,7 +70,7 @@ func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(len(entries))})
 }
 
-// ── POST /api/check/tracker ──
+// POST /api/check/tracker
 
 func (s *Server) handleCheckTracker(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -100,7 +100,7 @@ func (s *Server) handleCheckTracker(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(len(entries))})
 }
 
-// ── POST /api/check/confirm ──
+// POST /api/check/confirm
 
 func (s *Server) handleCheckConfirm(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -144,7 +144,7 @@ func (s *Server) handleCheckConfirm(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ── 异步检查（后台 goroutine，通过 SSE 推送进度）──
+// 异步检查（后台 goroutine，通过 SSE 推送进度）
 
 func (s *Server) runTrackerChecksAsync(entries []store.TrackerEntry, p *store.Progress, tempType string) {
 	defer p.Close()
@@ -274,7 +274,7 @@ func (s *Server) runTrackerChecksAsync(entries []store.TrackerEntry, p *store.Pr
 			current := doneCount
 			name := j.name
 			mu.Unlock()
-			p.Send(name, current, total)
+			p.Send("app", name, current, total)
 		}(job)
 	}
 	wg.Wait()
@@ -302,7 +302,7 @@ func (s *Server) runTrackerChecksAsync(entries []store.TrackerEntry, p *store.Pr
 	saveCheckTemp(s.home, tempType, final)
 }
 
-// ── GET /api/check/temp/{type} ──
+// GET /api/check/temp/{type}
 
 func (s *Server) handleCheckTemp(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -325,7 +325,7 @@ func (s *Server) handleCheckTemp(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, results)
 }
 
-// ── 辅助 ──
+// 辅助
 
 func saveCheckTemp(home, typ string, results []checker.CheckResponse) {
 	var temp []store.TempCheckResult

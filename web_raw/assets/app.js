@@ -1,7 +1,7 @@
 // Serein shared JS — API 封装、顶栏、公共函数
 const API = window.location.origin;
 
-// ── 主题：跟随系统 ──
+// 主题：跟随系统
 (function () {
   var mq = window.matchMedia("(prefers-color-scheme: light)");
   function apply(e) { document.documentElement.classList.toggle("light", e.matches); }
@@ -9,7 +9,7 @@ const API = window.location.origin;
   mq.addEventListener("change", apply);
 })();
 
-// ── API ──
+// API
 async function api(path) {
   const r = await fetch(API + path);
   return r.json();
@@ -23,7 +23,7 @@ async function apiPost(path, body) {
   return r.json();
 }
 
-// ── 顶栏 ──
+// 顶栏
 function renderTopbar(current) {
   const tb = document.getElementById("topbar");
   if (!tb) return;
@@ -65,7 +65,7 @@ function renderTopbar(current) {
   }
 }
 
-// ── 同步规则（可从管理弹窗或别处调用）──
+// 同步规则（可从管理弹窗或别处调用）
 async function syncRules() {
   var ld = showLoading("加载中", "正在同步规则...");
   console.log("[sync]"); var result = await apiPost("/api/rules/sync");
@@ -84,7 +84,7 @@ async function syncRules() {
   }
 }
 
-// ── 图标 ──
+// 图标
 function platformLabel(os) {
   const labels = { macos: "macOS", windows: "Windows", linux: "Linux", android: "Android", ios: "iOS" };
   return labels[os] || os;
@@ -111,7 +111,7 @@ function iconImgRaw(file, alt, sz) {
   return `<img src="/assets/${file}.svg" class="${sz} inline-block" alt="${alt}" draggable="false">`;
 }
 
-// ── 工具 ──
+// 工具
 function badge(text, bg, fg) {
   return `<span class="${bg} ${fg} px-1.5 py-px rounded text-[10px] font-semibold">${text}</span>`;
 }
@@ -123,7 +123,7 @@ function formatURL(u) {
   return "";
 }
 
-// ── 通知组件 ──
+// 通知组件
 var _currentToast = null;
 
 function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
@@ -193,7 +193,7 @@ function showLoading(title, body) {
   return _makeToast(title || "加载中", body || "", "bg-warn", "bg-warn/80", 0);
 }
 
-// ── 通用悬停提示（全局单例）──
+// 通用悬停提示（全局单例）
 var _tooltipEl = null;
 function _ensureTooltip() {
   if (!_tooltipEl) {
@@ -305,7 +305,7 @@ function tipAttr(html) {
   return ' data-tip="' + html.replace(/"/g, "&quot;") + '" onmouseenter="showTooltip(event)" onmouseleave="hideTooltip()"';
 }
 
-// ── 外部链接弹窗（桌面壳内无法拉起浏览器时展示）──
+// 外部链接弹窗（桌面壳内无法拉起浏览器时展示）
 function openExternalUrl(url) {
   var escaped = url.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
   showModal(
@@ -319,7 +319,7 @@ function openExternalUrl(url) {
   );
 }
 
-// ── 确认弹窗 ──
+// 确认弹窗
 function confirmDialog(msg, cb) {
   showModal(
     '<p class="text-sm mb-4 leading-relaxed">' + msg + '</p>' +
@@ -334,7 +334,7 @@ function confirmDialog(msg, cb) {
   };
 }
 
-// ── 弹窗 ──
+// 弹窗
 function showModal(html) {
   const el = document.createElement("div");
   el.className =
@@ -344,7 +344,7 @@ function showModal(html) {
   document.body.appendChild(el);
 }
 
-// ── SSE 进度检查 ──
+// SSE 进度检查
 // 调用异步 check API，通过 SSE 显示实时进度，完成后回调 onDone(results)
 async function asyncCheck(apiPath, body, onDone) {
   var ld = showLoading("检查更新", "准备中...");

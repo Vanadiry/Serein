@@ -9,7 +9,7 @@ import (
 	"github.com/vanadiry/serein/core/store"
 )
 
-// ── POST /api/rules/sync ──
+// POST /api/rules/sync
 
 func (s *Server) handleRulesSync(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -29,7 +29,7 @@ func (s *Server) handleRulesSync(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
-// ── GET /api/rules/list/all ──
+// GET /api/rules/list/all
 
 func (s *Server) handleRulesListAll(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -47,7 +47,7 @@ func (s *Server) handleRulesListAll(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, list)
 }
 
-// ── GET /api/rules/list/{source_id} ──
+// GET /api/rules/list/{source_id}
 
 func (s *Server) handleRulesListBySource(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -70,7 +70,7 @@ func (s *Server) handleRulesListBySource(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, formatRuleList(s.home, filtered))
 }
 
-// ── GET /api/rules/list/search?q=xxx ──
+// GET /api/rules/list/search?q=xxx
 
 func (s *Server) handleRulesListSearch(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -92,7 +92,7 @@ func (s *Server) handleRulesListSearch(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, formatRuleList(s.home, filtered))
 }
 
-// ── 共享 ──
+// 共享
 
 type ruleListItem struct {
 	AppID           string   `json:"app_id"`

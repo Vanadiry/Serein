@@ -49,7 +49,7 @@ func NewClient() *http.Client {
 func RunPlatformCheck(cfg CheckConfig, client *http.Client) (PlatformResult, error) {
 	var vr PlatformResult
 
-	// ── 提取版本号 ──
+	// 提取版本号
 	vURL := cfg.URL
 	vType := cfg.Type
 	if cfg.VURL != "" {
@@ -73,7 +73,7 @@ func RunPlatformCheck(cfg CheckConfig, client *http.Client) (PlatformResult, err
 		vr.LatestVersion = toString(ver)
 	}
 
-	// ── 提取下载链接 ──
+	// 提取下载链接
 	dURL := cfg.URL
 	dType := cfg.Type
 	if cfg.DURL != "" {

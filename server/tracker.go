@@ -9,7 +9,7 @@ import (
 	"github.com/vanadiry/serein/core/store"
 )
 
-// ── GET /api/tracker/list/all ──
+// GET /api/tracker/list/all
 
 func (s *Server) handleTrackerListAll(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -27,7 +27,7 @@ func (s *Server) handleTrackerListAll(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, list)
 }
 
-// ── GET /api/tracker/list/{id} ──
+// GET /api/tracker/list/{id}
 
 func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -101,7 +101,7 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
-// ── POST /api/tracker/new ──
+// POST /api/tracker/new
 
 func (s *Server) handleTrackerNew(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -126,7 +126,7 @@ func (s *Server) handleTrackerNew(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]string{"id": body.ID})
 }
 
-// ── POST /api/tracker/add ──
+// POST /api/tracker/add
 
 func (s *Server) handleTrackerAdd(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -164,7 +164,7 @@ func (s *Server) handleTrackerAdd(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ── GET /api/tracker/apps ──
+// GET /api/tracker/apps
 
 func (s *Server) handleTrackerApps(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

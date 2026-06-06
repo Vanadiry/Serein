@@ -12,7 +12,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// ── 基础类型 ──
+// 基础类型
 
 type RuleInfo struct {
 	AppID           string   `toml:"app_id"`
@@ -76,7 +76,7 @@ type Rule struct {
 	PreRequests map[string]map[string]PreRequestStep             // id → platform(空串=通用) → step
 }
 
-// ── 解析 ──
+// 解析
 
 func LoadRules(home string) (map[string]Rule, error) {
 	rules := make(map[string]Rule)
@@ -194,7 +194,7 @@ func rawToStep(raw *rawPreStep) PreRequestStep {
 	}
 }
 
-// ── 合并 ──
+// 合并
 
 func (r Rule) MergedConfig(os string) PlatConfig {
 	cfg := r.Config
@@ -378,7 +378,7 @@ func findNearestSourceID(ruleDir, tomlPath string) string {
 	return strings.SplitN(rel, string(filepath.Separator), 2)[0]
 }
 
-// ── 辅助 ──
+// 辅助
 
 func isPlatformKey(s string, platforms []string) bool {
 	for _, p := range platforms {
