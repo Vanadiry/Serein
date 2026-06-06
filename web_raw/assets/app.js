@@ -1,4 +1,5 @@
 // Serein shared JS — API 封装、顶栏、公共函数
+var SEREIN_DOWNLOADER = "__DL__";
 const API = window.location.origin;
 
 // 主题：跟随系统
@@ -85,7 +86,7 @@ function platformIcon(os, cls) {
   const label = platformLabel(os);
   const sz = cls || "w-5 h-5";
   if (name) return `<span class="icon-bg inline-flex">${iconImgRaw(name, label, sz)}</span>`;
-  return `<span class="icon-bg inline-flex"><span class="${sz} text-xs text-sub font-semibold inline-flex items-center justify-center" ${tipAttr(label)}>${os.slice(0, 2).toUpperCase()}</span></span>`;
+  return `<span class="icon-bg inline-flex"><span class="${sz} text-xs text-sub font-semibold inline-flex items-center justify-center">${os.slice(0, 2).toUpperCase()}</span></span>`;
 }
 
 function iconImg(file, alt, cls) {
@@ -267,17 +268,35 @@ function hideTooltip() {
   if (_tooltipEl) { _tooltipEl.style.opacity = "0"; }
 }
 
-// 链接悬停（下载地址，文件名高亮）
+// 下载链接白名单
+var DOWNLOAD_EXTS = /\.(exe|zip|dmg|pkg|msi|apk|deb|rpm|AppImage|tar\.gz|tar\.xz|7z|rar|ipa|otf)$/i;
+
 function isDirectDownload(href) {
-  return /\.(exe|zip|dmg|pkg|msi|apk|deb|rpm|AppImage|tar\\.gz|tar\\.xz|7z|rar|ipa)$/i.test(href);
+  return DOWNLOAD_EXTS.test(href);
+}
+
+async function downloadFile(url) {
+  var ld = showLoading("下载", "正在发送到下载器...");
+  try {
+    var res = await apiPost("/api/download", { url: url });
+    ld.done(res.message || "", !res || res.status === "error", res.status === "error" ? "下载失败" : "下载");
+  } catch (e) {
+    ld.done(e.message || "请求失败", true);
+  }
 }
 
 function linkWithTooltip(href, innerHTML, os) {
   var parts = href.split("/");
   var filename = parts[parts.length - 1];
   var tipHTML = parts.slice(0, -1).join("/") + "/" + '<span class="text-ok font-semibold">' + filename + "</span>";
-  var attrs = isDirectDownload(href) ? 'download' : 'target="_blank"';
-  return '<a href="' + href + '" ' + attrs + ' onclick="event.stopPropagation()" class="no-underline"' +
+  var escapedHref = href.replace(/'/g, "\\'");
+  if (isDirectDownload(href)) {
+    return '<a href="' + href + '" onclick="event.stopPropagation();event.preventDefault();downloadFile(\'' + escapedHref + '\')" class="no-underline"' +
+      ' data-tip="' + tipHTML.replace(/"/g, "&quot;") + '"' +
+      ' onmouseenter="showTooltip(event)" onmouseleave="hideTooltip()">' +
+      innerHTML + "</a>";
+  }
+  return '<a href="' + href + '" onclick="event.stopPropagation();event.preventDefault();openExternalUrl(\'' + escapedHref + '\')" class="no-underline"' +
     ' data-tip="' + tipHTML.replace(/"/g, "&quot;") + '"' +
     ' onmouseenter="showTooltip(event)" onmouseleave="hideTooltip()">' +
     innerHTML + "</a>";

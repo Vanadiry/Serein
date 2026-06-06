@@ -26,6 +26,9 @@
       <p class="mb-4">点击右上角的按钮，能够检查软件更新。</p>
       <p class="mb-8">若是你第一次启动，请前往<a href="/rules" class="text-accent hover:underline">规则页</a>，点击右上角的「同步规则」来拉取内置的规则表。</p>
 
+      <h2 class="text-lg font-semibold text-text mb-3">下载器</h2>
+      <p id="downloader-info" class="mb-8 text-sub text-sm">加载中...</p>
+
       <h2 class="text-lg font-semibold text-text mb-3">关于</h2>
       <p class="mb-2">Serein 在 <a href="#" onclick="event.preventDefault();openExternalUrl('https://github.com/Vanadiry/Serein/')" class="text-accent hover:underline">GitHub</a> 开源。前后端分离，你可以在 GitHub 项目中查看 API 文档。</p>
       <p>规则表也依赖于社区贡献，内置的规则表项目：<a href="#" onclick="event.preventDefault();openExternalUrl('https://github.com/Vanadiry/SereinRulesList/')" class="text-accent hover:underline">SereinRulesList</a>。</p>
@@ -42,6 +45,8 @@
 
   renderTopbar("应用");
   loadTrackers();
+  document.getElementById("downloader-info").textContent =
+    "当前使用：" + (typeof SEREIN_DOWNLOADER !== "undefined" ? SEREIN_DOWNLOADER : "无");
 
   document.getElementById("btn-tracker-check").onclick = () => {
     confirmDialog("将检查当前 Tracker 中所有软件的更新", checkTracker);
