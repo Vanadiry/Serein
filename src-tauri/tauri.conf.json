@@ -1,0 +1,56 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Serein",
+  "version": "0.2.5",
+  "identifier": "com.vanadiry.serein",
+  "build": {
+    "frontendDist": "../web",
+    "beforeBuildCommand": "pnpm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Serein",
+        "url": "http://127.0.0.1:12510",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 1000,
+        "minHeight": 600,
+        "center": true,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "externalBin": [
+      "../build/serein_server"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "signingIdentity": "-"
+    },
+    "windows": {
+      "nsis": {
+        "languages": ["SimpChinese", "English"]
+      }
+    },
+    "copyright": "Copyright © 2026 Vanadiry",
+    "longDescription": "软件更新追踪器",
+    "android": {
+      "debugApplicationIdSuffix": ".debug"
+    }
+  }
+}

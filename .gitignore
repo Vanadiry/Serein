@@ -1,3 +1,6 @@
+# macOS Shit
+.DS_Store
+
 # Dev
 .vscode/
 TODO.md
@@ -10,5 +13,10 @@ web/assets/app.min.js
 web/index.html
 web/rules.html
 
-# macOS Shit
-.DS_Store
+# Tauri
+/src-tauri/target/
+/src-tauri/gen/schemas
+/src-tauri/icons/android/
+/src-tauri/icons/ios/
+/src-tauri/icons/Square*.png
+/src-tauri/icons/StoreLogo.png
