@@ -152,7 +152,6 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 	var mu sync.Mutex
 	var done int
 	var wg sync.WaitGroup
-	rulesDir = filepath.Join(home, "rules")
 
 	for _, l := range leaves {
 		dest := filepath.Join(rulesDir, l.destDir)
