@@ -71,11 +71,6 @@ Tracker 中的 `platforms` 优先级高于配置文件中的 `platforms`。
 `_serein.toml` 为前端自动写入的默认 Tracker。  
 为了便于你管理，更推荐你手动创建和编辑一个新的 Tracker。
 
-## REPL
-
-通过执行 `serein cli` 可以启用交互终端。  
-这并非推荐的用法。如有需要，请查看 [CLI](cli.md)。
-
 ## 备份
 
 Serein 依赖 Tracker 来取得你希望追踪的 AppID，依赖 Rules 中的规则来检查更新。  

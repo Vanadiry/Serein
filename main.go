@@ -8,9 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"time"
 
-	"github.com/vanadiry/serein/cmd"
 	"github.com/vanadiry/serein/server"
 )
 
@@ -39,20 +37,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if len(os.Args) > 1 {
-		if os.Args[1] == "cli" {
-			go startServer(home, false)
-			time.Sleep(200 * time.Millisecond)
-			if err := cmd.RunREPL(home); err != nil {
-				fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
-			}
-			os.Exit(0)
-		}
-		fmt.Fprintf(os.Stderr, "Usage: serein [cli]\n")
-		os.Exit(1)
-	}
-
-	// 无参数：启动 Web 服务 + 打开浏览器
+	// 启动 Web 服务 + 打开浏览器
 	startServer(home, true)
 }
 
