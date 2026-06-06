@@ -336,6 +336,7 @@
   function showCheckDone(errs) {
     var ld = showLoading("检查完成", "");
     if (!errs.length) { ld.done("检查完成"); return; }
+    flashOverlay();
     var hasRateLimit = errs.some(function(e) { return e.indexOf("API rate limit exceeded") >= 0; });
     var hasAbuse = errs.some(function(e) { return e.indexOf("abuse detection") >= 0; });
     var body = "";

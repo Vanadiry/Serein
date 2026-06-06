@@ -125,7 +125,7 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
   }
 
   var el = document.createElement("div");
-  el.className = "fixed bottom-4 left-4 right-4 z-[100] rounded-lg shadow-xl text-sm transition-opacity duration-200";
+  el.className = "fixed bottom-4 left-4 right-4 z-[200] rounded-lg shadow-xl text-sm transition-opacity duration-200";
   el.style.opacity = "0";
   el.style.width = "fit-content";
   el.style.marginLeft = "auto";
@@ -313,6 +313,21 @@ function tipAttr(html) {
   return ' data-tip="' + html.replace(/"/g, "&quot;") + '" onmouseenter="showTooltip(event)" onmouseleave="hideTooltip()"';
 }
 
+// 背景闪烁
+function flashOverlay() {
+  var el = document.createElement("div");
+  el.className = "fixed inset-0 z-[150] bg-overlay pointer-events-none";
+  el.style.opacity = "1";
+  
+  document.body.appendChild(el);
+  
+  setTimeout(function () {
+    el.style.transition = "opacity 0.5s ease-out";
+    el.style.opacity = "0";
+    setTimeout(function () { el.remove(); }, 500);
+  }, 3000);
+}
+
 // 外部链接弹窗（桌面壳内无法拉起浏览器时展示）
 // 非白名单下载链接弹窗
 function openDownloadPage(url) {
@@ -487,7 +502,7 @@ async function asyncCheck(apiPath, body, onDone) {
   var res = await apiPost(apiPath, body);
   if (!res || !res.task_id) { return; }
   var total = parseInt(res.total) || 0;
-  var pm = showProgressModal, skipped = 0, updated = 0("检查更新", API + "/api/check/cancel/" + res.task_id);
+  var pm = showProgressModal("检查更新", API + "/api/check/cancel/" + res.task_id);
   var evt = new EventSource(API + "/api/progress/" + res.task_id);
   evt.onmessage = function (e) {
     var d = JSON.parse(e.data);
