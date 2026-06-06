@@ -30,6 +30,8 @@ func loggingMiddleware(next http.Handler) http.Handler {
 }
 
 func (s *Server) registerRoutes() {
+	s.mux.HandleFunc("POST /api/open-url", s.handleOpenURL)
+
 	s.mux.HandleFunc("/api/tracker/list/all", s.handleTrackerListAll)
 	s.mux.HandleFunc("/api/tracker/list/", s.handleTrackerListByID)
 	s.mux.HandleFunc("/api/tracker/new", s.handleTrackerNew)

@@ -180,7 +180,7 @@
     }
     // 常驻按钮：编辑、地球、刷新，粉色背景
     rightIcons += `<span onclick="event.stopPropagation(); editVersion('${d.app_id}')" ${tipAttr("修改已记录的版本号")}>${iconImg("edit", "修改已记录的版本号", "w-5 h-5")}</span>`;
-    rightIcons += `<span class="${d.official_website ? "" : "opacity-30"}" ${d.official_website ? tipAttr(earthTooltip(d.official_website)) : ''}>${d.official_website ? '<a href="' + d.official_website + '" target="_blank" onclick="event.stopPropagation()" class="no-underline">' + iconImg("earth", "官网", "w-5 h-5") + '</a>' : iconImg("earth", "无官网", "w-5 h-5")}</span>`;
+    rightIcons += `<span class="${d.official_website ? "cursor-pointer hover:opacity-80 transition-opacity" : "opacity-30"}" ${d.official_website ? tipAttr(earthTooltip(d.official_website)) : ''}>${d.official_website ? '<span onclick="event.stopPropagation(); openExternalUrl(\'' + d.official_website.replace(/'/g, "\\'") + '\')">' + iconImg("earth", "官网", "w-5 h-5") + '</span>' : iconImg("earth", "无官网", "w-5 h-5")}</span>`;
     rightIcons += `<span onclick="event.stopPropagation(); refreshApp('${d.app_id}')" ${tipAttr("检查更新")}>${iconImg("refresh", "检查更新", "w-5 h-5")}</span>`;
     rightIcons += `</span>`;
 
