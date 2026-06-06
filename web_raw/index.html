@@ -133,7 +133,7 @@
           parts.push(`<span class="opacity-50">${icons}</span> <span class="text-sub">${g.current}</span>`);
         }
       }
-      versionHTML = `<span class="text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
+      versionHTML = `<span class="select-text text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
     } else if (checked && Object.keys(checked.platforms || {}).length > 0) {
       const parts = [];
       var sortedOS = Object.keys(checked.platforms).sort(function(a, b) { var order = ["macos","windows","linux","ios","android"]; return order.indexOf(a) - order.indexOf(b); });
@@ -151,7 +151,7 @@
         icons += '</span>';
         parts.push(`<span class="opacity-50">${icons}</span> <span class="text-ok">${v2}</span> <span class="text-sub">(无更新)</span>`);
       }
-      versionHTML = `<span class="text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
+      versionHTML = `<span class="select-text text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
     } else {
       const parts = [];
       var sortedOS2 = Object.keys(d.current_version || {}).sort(function(a, b) { var order = ["macos","windows","linux","ios","android"]; return order.indexOf(a) - order.indexOf(b); });
@@ -168,7 +168,7 @@
         icons += '</span>';
         parts.push(`<span class="opacity-50">${icons}</span> ${v3}`);
       }
-      versionHTML = `<span class="text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;") || "未记录版本"}</span>`;
+      versionHTML = `<span class="select-text text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;") || "未记录版本"}</span>`;
     }
 
     // 右侧：[平台]  |  [yes]  |  [编辑] [地球] [刷新]
@@ -194,7 +194,7 @@
 
     return `<div class="flex items-center bg-surface-alt border border-bord-mid rounded-lg pl-2 pr-4 h-16 hover:border-bord transition-colors mb-2 overflow-hidden">
       <div class="flex-1 min-w-0 pr-4 flex flex-col justify-center">
-        <div class="text-base font-semibold truncate pl-1"><span ${tipAttr((d.app_id || '') + (d.description ? '<br>' + d.description : '') + (d.status && d.status.length && d.status[0] ? '<br>状态：' + d.status.join(', ') : ''))}>${d.name || d.app_id}</span>${(d.status && d.status.length && d.status[0]) ? ' <span class="inline-block w-2 h-2 rounded-full bg-warn align-middle"></span>' : ''}</div>
+        <div class="text-base font-semibold truncate pl-1"><span class="select-text" ${tipAttr((d.app_id || '') + (d.description ? '<br>' + d.description : '') + (d.status && d.status.length && d.status[0] ? '<br>状态：' + d.status.join(', ') : ''))}>${d.name || d.app_id}</span>${(d.status && d.status.length && d.status[0]) ? ' <span class="inline-block w-2 h-2 rounded-full bg-warn align-middle"></span>' : ''}</div>
         <div class="mt-0.5">${versionHTML}</div>
       </div>
       ${rightIcons}
