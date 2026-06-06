@@ -71,8 +71,6 @@
 
   async function loadTrackers() {
     const list = await api("/api/tracker/list/all") || [];
-    const hasSerein = list.some(t => t.id === "_serein");
-    if (!hasSerein) list.unshift({ id: "_serein", display_name: "_serein" });
     const nav = document.getElementById("tracker-nav");
     nav.innerHTML = list.map(t => {
       const active = t.id === currentTracker && currentTracker ? "text-white bg-[#202028] border-l-[2px] border-l-[#14b8a6]" : "text-sub hover:text-white border-l-[2px] border-l-transparent hover:bg-[#202028] hover:border-l-[rgba(255,255,255,.12)]";
