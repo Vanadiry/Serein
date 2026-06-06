@@ -269,7 +269,7 @@ function hideTooltip() {
 
 // 链接悬停（下载地址，文件名高亮）
 function isDirectDownload(href) {
-  return /\.(exe|zip|dmg|pkg|msi|apk|deb|rpm|AppImage|tar\\.gz|tar\\.xz|7z|rar)$/i.test(href);
+  return /\.(exe|zip|dmg|pkg|msi|apk|deb|rpm|AppImage|tar\\.gz|tar\\.xz|7z|rar|ipa)$/i.test(href);
 }
 
 function linkWithTooltip(href, innerHTML, os) {
