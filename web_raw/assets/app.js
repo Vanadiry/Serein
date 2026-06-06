@@ -1,5 +1,6 @@
 // Serein shared JS — API 封装、顶栏、公共函数
 var SEREIN_DOWNLOADER = "__DL__";
+var DOWNLOAD_EXTS = /\.(exe|zip|dmg|pkg|msi|apk|deb|rpm|AppImage|tar\.gz|tar\.xz|tar\.bz2|gz|bz2|xz|7z|rar|ipa|iso|jar|ttf|otf|ttc|woff2?)$/i;
 const API = window.location.origin;
 
 // 主题：跟随系统
@@ -269,8 +270,6 @@ function hideTooltip() {
 }
 
 // 下载链接白名单
-var DOWNLOAD_EXTS = /\.(exe|zip|dmg|pkg|msi|apk|deb|rpm|AppImage|tar\.gz|tar\.xz|7z|rar|ipa|otf)$/i;
-
 function isDirectDownload(href) {
   return DOWNLOAD_EXTS.test(href);
 }
