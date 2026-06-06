@@ -1,7 +1,6 @@
 # Dev
 .vscode/
 TODO.md
-Dev/
 node_modules/
 pnpm-workspace.yaml
 
@@ -10,7 +9,6 @@ build/
 web/assets/app.min.js
 web/index.html
 web/rules.html
-web/api/index.html
 
 # macOS Shit
 .DS_Store

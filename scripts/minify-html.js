@@ -7,8 +7,7 @@ const DEST_DIR = path.join(__dirname, '../web');
 
 const FILES = [
     'index.html',
-    'rules.html',
-    'api/index.html'
+    'rules.html'
 ];
 
 async function processFile(file) {
