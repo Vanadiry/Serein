@@ -37,8 +37,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 启动 Web 服务 + 打开浏览器
-	startServer(home, true)
+	// 启动 Web 服务，非 sidecar 模式则打开浏览器
+	startServer(home, os.Getenv("SEREIN_SIDECAR") != "1")
 }
 
 func sereinHome() string {
