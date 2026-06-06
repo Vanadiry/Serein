@@ -255,14 +255,13 @@ function tipAttr(html) {
 // ── 外部链接弹窗（桌面壳内无法拉起浏览器时展示）──
 function openExternalUrl(url) {
   var escaped = url.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-  var btnBase = "px-4 py-2 rounded-lg text-sm cursor-pointer border-0";
   showModal(
-    '<p class="text-sub text-sm mb-2">将会在浏览器打开外部地址：</p>' +
-    '<p class="text-text text-sm break-all bg-[#1d1d1d] rounded-lg px-4 py-3 border border-[rgba(255,255,255,.08)] mb-5">' + url + '</p>' +
-    '<div class="flex gap-2 justify-end">' +
-    '<button class="' + btnBase + ' bg-transparent border border-[rgba(255,255,255,.12)] text-sub hover:bg-[#30303b] hover:text-text" onclick="this.closest(\'.fixed\').remove()">取消</button>' +
-    '<button class="' + btnBase + ' bg-transparent border border-[rgba(255,255,255,.12)] text-sub hover:bg-[#30303b] hover:text-text" onclick="var s=this;navigator.clipboard.writeText(\'' + escaped + '\');s.textContent=\'已复制\';s.classList.add(\'text-ok\',\'border-ok/30\');setTimeout(function(){s.textContent=\'复制链接\';s.classList.remove(\'text-ok\',\'border-ok/30\')},1500)">复制链接</button>' +
-    '<button class="' + btnBase + ' bg-[#14b8a6] text-white font-semibold hover:opacity-90" onclick="var el=this.closest(\'.fixed\');apiPost(\'/api/open-url\',{url:\'' + escaped + '\'});el.remove()">确认</button>' +
+    '<div class="text-sm font-semibold mb-3">外部地址</div>' +
+    '<p class="text-text text-xs break-all bg-[#1d1d1d] rounded-lg px-3 py-2 border border-[rgba(255,255,255,.08)] mb-4 leading-relaxed">' + url + '</p>' +
+    '<div class="flex justify-end gap-2">' +
+    '<button onclick="this.closest(\'.fixed\').remove()" class="px-3 py-1 rounded-lg border border-[rgba(255,255,255,.12)] bg-transparent text-sub text-xs cursor-pointer hover:text-white">取消</button>' +
+    '<button onclick="var s=this;navigator.clipboard.writeText(\'' + escaped + '\');s.textContent=\'已复制\';setTimeout(function(){s.textContent=\'复制链接\'},1500)" class="px-3 py-1 rounded-lg border border-[rgba(255,255,255,.12)] bg-transparent text-sub text-xs cursor-pointer hover:text-white">复制链接</button>' +
+    '<button onclick="var el=this.closest(\'.fixed\');apiPost(\'/api/open-url\',{url:\'' + escaped + '\'});el.remove()" class="px-3 py-1 rounded-lg bg-[#14b8a6] text-white text-xs font-semibold cursor-pointer hover:opacity-90">确认</button>' +
     '</div>'
   );
 }
