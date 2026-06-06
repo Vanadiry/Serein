@@ -41,9 +41,15 @@
   renderTopbar("应用");
   loadTrackers();
 
-  document.getElementById("btn-tracker-check").onclick = () => checkTracker();
-  document.getElementById("btn-check-all").onclick = () => checkAll();
-  document.getElementById("btn-read-cache").onclick = () => readCache();
+  document.getElementById("btn-tracker-check").onclick = () => {
+    confirmDialog("将检查当前 Tracker 中所有软件的更新", checkTracker);
+  };
+  document.getElementById("btn-check-all").onclick = () => {
+    confirmDialog("将检查全部 Tracker 中所有软件的更新", checkAll);
+  };
+  document.getElementById("btn-read-cache").onclick = () => {
+    confirmDialog("将读取最近一次的检查结果缓存", readCache);
+  };
   document.getElementById("btn-new-tracker").onclick = () => {
     showModal(`
       <div class="text-sm font-semibold mb-4">新建 Tracker</div>

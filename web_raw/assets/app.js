@@ -51,7 +51,9 @@ function renderTopbar(current) {
       </div>
     </div>`;
   if (!isIndex) {
-    document.getElementById("btn-sync").addEventListener("click", syncRules);
+    document.getElementById("btn-sync").addEventListener("click", function () {
+      confirmDialog("将从所有规则源同步最新的规则文件", syncRules);
+    });
   }
 }
 
@@ -307,6 +309,21 @@ function openExternalUrl(url) {
     '<button onclick="var el=this.closest(\'.fixed\');apiPost(\'/api/open-url\',{url:\'' + escaped + '\'});el.remove()" class="px-3 py-1 rounded-lg bg-[#14b8a6] text-white text-xs font-semibold cursor-pointer hover:opacity-90">确认</button>' +
     '</div>'
   );
+}
+
+// ── 确认弹窗 ──
+function confirmDialog(msg, cb) {
+  showModal(
+    '<p class="text-sm mb-4 leading-relaxed">' + msg + '</p>' +
+    '<div class="flex justify-end gap-2">' +
+    '<button onclick="this.closest(\'.fixed\').remove()" class="px-3 py-1 rounded-lg border border-[rgba(255,255,255,.12)] bg-transparent text-sub text-xs cursor-pointer hover:text-white">取消</button>' +
+    '<button id="btn-confirm-exec" class="px-3 py-1 rounded-lg bg-[#14b8a6] text-white text-xs font-semibold cursor-pointer hover:opacity-90">确认</button>' +
+    '</div>'
+  );
+  document.getElementById("btn-confirm-exec").onclick = function () {
+    this.closest(".fixed").remove();
+    cb();
+  };
 }
 
 // ── 弹窗 ──
