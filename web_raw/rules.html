@@ -107,11 +107,12 @@
     showUntrackedOnly = false;
     buildPlatformFilters(rules);
 
+    var grid = document.getElementById("card-grid");
     if (isNew) {
-      document.getElementById("card-grid").innerHTML = renderCards(rules);
+      grid.innerHTML = renderCards(rules);
       swapView(searchView, cardView);
     } else {
-      refreshView(cardView, function () { document.getElementById("card-grid").innerHTML = renderCards(rules); });
+      refreshView(grid, function () { grid.innerHTML = renderCards(rules); });
     }
   }
 
