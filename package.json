@@ -1,7 +1,7 @@
 {
 	"scripts": {
-		"build:css": "pnpx @tailwindcss/cli -i web_raw/assets/tailwind-input.css -o web/assets/style.css --minify",
-		"build:js": "pnpx terser web_raw/assets/app.js -o web/assets/app.min.js -c -m",
+		"build:css": "pnpm tailwindcss -i web_raw/assets/tailwind-input.css -o web/assets/style.css --minify",
+		"build:js": "pnpm terser web_raw/assets/app.js -o web/assets/app.min.js -c -m",
 		"build:html": "node scripts/minify-html.js",
 		"build": "pnpm run build:css && pnpm run build:js && pnpm run build:html"
 	},

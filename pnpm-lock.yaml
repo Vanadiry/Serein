@@ -252,8 +252,8 @@ packages:
   dot-case@3.0.4:
     resolution: {integrity: sha512-Kv5nKlh6yRrdrGvxeJ2e5y2eRUpkUosIW4A2AS38zwSz27zu7ufDwQPi5Jhs3XAlGNetl3bmnGhQsMtkKJnj3w==}
 
-  enhanced-resolve@5.22.0:
-    resolution: {integrity: sha512-xYcDWrpELkFzz9SpZ3PlI6Eu6eD93Yf0WLDRxikGhWJ3MAir2SNZTIVCVZqZ/NUyx8AdMc2gT9C0gPiw18kG+A==}
+  enhanced-resolve@5.22.2:
+    resolution: {integrity: sha512-0rxICaFZ7NQho/sHely2bvOPRP0Eu2B0NZ9zM54YvRvWMn7jfz3DmnOZDR9LlXDdDcqntAVc6Hfy4gr/tdH/Ag==}
     engines: {node: '>=10.13.0'}
 
   entities@4.5.0:
@@ -504,7 +504,7 @@ snapshots:
       '@parcel/watcher': 2.5.6
       '@tailwindcss/node': 4.3.0
       '@tailwindcss/oxide': 4.3.0
-      enhanced-resolve: 5.22.0
+      enhanced-resolve: 5.22.2
       mri: 1.2.0
       picocolors: 1.1.1
       tailwindcss: 4.3.0
@@ -512,7 +512,7 @@ snapshots:
   '@tailwindcss/node@4.3.0':
     dependencies:
       '@jridgewell/remapping': 2.3.5
-      enhanced-resolve: 5.22.0
+      enhanced-resolve: 5.22.2
       jiti: 2.7.0
       lightningcss: 1.32.0
       magic-string: 0.30.21
@@ -594,7 +594,7 @@ snapshots:
       no-case: 3.0.4
       tslib: 2.8.1
 
-  enhanced-resolve@5.22.0:
+  enhanced-resolve@5.22.2:
     dependencies:
       graceful-fs: 4.2.11
       tapable: 2.3.3
