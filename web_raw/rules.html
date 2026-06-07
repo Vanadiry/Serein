@@ -188,7 +188,7 @@
       });
     }
     var grid = document.getElementById("card-grid");
-    refreshView(grid, function () { grid.innerHTML = renderCards(filtered); });
+    grid.innerHTML = renderCards(filtered);
   }
 
   async function doSearch() {

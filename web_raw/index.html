@@ -211,7 +211,12 @@
     const ld = showLoading("加载中", "正在检查...");
     const data = await apiPost("/api/check/ids", [appId]);
     mergeCheckResults(data || []);
-    loadTrackerDetail(currentTracker);
+    // 仅刷新单应用，直接更新列表不触发动画
+    const detail = await api("/api/tracker/list/" + currentTracker) || [];
+    const list = document.getElementById("software-list");
+    if (!list.classList.contains("hidden")) {
+      list.innerHTML = detail.map(d => renderSoftwareRow(d)).join("");
+    }
     var errs = collectErrors(data || []);
     showCheckDone(errs);
   }
@@ -226,7 +231,12 @@
     console.log("[confirm]", appId, body);
     await apiPost("/api/check/confirm", body);
     delete checkResults[appId];
-    loadTrackerDetail(currentTracker);
+    // 直接重新获取并渲染列表，不触发渐出渐入动画
+    const data = await api("/api/tracker/list/" + currentTracker) || [];
+    const list = document.getElementById("software-list");
+    if (!list.classList.contains("hidden")) {
+      list.innerHTML = data.map(d => renderSoftwareRow(d)).join("");
+    }
   }
 
   async function editVersion(appId) {
@@ -249,7 +259,12 @@
       document.querySelectorAll("#edit-platforms input").forEach(inp => { body[inp.dataset.os] = inp.value.trim(); });
       await apiPost("/api/check/confirm", body);
       closeModal(document.querySelector(".fixed"));
-      loadTrackerDetail(currentTracker);
+      // 直接更新列表，不触发渐出渐入动画
+      const detail = await api("/api/tracker/list/" + currentTracker) || [];
+      const list = document.getElementById("software-list");
+      if (!list.classList.contains("hidden")) {
+        list.innerHTML = detail.map(d => renderSoftwareRow(d)).join("");
+      }
     };
   }
 
