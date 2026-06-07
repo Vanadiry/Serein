@@ -79,7 +79,7 @@ img { -webkit-user-drag: none; user-select: none; }
 
 /* 全局禁止选中，白名单放开 */
 * { user-select: none; }
-input, textarea, .select-text, #prog-status, #search-placeholder { user-select: text; }
+input, textarea, .select-text, .select-text *, #prog-status, #search-placeholder { user-select: text; }
 .text-err { color: var(--c-err); }
 .text-ok { color: var(--c-ok); }
 .icon-bg { background: var(--c-bord-mid); border-radius: 4px; padding: 4px; display: inline-flex; align-items: center; justify-content: center; }
