@@ -6,12 +6,12 @@
 		"build": "pnpm run build:css && pnpm run build:js && pnpm run build:html"
 	},
 	"dependencies": {
-		"@tailwindcss/cli": "^4.3.0",
+		"@tailwindcss/cli": "^4.3.2",
 		"html-minifier-terser": "^7.2.0",
-		"tailwindcss": "^4.3.0",
-		"terser": "^5.48.0"
+		"tailwindcss": "^4.3.2",
+		"terser": "^5.49.0"
 	},
 	"devDependencies": {
-		"@tauri-apps/cli": "^2.11.2"
+		"@tauri-apps/cli": "^2.11.4"
 	}
 }
