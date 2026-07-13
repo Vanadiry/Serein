@@ -68,5 +68,14 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		kv["动态配置源"] = "未配置"
 	}
 
-	writeJSON(w, http.StatusOK, kv)
+	p, err := store.LoadProfile(s.home)
+	profileData := map[string]any{}
+	if err == nil {
+		profileData["known_extensions"] = p.KnownExtensions
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"config":  kv,
+		"profile": profileData,
+	})
 }

@@ -104,7 +104,9 @@ function renderRight(config) {
 }
 
 renderLeft();
-api("/api/config").then(renderRight);
+api("/api/config").then(function (data) {
+  renderRight(data.config || data);
+});
 </script>
 </body>
 </html>

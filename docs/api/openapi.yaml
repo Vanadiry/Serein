@@ -1,7 +1,7 @@
 openapi: "3.0.3"
 info:
   title: Serein API
-  version: "1.0.1"
+  version: "1.1.0"
 servers:
   - url: http://127.0.0.1:12510
 paths:
@@ -190,14 +190,18 @@ paths:
                 type: string
                 description: |
                   每行 `data: <json>\n\n`。
-                  start: {"step":"start","done":0,"total":0}
-                  app:  {"step":"app","name":"Seshat","done":12,"total":30}
-                  list: {"step":"list","name":"SereinRulesList","done":0,"total":0}
-                  file: {"step":"file","name":"app.toml","done":5,"total":131}
-                  skip: {"step":"skip","name":"source_id","done":0,"total":0}
-                  error: {"step":"error","name":"https://... 获取失败","done":0,"total":0}
-                  done: {"step":"done"}
-                  cancelled: {"step":"cancelled"}
+                  规则同步事件:
+                    start:  {"step":"start","name":"","done":0,"total":<files>}
+                    list:   {"step":"list","name":"<source_id>","done":0,"total":0}
+                    source: {"step":"source","name":"<source_id>","files":<n>}
+                    skip:   {"step":"skip","name":"<source_id>","files":<n>}
+                    file:   {"step":"file","name":"<filename>","done":5,"total":131}
+                    error:  {"step":"error","name":"<url> 获取失败","done":0,"total":0}
+                    done:   {"step":"done","sources_total":10,"sources_skipped":3,"sources_updated":6,"files":45,"file_errors":0}
+                  检查更新事件:
+                    start: {"step":"start","name":"","done":0,"total":<n>}
+                    app:   {"step":"app","name":"<app>","done":12,"total":30}
+                    done:  {"step":"done"}
   /api/check/cancel/{task_id}:
     post:
       tags: [Progress]
@@ -210,67 +214,99 @@ paths:
       responses:
         "200": { description: "进程退出" }
 
-  # Rules
-  /api/rules/sync:
+  # Events (SSE)
+  /api/events:
+    get:
+      tags: [Events]
+      summary: 全局事件流（SSE），推送后端错误/警告到前端
+      responses:
+        "200":
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  data: {"level":"error","context":"[check]","message":"...","ts":1720000000}
+                  data: {"level":"warn","context":"[checker]","message":"...","ts":1720000000}
+
+  # Config
+  /api/config:
+    get:
+      tags: [Config]
+      summary: 获取当前配置和动态配置
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  config:
+                    type: object
+                    description: 键值对，包括监听地址、下载器、并发数、默认平台、规则源、动态配置源
+                  profile:
+                    type: object
+                    properties:
+                      known_extensions:
+                        type: array
+                        items: { type: string }
+
+  # Sync
+  /api/sync:
     post:
-      tags: [Rules]
-      summary: 拉取规则源更新（异步，返回 task_id）
+      tags: [Sync]
+      summary: 拉取规则或动态配置
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type]
+              properties:
+                type:
+                  type: string
+                  enum: [rules, profile]
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TaskResponse"
-  /api/rules/list/all:
+                oneOf:
+                  - $ref: "#/components/schemas/TaskResponse"
+                  - $ref: "#/components/schemas/ProfileSyncResponse"
+
+  # Rules
+  /api/rules:
     get:
       tags: [Rules]
-      summary: 列出全部规则源
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/SourceItem"
-  /api/rules/list/{source_id}:
-    get:
-      tags: [Rules]
-      summary: 列出指定源的规则
-      parameters:
-        - name: source_id
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/RuleItem"
-  /api/rules/list/search:
-    get:
-      tags: [Rules]
-      summary: 搜索规则
+      summary: 列出规则源或搜索/筛选规则
       parameters:
         - name: q
           in: query
-          required: true
           schema: { type: string }
+          description: 搜索关键词，按名称匹配
+        - name: source
+          in: query
+          schema: { type: string }
+          description: 按 source_id 筛选
       responses:
         "200":
-          description: OK
+          description: |
+            无参数时返回 SourceItem 数组；
+            带 q 或 source 参数时返回 RuleItem 数组
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/RuleItem"
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/SourceItem"
+                  - type: array
+                    items:
+                      $ref: "#/components/schemas/RuleItem"
 
   # Download / Open
   /api/download:
@@ -317,6 +353,13 @@ components:
       properties:
         task_id: { type: string }
         total: { type: string }
+    ProfileSyncResponse:
+      type: object
+      properties:
+        updated: { type: boolean }
+        known_extensions:
+          type: array
+          items: { type: string }
     TrackerInfo:
       type: object
       properties:

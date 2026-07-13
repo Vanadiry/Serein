@@ -49,13 +49,9 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/check/cancel/{task_id}", store.HandleProgressCancel)
 	s.mux.HandleFunc("GET /api/events", handleEvents)
 	s.mux.HandleFunc("GET /api/config", s.handleConfig)
-	s.mux.HandleFunc("GET /api/profile", s.handleProfile)
-	s.mux.HandleFunc("POST /api/profile/sync", s.handleProfileSync)
+	s.mux.HandleFunc("POST /api/sync", s.handleSync)
 
-	s.mux.HandleFunc("POST /api/rules/sync", s.handleRulesSync)
-	s.mux.HandleFunc("GET /api/rules/list/all", s.handleRulesListAll)
-	s.mux.HandleFunc("GET /api/rules/list/search", s.handleRulesListSearch)
-	s.mux.HandleFunc("GET /api/rules/list/", s.handleRulesListBySource)
+	s.mux.HandleFunc("GET /api/rules", s.handleRules)
 
 	dlDesc := parseDownloaderDesc(s.config.Download.Downloader)
 	if s.webFS != nil {

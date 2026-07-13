@@ -73,7 +73,7 @@
   document.getElementById("btn-search").onclick = () => doSearch();
 
   async function loadSources() {
-    const sources = await api("/api/rules/list/all") || [];
+    const sources = await api("/api/rules") || [];
     const nav = document.getElementById("source-nav");
     nav.innerHTML = sources.map(s => {
       const active = s.source_id === currentSource ? "text-text bg-surface border-l-[2px] border-l-accent" : "text-sub hover:text-text border-l-[2px] border-l-transparent hover:bg-surface hover:border-l-bord";
@@ -100,7 +100,7 @@
     var searchView = document.getElementById("search-view");
     var isNew = cardView.classList.contains("hidden");
 
-    var rules = await api("/api/rules/list/" + id) || [];
+    var rules = await api("/api/rules?source=" + id) || [];
     allSourceRules = rules;
     activeFilters = {};
     showTrackedOnly = false;
@@ -198,7 +198,7 @@
     const grid = document.getElementById("search-results-grid");
     grid.innerHTML = '<div class="col-span-full text-center py-10 text-sub text-sm">搜索中...</div>';
 
-    const rules = await api("/api/rules/list/search?q=" + encodeURIComponent(q)) || [];
+    const rules = await api("/api/rules?q=" + encodeURIComponent(q)) || [];
     if (!rules.length) {
       grid.innerHTML = '<div class="col-span-full text-center py-10 text-sub text-sm">未找到结果<br><span class="text-xs">请尝试点击右上角「拉取规则」拉取最新的规则表</span></div>';
       return;

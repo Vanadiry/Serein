@@ -27,9 +27,9 @@ const API = window.location.origin;
   };
 })();
 
-fetch(API + "/api/profile").then(function (r) { return r.json(); }).then(function (d) {
-  if (d && d.known_extensions && d.known_extensions.length) {
-    var escaped = d.known_extensions.map(function (e) { return e.replace(/\./g, "\\."); });
+fetch(API + "/api/config").then(function (r) { return r.json(); }).then(function (d) {
+  if (d.profile && d.profile.known_extensions && d.profile.known_extensions.length) {
+    var escaped = d.profile.known_extensions.map(function (e) { return e.replace(/\./g, "\\."); });
     DOWNLOAD_EXTS = new RegExp("\\.(" + escaped.join("|") + ")$", "i");
   }
 }).catch(function () {});
@@ -99,7 +99,7 @@ function renderTopbar(current) {
 // 拉取规则（可从管理弹窗或别处调用）
 async function syncRules() {
   console.log("[sync]");
-  var res = await apiPost("/api/rules/sync");
+  var res = await apiPost("/api/sync", {type: "rules"});
   if (!res || !res.task_id) { return; }
   startSyncProgress(res.task_id);
 }
@@ -108,7 +108,7 @@ async function syncRules() {
 async function syncProfile() {
   var ld = showLoading("动态配置", "正在拉取...");
   try {
-    var res = await apiPost("/api/profile/sync");
+    var res = await apiPost("/api/sync", {type: "profile"});
     if (!res) { ld.done("请求失败", true); return; }
     if (res.error) { ld.done(res.error, true); return; }
     if (res.known_extensions && res.known_extensions.length) {

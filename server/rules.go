@@ -1,4 +1,3 @@
-// Rules API handlers
 package server
 
 import (
@@ -9,22 +8,35 @@ import (
 	"github.com/vanadiry/serein/core/store"
 )
 
-// POST /api/rules/sync
+func (s *Server) handleRules(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query().Get("q")
+	source := r.URL.Query().Get("source")
 
-func (s *Server) handleRulesSync(w http.ResponseWriter, r *http.Request) {
-	if len(s.config.RuleSources) == 0 {
-		writeJSON(w, http.StatusOK, map[string]string{"task_id": ""})
+	if q != "" {
+		rules, _ := store.LoadRules(s.home)
+		var filtered []store.Rule
+		ql := strings.ToLower(q)
+		for _, rule := range rules {
+			if strings.Contains(strings.ToLower(rule.Info.Name), ql) {
+				filtered = append(filtered, rule)
+			}
+		}
+		writeJSON(w, http.StatusOK, formatRuleList(s.home, filtered))
 		return
 	}
-	store.Logf("[sync] %d sources", len(s.config.RuleSources))
-	p := store.NewProgress(0)
-	go store.SyncAllSourcesAsync(s.home, s.config.RuleSources, s.config.Download.Concurrency, p)
-	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID})
-}
 
-// GET /api/rules/list/all
+	if source != "" {
+		rules, _ := store.LoadRules(s.home)
+		var filtered []store.Rule
+		for _, rule := range rules {
+			if rule.SourceID == source {
+				filtered = append(filtered, rule)
+			}
+		}
+		writeJSON(w, http.StatusOK, formatRuleList(s.home, filtered))
+		return
+	}
 
-func (s *Server) handleRulesListAll(w http.ResponseWriter, r *http.Request) {
 	list, err := store.ListAllSourceInfos(s.home)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -35,45 +47,6 @@ func (s *Server) handleRulesListAll(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, list)
 }
-
-// GET /api/rules/list/{source_id}
-
-func (s *Server) handleRulesListBySource(w http.ResponseWriter, r *http.Request) {
-	sourceID := strings.TrimPrefix(r.URL.Path, "/api/rules/list/")
-	if sourceID == "" || sourceID == "all" || sourceID == "search" {
-		writeError(w, http.StatusBadRequest, "missing source_id")
-		return
-	}
-
-	rules, _ := store.LoadRules(s.home)
-	var filtered []store.Rule
-	for _, rule := range rules {
-		if rule.SourceID == sourceID {
-			filtered = append(filtered, rule)
-		}
-	}
-	writeJSON(w, http.StatusOK, formatRuleList(s.home, filtered))
-}
-
-// GET /api/rules/list/search?q=xxx
-
-func (s *Server) handleRulesListSearch(w http.ResponseWriter, r *http.Request) {
-	q := strings.ToLower(r.URL.Query().Get("q"))
-	if q == "" {
-		writeError(w, http.StatusBadRequest, "missing q param")
-		return
-	}
-	rules, _ := store.LoadRules(s.home)
-	var filtered []store.Rule
-	for _, rule := range rules {
-		if strings.Contains(strings.ToLower(rule.Info.Name), q) {
-			filtered = append(filtered, rule)
-		}
-	}
-	writeJSON(w, http.StatusOK, formatRuleList(s.home, filtered))
-}
-
-// 共享
 
 type ruleListItem struct {
 	AppID           string   `json:"app_id"`
