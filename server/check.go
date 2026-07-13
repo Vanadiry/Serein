@@ -162,9 +162,18 @@ type checkJob struct {
 }
 
 func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) {
-	cfg, _ := store.LoadConfig(s.home)
-	rules, _ := store.LoadRules(s.home)
-	userData, _ := store.LoadUserData(s.home)
+	cfg, cfgErr := store.LoadConfig(s.home)
+	if cfgErr != nil {
+		store.Emit("error", "[check]", fmt.Sprintf("加载配置失败: %v", cfgErr))
+	}
+	rules, rulesErr := store.LoadRules(s.home)
+	if rulesErr != nil {
+		store.Emit("error", "[check]", fmt.Sprintf("加载规则失败: %v", rulesErr))
+	}
+	userData, udErr := store.LoadUserData(s.home)
+	if udErr != nil {
+		store.Emit("error", "[check]", fmt.Sprintf("加载用户数据失败: %v", udErr))
+	}
 
 	conc := cfg.Download.Concurrency
 	if conc < 1 {
@@ -200,10 +209,12 @@ func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) 
 						Position: ps.Position,
 					})
 				}
-				preURL, err := checker.RunPreRequests(checkerSteps, checker.NewClient())
-				if err == nil && preURL != "" {
-					platCfg.URL = preURL
-				}
+			preURL, err := checker.RunPreRequests(checkerSteps, checker.NewClient())
+			if err != nil {
+				store.Emit("error", "[check]", fmt.Sprintf("%s 前置请求失败: %v", jobName, err))
+			} else if preURL != "" {
+				platCfg.URL = preURL
+			}
 			}
 
 			if platCfg.URL == "" && platCfg.VURL == "" && platCfg.DURL == "" && platCfg.Type != "github" {
@@ -416,5 +427,7 @@ func saveCheckTemp(home, typ string, results []checker.CheckResponse) {
 			Platforms: platforms,
 		})
 	}
-	_ = store.SaveCheckTemp(home, typ, temp)
+	if err := store.SaveCheckTemp(home, typ, temp); err != nil {
+		store.Emit("error", "[check]", fmt.Sprintf("保存检查结果缓存失败: %v", err))
+	}
 }

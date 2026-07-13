@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+
+	"github.com/vanadiry/serein/core/store"
 )
 
 const githubAPI = "https://api.github.com/repos"
@@ -84,11 +86,13 @@ func extractGitHubAssets(root any, idx int, dPosition any) any {
 	}
 	assetRe, err := regexp.Compile(assetReStr)
 	if err != nil {
+		store.Emit("error", "[github]", fmt.Sprintf("规则正则表达式编译失败: %v", err))
 		return nil
 	}
 
 	assets, err := stepJSON(root, []any{int64(idx), "assets"}, "")
 	if err != nil {
+		store.Emit("error", "[github]", fmt.Sprintf("GitHub assets JSON 解析失败: %v", err))
 		return nil
 	}
 	assetArr, ok := assets.([]any)
@@ -121,6 +125,7 @@ func extractGitHubAssets(root any, idx int, dPosition any) any {
 func isGitHubPrerelease(root any, idx int) bool {
 	pr, err := stepJSON(root, []any{int64(idx), "prerelease"}, "")
 	if err != nil {
+		store.Emit("warn", "[github]", fmt.Sprintf("无法判断 release #%d 是否为预发布: %v", idx, err))
 		return false
 	}
 	b, ok := pr.(bool)

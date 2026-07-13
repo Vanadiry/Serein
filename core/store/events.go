@@ -3,6 +3,7 @@ package store
 
 import (
 	"encoding/json"
+	"log"
 	"sync"
 	"time"
 )
@@ -46,6 +47,7 @@ func Emit(level, context, message string) {
 	}
 	data, err := json.Marshal(evt)
 	if err != nil {
+		log.Printf("[events] marshal error: %v", err)
 		return
 	}
 	globalBus.mu.Lock()

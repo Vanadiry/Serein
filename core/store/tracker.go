@@ -124,7 +124,9 @@ func AddToTracker(home, name string, entry TrackerEntry) error {
 
 	var tf trackerFile
 	if _, err := os.Stat(path); err == nil {
-		_ = decodeTOML(path, &tf)
+		if decErr := decodeTOML(path, &tf); decErr != nil {
+			return fmt.Errorf("解析 tracker 文件失败 %s: %w", path, decErr)
+		}
 	}
 
 	// 查找已存在的 app_id

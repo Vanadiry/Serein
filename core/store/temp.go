@@ -2,6 +2,7 @@ package store
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -57,7 +58,10 @@ func SaveCheckTemp(home, typ string, results []TempCheckResult) error {
 func LoadLatestCheckTemp(home, typ string) ([]TempCheckResult, error) {
 	dir := filepath.Join(home, "temp", "check", typ)
 	files, err := filepath.Glob(filepath.Join(dir, "*.json"))
-	if err != nil || len(files) == 0 {
+	if err != nil {
+		return nil, fmt.Errorf("glob temp dir: %w", err)
+	}
+	if len(files) == 0 {
 		return nil, nil
 	}
 	sort.Sort(sort.Reverse(sort.StringSlice(files)))

@@ -155,7 +155,9 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 
 	for _, l := range leaves {
 		dest := filepath.Join(rulesDir, l.destDir)
-		os.RemoveAll(dest)
+		if err := os.RemoveAll(dest); err != nil {
+			Emit("error", "[sync]", fmt.Sprintf("清理目录失败 %s: %v", dest, err))
+		}
 		for _, f := range l.files {
 			wg.Add(1)
 			go func(l leafSrc, f string) {
@@ -163,8 +165,10 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 				sem <- struct{}{}
 				defer func() { <-sem }()
 
-				target := filepath.Join(rulesDir, l.destDir, f)
-				os.MkdirAll(filepath.Dir(target), 0755)
+			target := filepath.Join(rulesDir, l.destDir, f)
+			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+				Emit("error", "[sync]", fmt.Sprintf("创建目录失败 %s: %v", filepath.Dir(target), err))
+			}
 				var err error
 				if l.isWeb {
 					err = downloadFile(strings.TrimSuffix(l.baseURL, "/")+"/"+f, target)
@@ -188,7 +192,9 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 	for _, l := range leaves {
 		dest := filepath.Join(rulesDir, l.destDir)
 		os.MkdirAll(dest, 0755)
-		os.WriteFile(filepath.Join(dest, "_source.json"), l.rawBody, 0644)
+		if err := os.WriteFile(filepath.Join(dest, "_source.json"), l.rawBody, 0644); err != nil {
+			Emit("error", "[sync]", fmt.Sprintf("写入 _source.json 失败 %s: %v", l.destDir, err))
+		}
 	}
 }
 

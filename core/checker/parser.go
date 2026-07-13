@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"regexp"
 	"strings"
 
@@ -68,9 +69,11 @@ func decodeXMLElement(decoder *xml.Decoder, stopAt string) (any, error) {
 
 	for {
 		tok, err := decoder.Token()
-		if err != nil {
-			// EOF
+		if err == io.EOF {
 			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("xml token: %w", err)
 		}
 
 		switch t := tok.(type) {
