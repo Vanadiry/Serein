@@ -17,7 +17,12 @@ type Config struct {
 	Tracker     TrackerConfig  `toml:"tracker"`
 	Download    DownloadConfig `toml:"download"`
 	Access      AccessConfig   `toml:"access"`
+	Profile     ProfileConfig  `toml:"profile"`
 	RuleSources []RuleSource   `toml:"rule_sources"`
+}
+
+type ProfileConfig struct {
+	URL string `toml:"url"`
 }
 
 type SereinConfig struct {

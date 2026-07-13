@@ -62,5 +62,11 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		kv["规则源"] = "未配置"
 	}
 
+	if cfg.Profile.URL != "" {
+		kv["动态配置源"] = formatSourceURL(cfg.Profile.URL)
+	} else {
+		kv["动态配置源"] = "未配置"
+	}
+
 	writeJSON(w, http.StatusOK, kv)
 }

@@ -17,6 +17,9 @@ concurrency = 8                   # 检查更新时的并发数，最大允许 6
 
 [[rule_sources]]                  # 规则源，默认为 Vanadiry 维护的规则源。你可以添加新的 url 来指定更多
 url = "https://raw.githubusercontent.com/Vanadiry/SereinRulesList/refs/heads/main/_source.json"
+
+[profile]                          # 动态配置，指向一个 profile.json 文件，用于热更新前端参数
+url = "https://raw.githubusercontent.com/Vanadiry/SereinRulesList/refs/heads/main/profile.json"
 # [[rule_sources]]                # 规则源 2
 # url = "https://xxx.xx/"
 `
@@ -32,4 +35,20 @@ display_name = "新建追踪列表"    # 可选，仅供前端展示
 
 # [[tracker]]
 # app_id = "def-456"
+`
+
+const DefaultProfileJSON = `{
+  "version": 0,
+  "known_extensions": [
+    "exe",
+    "zip",
+    "dmg",
+    "pkg",
+    "msi",
+    "apk",
+    "ipa",
+    "rar",
+    "7z"
+  ]
+}
 `

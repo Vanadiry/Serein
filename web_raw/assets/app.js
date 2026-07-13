@@ -1,6 +1,6 @@
 // Serein shared JS — API 封装、顶栏、公共函数
 var SEREIN_DOWNLOADER = "__DL__";
-var DOWNLOAD_EXTS = /\.(exe|zip|dmg|pkg|msi|apk|deb|rpm|AppImage|tar\.gz|tar\.xz|tar\.bz2|gz|bz2|xz|7z|rar|ipa|iso|jar|ttf|otf|ttc|woff2?)$/i;
+var DOWNLOAD_EXTS = /(?!)/;
 const API = window.location.origin;
 
 // 主题：localStorage > 系统偏好
@@ -26,6 +26,13 @@ const API = window.location.origin;
     return localStorage.getItem("theme") || "auto";
   };
 })();
+
+fetch(API + "/api/profile").then(function (r) { return r.json(); }).then(function (d) {
+  if (d && d.known_extensions && d.known_extensions.length) {
+    var escaped = d.known_extensions.map(function (e) { return e.replace(/\./g, "\\."); });
+    DOWNLOAD_EXTS = new RegExp("\\.(" + escaped.join("|") + ")$", "i");
+  }
+}).catch(function () {});
 
 // API
 async function api(path) {
@@ -73,6 +80,7 @@ function renderTopbar(current) {
           <button id="btn-check-all" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">检查全部</button>
           <button id="btn-tracker-check" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">检查当前 Tracker</button>
           ` : isSettings ? "" : `
+          <button id="btn-sync-profile" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">拉取动态配置</button>
           <button id="btn-sync" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">拉取规则</button>
           `}
         </nav>
@@ -81,6 +89,9 @@ function renderTopbar(current) {
   if (!isIndex && !isSettings) {
     document.getElementById("btn-sync").addEventListener("click", function () {
       confirmDialog("将从所有规则源同步最新的规则文件", syncRules);
+    });
+    document.getElementById("btn-sync-profile").addEventListener("click", function () {
+      confirmDialog("将从远端拉取最新的动态配置", syncProfile);
     });
   }
 }
@@ -91,6 +102,24 @@ async function syncRules() {
   var res = await apiPost("/api/rules/sync");
   if (!res || !res.task_id) { return; }
   startSyncProgress(res.task_id);
+}
+
+// 拉取动态配置
+async function syncProfile() {
+  var ld = showLoading("动态配置", "正在拉取...");
+  try {
+    var res = await apiPost("/api/profile/sync");
+    if (!res) { ld.done("请求失败", true); return; }
+    if (res.error) { ld.done(res.error, true); return; }
+    if (res.known_extensions && res.known_extensions.length) {
+      var escaped = res.known_extensions.map(function (e) { return e.replace(/\./g, "\\."); });
+      DOWNLOAD_EXTS = new RegExp("\\.(" + escaped.join("|") + ")$", "i");
+    }
+    var msg = res.updated ? "动态配置已更新" : "动态配置已是最新";
+    ld.done(msg, false);
+  } catch (e) {
+    ld.done(e.message || "请求失败", true);
+  }
 }
 
 // 图标
