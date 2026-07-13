@@ -17,15 +17,7 @@ type Profile struct {
 func LoadProfile(home string) (Profile, error) {
 	path := filepath.Join(home, "user", "profile.json")
 	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-			return Profile{}, err
-		}
-		if err := os.WriteFile(path, []byte(DefaultProfileJSON), 0644); err != nil {
-			return Profile{}, err
-		}
-		data = []byte(DefaultProfileJSON)
-	} else if err != nil {
+	if err != nil {
 		return Profile{}, err
 	}
 

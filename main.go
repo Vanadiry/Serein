@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/vanadiry/serein/core/store"
 	"github.com/vanadiry/serein/server"
 )
 
@@ -16,12 +17,11 @@ var webFiles embed.FS
 func main() {
 	home := sereinHome()
 
-	if err := initDirs(home); err != nil {
+	if err := store.Init(home); err != nil {
 		fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
 		os.Exit(1)
 	}
 
-	// 启动 Web 服务，非 sidecar 模式则打开浏览器
 	startServer(home, os.Getenv("SEREIN_SIDECAR") != "1")
 }
 
@@ -35,22 +35,6 @@ func sereinHome() string {
 		os.Exit(1)
 	}
 	return filepath.Join(dir, ".vSoft", "Serein")
-}
-
-func initDirs(home string) error {
-	dirs := []string{
-		home,
-		filepath.Join(home, "rules"),
-		filepath.Join(home, "tracker"),
-		filepath.Join(home, "user"),
-		filepath.Join(home, "temp", "check"),
-	}
-	for _, d := range dirs {
-		if err := os.MkdirAll(d, 0755); err != nil {
-			return fmt.Errorf("mkdir %s: %w", d, err)
-		}
-	}
-	return nil
 }
 
 func startServer(home string, openBrowser_ bool) {

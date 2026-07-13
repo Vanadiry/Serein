@@ -62,13 +62,6 @@ func LoadConfig(home string) (Config, error) {
 	path := filepath.Join(home, "config.toml")
 	cfg := DefaultConfig()
 
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		if err := os.WriteFile(path, []byte(DefaultConfigTOML), 0644); err != nil {
-			return cfg, fmt.Errorf("create default config: %w", err)
-		}
-		return cfg, nil
-	}
-
 	if err := decodeTOML(path, &cfg); err != nil {
 		return cfg, fmt.Errorf("read config: %w", err)
 	}
