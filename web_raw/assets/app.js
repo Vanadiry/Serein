@@ -78,7 +78,7 @@ function renderTopbar(current) {
         </nav>
       </div>
     </div>`;
-  if (!isIndex) {
+  if (!isIndex && !isSettings) {
     document.getElementById("btn-sync").addEventListener("click", function () {
       confirmDialog("将从所有规则源同步最新的规则文件", syncRules);
     });

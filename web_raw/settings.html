@@ -46,7 +46,7 @@ function renderLeft() {
   var prefs = {};
   for (var i = 0; i < _prefDefs.length; i++) {
     var d = _prefDefs[i];
-    prefs[d.key] = d.choices ? getThemePreference() : localStorage.getItem(d.key) || "";
+    prefs[d.key] = d.choices ? getThemePreference() : (localStorage.getItem(d.key) || "");
   }
 
   var sections = {};
@@ -82,19 +82,6 @@ function renderLeft() {
   }
   html += '<button onclick="saveSettings()" class="w-full mt-6 px-4 py-2.5 rounded-xl bg-accent text-white text-sm font-semibold cursor-pointer border-0 hover:opacity-90 transition-all active:scale-[0.98]">保存设置</button>';
   document.getElementById("settings-form").innerHTML = html;
-}
-
-function saveSettings() {
-  for (var i = 0; i < _prefDefs.length; i++) {
-    var d = _prefDefs[i];
-    var el = document.getElementById("f-" + d.key);
-    if (!el) continue;
-    if (d.key === "theme") {
-      setThemePreference(el.value);
-    } else {
-      localStorage.setItem(d.key, el.value);
-    }
-  }
 }
 
 function renderRight(config) {
