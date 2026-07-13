@@ -12,6 +12,8 @@ import (
 type Profile struct {
 	Version         int      `json:"version"`
 	KnownExtensions []string `json:"known_extensions"`
+	VersionPrefixes []string `json:"version_prefixes"`
+	VersionSuffixes []string `json:"version_suffixes"`
 }
 
 func LoadProfile(home string) (Profile, error) {

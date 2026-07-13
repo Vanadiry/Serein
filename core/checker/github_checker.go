@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
-	"strings"
 
 	"github.com/vanadiry/serein/core/store"
 )
@@ -73,7 +72,7 @@ func extractGitHubVersion(root any, idx int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimPrefix(fmt.Sprintf("%v", ver), "v"), nil
+	return stripVersionAffixes(fmt.Sprintf("%v", ver)), nil
 }
 
 func extractGitHubAssets(root any, idx int, dPosition any) any {

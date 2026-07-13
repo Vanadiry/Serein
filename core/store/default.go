@@ -49,6 +49,14 @@ const DefaultProfileJSON = `{
     "ipa",
     "rar",
     "7z"
+  ],
+  "version_prefixes": [
+    "v",
+    "V"
+  ],
+  "version_suffixes": [
+    "\n",
+    " "
   ]
 }
 `

@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -47,6 +48,35 @@ func NewClient() *http.Client {
 	}
 }
 
+var versionPrefixes []string
+var versionSuffixes []string
+
+func SetVersionPrefixes(prefixes []string) {
+	sort.Slice(prefixes, func(i, j int) bool { return len(prefixes[i]) > len(prefixes[j]) })
+	versionPrefixes = prefixes
+}
+
+func SetVersionSuffixes(suffixes []string) {
+	sort.Slice(suffixes, func(i, j int) bool { return len(suffixes[i]) > len(suffixes[j]) })
+	versionSuffixes = suffixes
+}
+
+func stripVersionAffixes(ver string) string {
+	for _, p := range versionPrefixes {
+		if len(p) > 0 && strings.HasPrefix(ver, p) {
+			ver = ver[len(p):]
+			break
+		}
+	}
+	for _, s := range versionSuffixes {
+		if len(s) > 0 && strings.HasSuffix(ver, s) {
+			ver = ver[:len(ver)-len(s)]
+			break
+		}
+	}
+	return ver
+}
+
 // RunPlatformCheck 对单个平台执行检查
 func RunPlatformCheck(cfg CheckConfig, client *http.Client) (PlatformResult, error) {
 	var vr PlatformResult
@@ -62,7 +92,7 @@ func RunPlatformCheck(cfg CheckConfig, client *http.Client) (PlatformResult, err
 	}
 
 	if vType == "direct" {
-		vr.LatestVersion = vURL
+		vr.LatestVersion = stripVersionAffixes(vURL)
 	} else if cfg.VPosition != nil {
 		body, err := doRequest(client, vURL, cfg.UA, cfg.Headers)
 		if err != nil {
@@ -72,7 +102,7 @@ func RunPlatformCheck(cfg CheckConfig, client *http.Client) (PlatformResult, err
 		if err != nil {
 			return vr, err
 		}
-		vr.LatestVersion = toString(ver)
+		vr.LatestVersion = stripVersionAffixes(toString(ver))
 	}
 
 	// 提取下载链接

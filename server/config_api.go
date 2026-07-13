@@ -72,6 +72,8 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	profileData := map[string]any{}
 	if err == nil {
 		profileData["known_extensions"] = p.KnownExtensions
+		profileData["version_prefixes"] = p.VersionPrefixes
+		profileData["version_suffixes"] = p.VersionSuffixes
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{

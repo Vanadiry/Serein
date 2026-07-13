@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/vanadiry/serein/core/checker"
 	"github.com/vanadiry/serein/core/store"
 )
 
@@ -96,6 +97,10 @@ func New(home string, webFS fs.FS) (*Server, error) {
 		return nil, err
 	}
 	store.InitLogger(home)
+	if p, err := store.LoadProfile(home); err == nil {
+		checker.SetVersionPrefixes(p.VersionPrefixes)
+		checker.SetVersionSuffixes(p.VersionSuffixes)
+	}
 	s := &Server{home: home, config: cfg, mux: http.NewServeMux(), webFS: webFS}
 	s.registerRoutes()
 	return s, nil
