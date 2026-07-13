@@ -123,22 +123,52 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 		return
 	}
 
+	sourcesTotal := len(leaves)
+
 	// 过滤版本未变的叶子源
 	var fresh []leafSrc
+	var sourcesSkipped int
 	for _, l := range leaves {
 		if l.version > 0 && loadLocalSourceVersion(filepath.Join(rulesDir, l.destDir)) == l.version {
-			p.Send("skip", l.id, 0, 0)
+			p.SendMap(map[string]any{
+				"step":  "skip",
+				"name":  l.id,
+				"files": len(l.files),
+			})
+			sourcesSkipped++
 			continue
 		}
 		fresh = append(fresh, l)
 	}
 	leaves = fresh
 
-	total := 0
+	totalFiles := 0
 	for _, l := range leaves {
-		total += len(l.files)
+		totalFiles += len(l.files)
 	}
-	if total == 0 {
+
+	if totalFiles > 0 {
+		for _, l := range leaves {
+			p.SendMap(map[string]any{
+				"step":  "source",
+				"name":  l.id,
+				"files": len(l.files),
+			})
+		}
+		p.Send("start", "", 0, totalFiles)
+	}
+
+	sourcesUpdated := len(leaves)
+	fileErrors := 0
+
+	if totalFiles == 0 {
+		p.SendMap(map[string]any{
+			"step":            "done",
+			"sources_total":   sourcesTotal,
+			"sources_skipped": sourcesSkipped,
+			"sources_updated": sourcesUpdated,
+			"files":           0,
+		})
 		return
 	}
 
@@ -160,10 +190,10 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 				sem <- struct{}{}
 				defer func() { <-sem }()
 
-			target := filepath.Join(rulesDir, l.destDir, f)
-			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
-				Emit("error", "[sync]", fmt.Sprintf("创建目录失败 %s: %v", filepath.Dir(target), err))
-			}
+				target := filepath.Join(rulesDir, l.destDir, f)
+				if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+					Emit("error", "[sync]", fmt.Sprintf("创建目录失败 %s: %v", filepath.Dir(target), err))
+				}
 				var err error
 				if l.isWeb {
 					err = downloadFile(strings.TrimSuffix(l.baseURL, "/")+"/"+f, target)
@@ -175,8 +205,9 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 				name := f
 				if err != nil {
 					name += " (失败)"
+					fileErrors++
 				}
-				p.Send("file", name, done, total)
+				p.Send("file", name, done, totalFiles)
 				mu.Unlock()
 			}(l, f)
 		}
@@ -191,6 +222,15 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 			Emit("error", "[sync]", fmt.Sprintf("写入 _source.json 失败 %s: %v", l.destDir, err))
 		}
 	}
+
+	p.SendMap(map[string]any{
+		"step":            "done",
+		"sources_total":   sourcesTotal,
+		"sources_skipped": sourcesSkipped,
+		"sources_updated": sourcesUpdated,
+		"files":           totalFiles,
+		"file_errors":     fileErrors,
+	})
 }
 
 func gatherLeaves(sources []RuleSource, concurrency int, p *Progress) []leafSrc {

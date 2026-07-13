@@ -514,29 +514,35 @@ async function asyncCheck(apiPath, body, onDone) {
 
 // SSE 进度同步规则
 function startSyncProgress(taskId) {
-  var skipped = 0, updated = 0, errors = 0;
+  var sourcesSkipped = 0, sourcesUpdated = 0, sourcesFailed = 0, filesTotal = 0, fileErrors = 0;
   var pm = showProgressModal("同步规则", API + "/api/check/cancel/" + taskId);
   var evt = new EventSource(API + "/api/progress/" + taskId);
   evt.onmessage = function (e) {
     var d = JSON.parse(e.data);
     if (d.step === "done") {
       evt.close(); pm.close();
-      var msg = "同步完成";
-      if (updated > 0) msg += "（" + updated + " 个更新";
-      if (skipped > 0) msg += (updated > 0 ? "，" : "（") + skipped + " 个跳过";
-      if (updated > 0 || skipped > 0) msg += "）";
-      if (errors > 0) {
-        msg += "，" + errors + " 个失败";
-        flashOverlay();
-      }
-      showLoading("同步规则", msg).done(msg, errors > 0);
+      var parts = [];
+      if (sourcesSkipped > 0) parts.push(sourcesSkipped + " 个源已是最新（跳过）");
+      if (sourcesUpdated > 0) parts.push(sourcesUpdated + " 个源已更新（共 " + filesTotal + " 条规则）");
+      if (fileErrors > 0) parts.push(fileErrors + " 条规则下载失败");
+      if (sourcesFailed > 0) parts.push(sourcesFailed + " 个源获取失败");
+      var msg = parts.length > 0 ? "同步完成（" + parts.join("，") + "）" : "同步完成";
+      var hasError = sourcesFailed > 0 || fileErrors > 0;
+      showLoading("同步规则", msg).done(msg, hasError);
+      if (hasError) flashOverlay();
       if (typeof loadSources === "function") loadSources();
       return;
     }
-    if (d.step === "error") { errors++; pm.setStatus(d.name); return; }
+    if (d.step === "error") { sourcesFailed++; pm.setStatus(d.name + " 获取失败"); return; }
     if (d.step === "list") { pm.setStatus("正在拉取规则源 " + d.name); return; }
-    if (d.step === "skip") { skipped++; pm.setStatus(d.name + "（已是最新，跳过）"); return; }
-    if (d.step === "file") { if (d.done === d.total) updated = d.total; pm.setProgress(d.done, d.total); pm.setStatus(d.name); }
+    if (d.step === "skip") { sourcesSkipped++; pm.setStatus(d.name + "（已是最新，跳过）"); return; }
+    if (d.step === "source") { sourcesUpdated++; pm.setStatus(d.name + " 开始拉取"); return; }
+    if (d.step === "file") {
+      if (d.done) pm.setProgress(d.done, d.total);
+      if (d.name.indexOf("(失败)") >= 0) { fileErrors++; }
+      pm.setStatus(d.name);
+    }
+    if (d.step === "start" && d.total) { pm.setProgress(0, d.total); }
   };
   evt.onerror = function () { evt.close(); pm.close(); if (typeof loadSources === "function") loadSources(); };
 }

@@ -54,6 +54,15 @@ func (p *Progress) Send(step, name string, done, total int) {
 	}
 }
 
+// SendMap 发送任意 JSON 事件。
+func (p *Progress) SendMap(m map[string]any) {
+	data, _ := json.Marshal(m)
+	select {
+	case p.Channel <- string(data):
+	default:
+	}
+}
+
 // Close 结束进度追踪。
 func (p *Progress) Close() {
 	select {
