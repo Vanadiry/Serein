@@ -34,6 +34,26 @@ fetch(API + "/api/config").then(function (r) { return r.json(); }).then(function
   }
 }).catch(function () {});
 
+function compareVersions(a, b) {
+  if (!a && !b) return 0;
+  if (!a) return -1;
+  if (!b) return 1;
+  var pa = a.split(".");
+  var pb = b.split(".");
+  var len = Math.max(pa.length, pb.length);
+  for (var i = 0; i < len; i++) {
+    var na = parseInt(pa[i]) || 0;
+    var nb = parseInt(pb[i]) || 0;
+    if (na !== nb) return na > nb ? 1 : -1;
+  }
+  return 0;
+}
+window.compareVersions = compareVersions;
+window.tipAttr = tipAttr;
+window.linkWithTooltip = linkWithTooltip;
+window.closeModal = closeModal;
+window.confirmDialog = confirmDialog;
+
 // API
 async function api(path) {
   const r = await fetch(API + path);

@@ -131,8 +131,15 @@
         for (var ii = 0; ii < g.oses.length; ii++) { icons += platformIcon(g.oses[ii], "w-4 h-4"); }
         icons += '</span>';
         if (g.latest && g.latest !== g.current) {
-          parts.push(`<span class="opacity-50">${icons}</span> <span class="text-err">${g.current}</span> <span class="text-sub">→</span> <span class="text-ok">${g.latest}</span>`);
-        } else if (g.latest && g.latest === g.current) {
+          var cmp = compareVersions(g.latest, g.current);
+          if (cmp > 0) {
+            parts.push(`<span class="opacity-50">${icons}</span> <span class="text-warn">${g.current}</span> <span class="text-sub">→</span> <span class="text-ok">${g.latest}</span>`);
+          } else if (cmp < 0) {
+            parts.push(`<span class="opacity-50">${icons}</span> <span class="text-ok">${g.current}</span> <span class="text-sub">→</span> <span class="text-err">${g.latest}</span>`);
+          } else {
+            parts.push(`<span class="opacity-50">${icons}</span> <span class="text-warn">${g.current}</span> <span class="text-sub">→</span> <span class="text-ok">${g.latest}</span>`);
+          }
+        } else if (g.latest) {
           parts.push(`<span class="opacity-50">${icons}</span> <span class="text-ok">${g.current}</span> <span class="text-sub">(无更新)</span>`);
         } else {
           parts.push(`<span class="opacity-50">${icons}</span> <span class="text-sub">${g.current}</span>`);
@@ -240,7 +247,7 @@
   }
 
   async function editVersion(appId) {
-    showModal(`
+    var modal = showModal(`
       <div class="text-base font-bold mb-4">编辑版本 — ${appId}</div>
       <div id="edit-platforms" class="flex flex-col gap-2 mb-4"></div>
       <div class="flex gap-2">
@@ -258,8 +265,8 @@
       const body = { app_id: appId };
       document.querySelectorAll("#edit-platforms input").forEach(inp => { body[inp.dataset.os] = inp.value.trim(); });
       await apiPost("/api/check/confirm", body);
-      closeModal(document.querySelector(".fixed"));
-      // 直接更新列表，不触发渐出渐入动画
+      closeModal(modal);
+      delete checkResults[appId];
       const detail = await api("/api/tracker/list/" + currentTracker) || [];
       const list = document.getElementById("software-list");
       if (!list.classList.contains("hidden")) {
