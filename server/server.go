@@ -41,7 +41,6 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/tracker/add", s.handleTrackerAdd)
 	s.mux.HandleFunc("GET /api/tracker/apps", s.handleTrackerApps)
 
-	s.mux.HandleFunc("POST /api/check/all", s.handleCheckAll)
 	s.mux.HandleFunc("POST /api/check/ids", s.handleCheckIDs)
 	s.mux.HandleFunc("POST /api/check/tracker", s.handleCheckTracker)
 	s.mux.HandleFunc("POST /api/check/confirm", s.handleCheckConfirm)

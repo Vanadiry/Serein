@@ -5,30 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 
 	"github.com/vanadiry/serein/core/checker"
 	"github.com/vanadiry/serein/core/store"
 )
-
-// POST /api/check/all
-
-func (s *Server) handleCheckAll(w http.ResponseWriter, r *http.Request) {
-	entries, err := store.LoadTracker(s.home)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	if len(entries) == 0 {
-		writeJSON(w, http.StatusOK, map[string]string{"task_id": ""})
-		return
-	}
-	checker.ClearURLCache()
-	p := store.NewProgress(len(entries))
-	go s.runTrackerChecksAsync(entries, p, "all")
-	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(len(entries))})
-}
 
 // POST /api/check/ids
 
@@ -53,23 +36,24 @@ func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if len(entries) == 0 {
-		writeJSON(w, http.StatusOK, map[string]string{"task_id": ""})
+		writeJSON(w, http.StatusOK, []checker.CheckResponse{})
 		return
 	}
-	// 单个检查直接返回，避免 SSE 竞态
-	if len(entries) <= 1 {
-		store.Logf("[check/ids/direct] %v", ids)
-		checker.ClearURLCache()
-		result := s.runTrackerChecksSync(entries)
-		saveCheckTemp(s.home, "ids", result)
-		writeJSON(w, http.StatusOK, result)
-		return
-	}
-	store.Logf("[check/ids] %v", ids)
 	checker.ClearURLCache()
-	p := store.NewProgress(len(entries))
-	go s.runTrackerChecksAsync(entries, p, "ids")
-	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(len(entries))})
+	jobs, _ := s.buildCheckJobs(entries)
+	var results []checker.CheckResponse
+	for _, job := range jobs {
+		resp, err := checker.RunCheck(job.req)
+		if err != nil {
+			store.Emit("error", "[check]", fmt.Sprintf("%s: %v", job.name, err))
+			continue
+		}
+		results = append(results, resp)
+	}
+	if results == nil {
+		results = []checker.CheckResponse{}
+	}
+	writeJSON(w, http.StatusOK, results)
 }
 
 // POST /api/check/tracker
@@ -94,7 +78,7 @@ func (s *Server) handleCheckTracker(w http.ResponseWriter, r *http.Request) {
 	store.Logf("[check/tracker] %s", body.TrackerID)
 	checker.ClearURLCache()
 	p := store.NewProgress(len(entries))
-	go s.runTrackerChecksAsync(entries, p, "tracker")
+	go s.runTrackerChecksAsync(entries, p, body.TrackerID)
 	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(len(entries))})
 }
 
@@ -246,58 +230,7 @@ func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) 
 	return jobs, conc
 }
 
-func runChecksSync(jobs []checkJob, conc int) []checker.CheckResponse {
-	if len(jobs) <= 1 {
-		var results []checker.CheckResponse
-		for _, job := range jobs {
-			resp, err := checker.RunCheck(job.req)
-			if err != nil {
-				store.Emit("error", "[check]", fmt.Sprintf("%s: %v", job.name, err))
-				continue
-			}
-			results = append(results, resp)
-		}
-		if results == nil {
-			results = []checker.CheckResponse{}
-		}
-		return mergeResults(results)
-	}
-
-	sem := make(chan struct{}, conc)
-	var mu sync.Mutex
-	var results []checker.CheckResponse
-	var wg sync.WaitGroup
-
-	for _, job := range jobs {
-		wg.Add(1)
-		go func(j checkJob) {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			resp, err := checker.RunCheck(j.req)
-			if err != nil {
-				store.Emit("error", "[check]", fmt.Sprintf("%s: %v", j.name, err))
-				return
-			}
-			mu.Lock()
-			results = append(results, resp)
-			mu.Unlock()
-		}(job)
-	}
-	wg.Wait()
-	if results == nil {
-		results = []checker.CheckResponse{}
-	}
-	return mergeResults(results)
-}
-
-func (s *Server) runTrackerChecksSync(entries []store.TrackerEntry) []checker.CheckResponse {
-	jobs, conc := s.buildCheckJobs(entries)
-	return runChecksSync(jobs, conc)
-}
-
-func (s *Server) runTrackerChecksAsync(entries []store.TrackerEntry, p *store.Progress, tempType string) {
+func (s *Server) runTrackerChecksAsync(entries []store.TrackerEntry, p *store.Progress, trackerID string) {
 	defer p.Close()
 
 	jobs, conc := s.buildCheckJobs(entries)
@@ -337,7 +270,7 @@ func (s *Server) runTrackerChecksAsync(entries []store.TrackerEntry, p *store.Pr
 	wg.Wait()
 
 	final := mergeResults(results)
-	saveCheckTemp(s.home, tempType, final)
+	saveCheckTemp(s.home, trackerID, final)
 }
 
 func mergeResults(results []checker.CheckResponse) []checker.CheckResponse {
@@ -362,28 +295,33 @@ func mergeResults(results []checker.CheckResponse) []checker.CheckResponse {
 	return final
 }
 
-// GET /api/check/temp/{type}
+// GET /api/check/temp/{tracker_id}
 
 func (s *Server) handleCheckTemp(w http.ResponseWriter, r *http.Request) {
-	typ := r.PathValue("type")
-	if typ != "ids" && typ != "all" && typ != "tracker" {
-		writeError(w, http.StatusBadRequest, "invalid type: must be ids, all, or tracker")
+	trackerID := r.PathValue("type")
+	if trackerID == "" {
+		writeError(w, http.StatusBadRequest, "missing tracker_id")
 		return
 	}
-	results, err := store.LoadLatestCheckTemp(s.home, typ)
+	cache, err := store.LoadTrackerTemp(s.home, trackerID)
 	if err != nil {
+		if os.IsNotExist(err) {
+			writeJSON(w, http.StatusOK, map[string]any{"results": []store.TempCheckResult{}, "expired": false})
+			return
+		}
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if results == nil {
-		results = []store.TempCheckResult{}
-	}
-	writeJSON(w, http.StatusOK, results)
+	expired := store.IsExpired(cache)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"results": cache.Results,
+		"expired": expired,
+	})
 }
 
 // 辅助
 
-func saveCheckTemp(home, typ string, results []checker.CheckResponse) {
+func saveCheckTemp(home, trackerID string, results []checker.CheckResponse) {
 	var temp []store.TempCheckResult
 	for _, r := range results {
 		platforms := make(map[string]store.TempCheckPlatform)
@@ -401,7 +339,7 @@ func saveCheckTemp(home, typ string, results []checker.CheckResponse) {
 			Platforms: platforms,
 		})
 	}
-	if err := store.SaveCheckTemp(home, typ, temp); err != nil {
+	if err := store.SaveTrackerTemp(home, trackerID, temp); err != nil {
 		store.Emit("error", "[check]", fmt.Sprintf("保存检查结果缓存失败: %v", err))
 	}
 }

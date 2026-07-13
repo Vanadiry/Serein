@@ -51,11 +51,8 @@
   document.getElementById("btn-tracker-check").onclick = () => {
     confirmDialog("将检查当前 Tracker 中所有软件的更新", checkTracker);
   };
-  document.getElementById("btn-check-all").onclick = () => {
-    confirmDialog("将检查全部 Tracker 中所有软件的更新", checkAll);
-  };
   document.getElementById("btn-read-cache").onclick = () => {
-    confirmDialog("将读取最近一次的检查结果缓存", readCache);
+    confirmDialog("将读取当前 Tracker 的检查结果缓存", readCache);
   };
   document.getElementById("btn-new-tracker").onclick = () => {
     showModal(`
@@ -218,7 +215,6 @@
     const ld = showLoading("加载中", "正在检查...");
     const data = await apiPost("/api/check/ids", [appId]);
     mergeCheckResults(data || []);
-    // 仅刷新单应用，直接更新列表不触发动画
     const detail = await api("/api/tracker/list/" + currentTracker) || [];
     const list = document.getElementById("software-list");
     if (!list.classList.contains("hidden")) {
@@ -325,22 +321,12 @@
     return errs;
   }
 
-  function finishCheck() {
-    var tempType = "all";
-    // 从 temp 缓存读取结果
-    api("/api/check/temp/all").then(function (data) {
-      mergeCheckResults(data || []);
-      loadTrackerDetail(currentTracker);
-      var errs = collectErrors(data || []);
-      showCheckDone(errs);
-    });
-  }
-
   function finishCheckTracker() {
-    api("/api/check/temp/tracker").then(function (data) {
-      mergeCheckResults(data || []);
+    api("/api/check/temp/" + currentTracker).then(function (data) {
+      var results = (data && data.results) || [];
+      mergeCheckResults(results);
       loadTrackerDetail(currentTracker);
-      var errs = collectErrors(data || []);
+      var errs = collectErrors(results);
       showCheckDone(errs);
     });
   }
@@ -348,11 +334,6 @@
   function checkTracker() {
     console.log("[check] tracker:", currentTracker);
     asyncCheck("/api/check/tracker", { tracker_id: currentTracker }, finishCheckTracker);
-  }
-
-  function checkAll() {
-    console.log("[check] all");
-    asyncCheck("/api/check/all", null, finishCheck);
   }
 
   function showCheckDone(errs) {
@@ -372,12 +353,17 @@
   }
 
   async function readCache() {
+    if (!currentTracker) return;
     const ld = showLoading("加载中", "正在读取缓存...");
-    for (const t of ["all", "ids", "tracker"]) {
-      mergeCheckResults(await api("/api/check/temp/" + t));
+    var data = await api("/api/check/temp/" + currentTracker);
+    var results = (data && data.results) || [];
+    mergeCheckResults(results);
+    if (data && data.expired) {
+      ld.done("缓存已超过 24 小时，可能不是最新", true, "过期缓存");
+    } else {
+      ld.done("读取完成");
     }
     loadTrackerDetail(currentTracker);
-    ld.done("读取完成");
   }
 
   function mergeCheckResults(data) {
