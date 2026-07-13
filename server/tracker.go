@@ -12,10 +12,6 @@ import (
 // GET /api/tracker/list/all
 
 func (s *Server) handleTrackerListAll(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "GET required")
-		return
-	}
 	list, err := store.LoadAllTrackerInfo(s.home)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -30,10 +26,6 @@ func (s *Server) handleTrackerListAll(w http.ResponseWriter, r *http.Request) {
 // GET /api/tracker/list/{id}
 
 func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "GET required")
-		return
-	}
 	id := strings.TrimPrefix(r.URL.Path, "/api/tracker/list/")
 	if id == "" {
 		writeError(w, http.StatusBadRequest, "missing tracker id")
@@ -104,10 +96,6 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 // POST /api/tracker/new
 
 func (s *Server) handleTrackerNew(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeError(w, http.StatusMethodNotAllowed, "POST required")
-		return
-	}
 	var body struct {
 		ID string `json:"id"`
 	}
@@ -129,10 +117,6 @@ func (s *Server) handleTrackerNew(w http.ResponseWriter, r *http.Request) {
 // POST /api/tracker/add
 
 func (s *Server) handleTrackerAdd(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeError(w, http.StatusMethodNotAllowed, "POST required")
-		return
-	}
 	var body struct {
 		TrackerID string   `json:"tracker_id"`
 		AppID     string   `json:"app_id"`
@@ -167,10 +151,6 @@ func (s *Server) handleTrackerAdd(w http.ResponseWriter, r *http.Request) {
 // GET /api/tracker/apps
 
 func (s *Server) handleTrackerApps(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "GET required")
-		return
-	}
 	entries, err := store.LoadTracker(s.home)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())

@@ -15,10 +15,6 @@ import (
 // POST /api/check/all
 
 func (s *Server) handleCheckAll(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeError(w, http.StatusMethodNotAllowed, "POST required")
-		return
-	}
 	entries, err := store.LoadTracker(s.home)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -37,10 +33,6 @@ func (s *Server) handleCheckAll(w http.ResponseWriter, r *http.Request) {
 // POST /api/check/ids
 
 func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeError(w, http.StatusMethodNotAllowed, "POST required")
-		return
-	}
 	var ids []string
 	if err := json.NewDecoder(r.Body).Decode(&ids); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid body: expected array of rule ids")
@@ -83,10 +75,6 @@ func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
 // POST /api/check/tracker
 
 func (s *Server) handleCheckTracker(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeError(w, http.StatusMethodNotAllowed, "POST required")
-		return
-	}
 	var body struct {
 		TrackerID string `json:"tracker_id"`
 	}
@@ -113,10 +101,6 @@ func (s *Server) handleCheckTracker(w http.ResponseWriter, r *http.Request) {
 // POST /api/check/confirm
 
 func (s *Server) handleCheckConfirm(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeError(w, http.StatusMethodNotAllowed, "POST required")
-		return
-	}
 	var body map[string]string
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid body")
@@ -387,10 +371,6 @@ func mergeResults(results []checker.CheckResponse) []checker.CheckResponse {
 // GET /api/check/temp/{type}
 
 func (s *Server) handleCheckTemp(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "GET required")
-		return
-	}
 	typ := r.PathValue("type")
 	if typ != "ids" && typ != "all" && typ != "tracker" {
 		writeError(w, http.StatusBadRequest, "invalid type: must be ids, all, or tracker")

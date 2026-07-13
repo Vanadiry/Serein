@@ -12,10 +12,6 @@ import (
 // POST /api/rules/sync
 
 func (s *Server) handleRulesSync(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeError(w, http.StatusMethodNotAllowed, "POST required")
-		return
-	}
 	if len(s.config.RuleSources) == 0 {
 		writeJSON(w, http.StatusOK, map[string]string{"task_id": ""})
 		return
@@ -29,10 +25,6 @@ func (s *Server) handleRulesSync(w http.ResponseWriter, r *http.Request) {
 // GET /api/rules/list/all
 
 func (s *Server) handleRulesListAll(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "GET required")
-		return
-	}
 	list, err := store.ListAllSourceInfos(s.home)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -47,10 +39,6 @@ func (s *Server) handleRulesListAll(w http.ResponseWriter, r *http.Request) {
 // GET /api/rules/list/{source_id}
 
 func (s *Server) handleRulesListBySource(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "GET required")
-		return
-	}
 	sourceID := strings.TrimPrefix(r.URL.Path, "/api/rules/list/")
 	if sourceID == "" || sourceID == "all" || sourceID == "search" {
 		writeError(w, http.StatusBadRequest, "missing source_id")
@@ -70,10 +58,6 @@ func (s *Server) handleRulesListBySource(w http.ResponseWriter, r *http.Request)
 // GET /api/rules/list/search?q=xxx
 
 func (s *Server) handleRulesListSearch(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		writeError(w, http.StatusMethodNotAllowed, "GET required")
-		return
-	}
 	q := strings.ToLower(r.URL.Query().Get("q"))
 	if q == "" {
 		writeError(w, http.StatusBadRequest, "missing q param")
