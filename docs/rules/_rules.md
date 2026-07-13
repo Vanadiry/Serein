@@ -14,7 +14,6 @@
 - [XML](xml.md)
 - [正则表达式](regex.md)
 - [HTML 选择器](html_selector.md)
-- [HTML XPath](html_xpath.md)
 - [GitHub Release](github.md)
 
 ## 创建规则源

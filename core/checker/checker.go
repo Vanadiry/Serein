@@ -126,8 +126,6 @@ func extractValue(body []byte, typ string, pos any, join, baseURL string) (any, 
 		return extractRegexValue(body, pos)
 	case "html_selector":
 		return extractSelectorValue(body, pos, baseURL)
-	case "html_xpath":
-		return extractXPathValue(body, pos, baseURL)
 	default:
 		store.Emit("warn", "[checker]", fmt.Sprintf("未知提取类型: %s", typ))
 		return nil, nil

@@ -87,7 +87,6 @@ d_url = "https://cdn.example.com/releases/{version}/app.dmg"
 - [XML](xml.md)
 - [正则表达式](regex.md)
 - [HTML 选择器](html_selector.md)
-- [HTML XPath](html_xpath.md)
 - [GitHub Release](github.md)
 - 直通（仅用于 `v_type` / `d_type`，详见上方[直通模式](#直通模式)）
 

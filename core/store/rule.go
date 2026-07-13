@@ -24,7 +24,7 @@ type RuleInfo struct {
 }
 
 // Position 在 TOML 中可为 []any（层级数组）、[][]any（多路径）、
-// string（正则/XPath）或 map[string]any（html_selector）。
+// string（正则）或 map[string]any（html_selector）。
 // 解析后存为 any，由 checker 运行时判断。
 type Position = any
 

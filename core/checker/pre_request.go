@@ -76,8 +76,6 @@ func extractURL(body []byte, typ string, pos any, baseURL string) (string, error
 		return extractFromRegex(body, pos)
 	case "html_selector":
 		return extractFromHTMLSelector(body, pos, baseURL)
-	case "html_xpath":
-		return extractFromHTMLXPath(body, pos, baseURL)
 	default:
 		return "", fmt.Errorf("unknown pre_request type: %s", typ)
 	}
@@ -205,24 +203,6 @@ func extractFromHTMLSelector(body []byte, pos any, baseURL string) (string, erro
 		if err != nil {
 			return "", err
 		}
-	}
-	return applyBaseURL(val, baseURL), nil
-}
-
-// html_xpath
-
-func extractFromHTMLXPath(body []byte, pos any, baseURL string) (string, error) {
-	sel, err := parseHTML(body)
-	if err != nil {
-		return "", err
-	}
-	expr, ok := pos.(string)
-	if !ok {
-		return "", fmt.Errorf("html_xpath position must be string, got %T", pos)
-	}
-	val, err := evalXPath(sel, expr)
-	if err != nil {
-		return "", err
 	}
 	return applyBaseURL(val, baseURL), nil
 }

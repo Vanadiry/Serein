@@ -1,4 +1,4 @@
-// 响应体解析器：JSON/XML 转 tree、HTML 转 goquery、正则捕获、XPath。
+// 响应体解析器：JSON/XML 转 tree、HTML 转 goquery、正则捕获。
 package checker
 
 import (
@@ -204,43 +204,4 @@ func matchRegex(body, pattern string) (string, error) {
 
 func matchRegexString(text, pattern string) (string, error) {
 	return matchRegex(text, pattern)
-}
-
-// XPath
-
-func evalXPath(doc *goquery.Document, expr string) (string, error) {
-	// XPath 简化实现：支持少量常用语法
-	// 完整 XPath 需引入第三方库，此处用 goquery 的 CSS + 简单解析兜底
-	sel, attr, err := parseXPathExpr(expr)
-	if err != nil {
-		// 兜底：将 XPath 当 CSS 选择器用
-		el := doc.Find(expr).First()
-		if el.Length() == 0 {
-			return "", fmt.Errorf("xpath: no match for %q", expr)
-		}
-		return strings.TrimSpace(el.Text()), nil
-	}
-	el := doc.Find(sel).First()
-	if el.Length() == 0 {
-		return "", fmt.Errorf("xpath: no match for %q", expr)
-	}
-	if attr != "" {
-		val, _ := el.Attr(attr)
-		return val, nil
-	}
-	return strings.TrimSpace(el.Text()), nil
-}
-
-// parseXPathExpr 将简单 XPath 转为 CSS 选择器 + 属性名。
-// 仅支持: //tag[@attr='val']/@attr, //tag/text()
-func parseXPathExpr(expr string) (cssSel, attr string, err error) {
-	// 去掉 /text() 和 /@xxx 尾部
-	if strings.HasSuffix(expr, "/text()") {
-		return strings.TrimSuffix(expr, "/text()"), "", nil
-	}
-	parts := strings.Split(expr, "/@")
-	if len(parts) == 2 {
-		return parts[0], parts[1], nil
-	}
-	return expr, "", nil
 }
