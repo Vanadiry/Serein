@@ -36,7 +36,7 @@
       <div id="search-placeholder" class="text-sub text-sm max-w-[600px] pt-[25vh] pl-2">
         <h2 class="text-base font-semibold text-text mb-3">规则</h2>
         <p class="mb-2">输入关键词来搜索规则。支持按 app_id 或名称匹配。</p>
-        <p>若是你第一次启动，请点击右上角的「同步规则」来拉取内置的规则表。</p>
+        <p>若是你第一次启动，请点击右上角的「拉取规则」来拉取内置的规则表。</p>
       </div>
     </div>
     <!-- 卡片视图 -->
@@ -200,7 +200,7 @@
 
     const rules = await api("/api/rules/list/search?q=" + encodeURIComponent(q)) || [];
     if (!rules.length) {
-      grid.innerHTML = '<div class="col-span-full text-center py-10 text-sub text-sm">未找到结果<br><span class="text-xs">请尝试点击右上角「同步规则」拉取最新的规则表</span></div>';
+      grid.innerHTML = '<div class="col-span-full text-center py-10 text-sub text-sm">未找到结果<br><span class="text-xs">请尝试点击右上角「拉取规则」拉取最新的规则表</span></div>';
       return;
     }
     grid.innerHTML = renderCards(rules);

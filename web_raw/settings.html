@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN" class="bg-bg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>设置 - Serein</title>
+<link rel="icon" href="/assets/favicon.svg">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body class="text-text min-h-screen">
+<div id="topbar"></div>
+
+<main class="max-w-[1200px] mx-auto p-6 flex gap-8">
+  <div class="flex-1 min-w-0">
+    <div id="settings-form"></div>
+  </div>
+  <div class="hidden lg:block w-px bg-bord-light shrink-0"></div>
+  <div class="flex-1 min-w-0 hidden lg:block">
+    <div id="settings-sidebar" class="sticky top-6"></div>
+  </div>
+</main>
+
+<script src="/assets/app.min.js"></script>
+<script>
+renderTopbar("设置");
+
+var _prefDefs = [
+  { key: "theme", label: "界面主题", section: "外观",
+    choices: [{k:"auto",l:"同步系统"}, {k:"dark",l:"深色"}, {k:"light",l:"浅色"}] }
+];
+
+var _configSections = [
+  { title: "服务器", keys: ["监听地址"] },
+  { title: "下载", keys: ["下载器", "并发数"] },
+  { title: "Tracker", keys: ["默认平台"] },
+  { title: "规则源", keys: ["规则源"] }
+];
+
+function sectionTitle(title) {
+  return '<div class="flex items-center gap-2 mt-6 mb-3 first:mt-0">' +
+    '<span class="w-[3px] h-[18px] bg-accent rounded-sm"></span>' +
+    '<span class="font-bold text-sm">' + title + "</span></div>";
+}
+
+function renderLeft() {
+  var prefs = {};
+  for (var i = 0; i < _prefDefs.length; i++) {
+    var d = _prefDefs[i];
+    prefs[d.key] = d.choices ? getThemePreference() : localStorage.getItem(d.key) || "";
+  }
+
+  var sections = {};
+  for (var i = 0; i < _prefDefs.length; i++) {
+    var d = _prefDefs[i];
+    if (!sections[d.section]) sections[d.section] = [];
+    sections[d.section].push(d);
+  }
+
+  var html = '<h2 class="text-lg font-bold text-text mb-1">前端设置</h2>' +
+    '<p class="text-xs text-sub mb-4">修改后即时生效，无需重启</p>';
+  var secNames = Object.keys(sections);
+  for (var s = 0; s < secNames.length; s++) {
+    var sec = secNames[s];
+    html += sectionTitle(sec);
+    for (var i = 0; i < sections[sec].length; i++) {
+      var d = sections[sec][i];
+      var val = prefs[d.key];
+      html += '<div class="flex items-center gap-3 py-1.5 px-2 -mx-2 rounded-lg transition-colors duration-200 hover:bg-active">';
+      html += '<div class="flex-1 min-w-0"><div class="text-sm text-text truncate">' + d.label + "</div>";
+      html += '<div class="text-[11px] text-sub truncate mt-0.5">' + d.key + "</div></div>";
+      if (d.choices) {
+        html += '<select id="f-' + d.key + '" class="w-[140px] shrink-0 px-3 py-2 rounded-lg border border-bord bg-input text-sm outline-none">';
+        for (var j = 0; j < d.choices.length; j++) {
+          html += '<option value="' + d.choices[j].k + '"' + (val === d.choices[j].k ? " selected" : "") + ">" + d.choices[j].l + "</option>";
+        }
+        html += "</select>";
+      } else {
+        html += '<input id="f-' + d.key + '" value="' + val + '" class="w-[200px] shrink-0 px-3 py-2 rounded-lg border border-bord bg-input text-sm outline-none">';
+      }
+      html += "</div>";
+    }
+  }
+  html += '<button onclick="saveSettings()" class="w-full mt-6 px-4 py-2.5 rounded-xl bg-accent text-white text-sm font-semibold cursor-pointer border-0 hover:opacity-90 transition-all active:scale-[0.98]">保存设置</button>';
+  document.getElementById("settings-form").innerHTML = html;
+}
+
+function saveSettings() {
+  for (var i = 0; i < _prefDefs.length; i++) {
+    var d = _prefDefs[i];
+    var el = document.getElementById("f-" + d.key);
+    if (!el) continue;
+    if (d.key === "theme") {
+      setThemePreference(el.value);
+    } else {
+      localStorage.setItem(d.key, el.value);
+    }
+  }
+}
+
+function renderRight(config) {
+  var html = '<h2 class="text-lg font-bold text-text mb-1">后端参数</h2>' +
+    '<p class="text-xs text-sub mb-4">修改需编辑 config.toml 并重启应用</p>';
+  for (var s = 0; s < _configSections.length; s++) {
+    var sec = _configSections[s];
+    html += sectionTitle(sec.title);
+    for (var i = 0; i < sec.keys.length; i++) {
+      var k = sec.keys[i];
+      var v = config[k] || "";
+      var display = k === "规则源" ? v.replace(/\n/g, "<br>") : v;
+      html += '<div class="flex items-start gap-3 py-1.5 px-2 -mx-2 rounded-lg transition-colors duration-200 hover:bg-active">' +
+        '<div class="flex-1 min-w-0"><div class="text-sm text-text truncate">' + k + "</div></div>" +
+        '<div class="text-sm text-sub shrink-0 text-right max-w-[60%] break-all">' + (display || '<span class="italic text-sub">未设置</span>') + "</div></div>";
+    }
+  }
+  document.getElementById("settings-sidebar").innerHTML = html;
+}
+
+renderLeft();
+api("/api/config").then(renderRight);
+</script>
+</body>
+</html>

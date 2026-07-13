@@ -12,6 +12,7 @@ build/
 web/assets/app.min.js
 web/index.html
 web/rules.html
+web/settings.html
 
 # Tauri
 /src-tauri/target/

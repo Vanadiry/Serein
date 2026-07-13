@@ -3,12 +3,28 @@ var SEREIN_DOWNLOADER = "__DL__";
 var DOWNLOAD_EXTS = /\.(exe|zip|dmg|pkg|msi|apk|deb|rpm|AppImage|tar\.gz|tar\.xz|tar\.bz2|gz|bz2|xz|7z|rar|ipa|iso|jar|ttf|otf|ttc|woff2?)$/i;
 const API = window.location.origin;
 
-// 主题：跟随系统
+// 主题：localStorage > 系统偏好
 (function () {
-  var mq = window.matchMedia("(prefers-color-scheme: light)");
-  function apply(e) { document.documentElement.classList.toggle("light", e.matches); }
-  apply(mq);
-  mq.addEventListener("change", apply);
+  var saved = localStorage.getItem("theme");
+  function applyBySystem() {
+    return window.matchMedia("(prefers-color-scheme: light)").matches;
+  }
+  function setTheme(theme) {
+    var isLight = theme === "light" || (theme !== "dark" && applyBySystem());
+    document.documentElement.classList.toggle("light", isLight);
+  }
+  setTheme(saved || "auto");
+  window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", function () {
+    var current = localStorage.getItem("theme") || "auto";
+    if (current === "auto") setTheme("auto");
+  });
+  window.setThemePreference = function (theme) {
+    localStorage.setItem("theme", theme);
+    setTheme(theme);
+  };
+  window.getThemePreference = function () {
+    return localStorage.getItem("theme") || "auto";
+  };
 })();
 
 // API
@@ -39,6 +55,7 @@ function renderTopbar(current) {
   }
 
   const isIndex = path === "/" || path === "/index.html" || path === "";
+  const isSettings = path === "/settings" || path === "/settings.html";
 
   tb.innerHTML = `
     <div class="bg-bg border-b border-bord-light">
@@ -47,6 +64,7 @@ function renderTopbar(current) {
         <nav class="flex gap-1 ml-2 items-center">
           <a href="/" class="no-underline px-3 py-1.5 rounded-lg text-sm ${navCls("/")}">应用</a>
           <a href="/rules" class="no-underline px-3 py-1.5 rounded-lg text-sm ${navCls("/rules")}">规则</a>
+          <a href="/settings" class="no-underline px-3 py-1.5 rounded-lg text-sm ${navCls("/settings")}">设置</a>
         </nav>
         <div class="flex-1"></div>
         <nav class="flex gap-1 items-center">
@@ -54,8 +72,8 @@ function renderTopbar(current) {
           <button id="btn-read-cache" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">读取缓存</button>
           <button id="btn-check-all" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">检查全部</button>
           <button id="btn-tracker-check" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">检查当前 Tracker</button>
-          ` : `
-          <button id="btn-sync" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">同步规则</button>
+          ` : isSettings ? "" : `
+          <button id="btn-sync" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">拉取规则</button>
           `}
         </nav>
       </div>
@@ -67,7 +85,7 @@ function renderTopbar(current) {
   }
 }
 
-// 同步规则（可从管理弹窗或别处调用）
+// 拉取规则（可从管理弹窗或别处调用）
 async function syncRules() {
   console.log("[sync]");
   var res = await apiPost("/api/rules/sync");
@@ -512,10 +530,10 @@ async function asyncCheck(apiPath, body, onDone) {
   evt.onerror = function () { evt.close(); pm.close(); onDone(); };
 }
 
-// SSE 进度同步规则
+// SSE 进度拉取规则
 function startSyncProgress(taskId) {
   var sourcesSkipped = 0, sourcesUpdated = 0, sourcesFailed = 0, filesTotal = 0, fileErrors = 0;
-  var pm = showProgressModal("同步规则", API + "/api/check/cancel/" + taskId);
+  var pm = showProgressModal("拉取规则", API + "/api/check/cancel/" + taskId);
   var evt = new EventSource(API + "/api/progress/" + taskId);
   evt.onmessage = function (e) {
     var d = JSON.parse(e.data);
@@ -528,7 +546,7 @@ function startSyncProgress(taskId) {
       if (sourcesFailed > 0) parts.push(sourcesFailed + " 个源获取失败");
       var msg = parts.length > 0 ? "同步完成（" + parts.join("，") + "）" : "同步完成";
       var hasError = sourcesFailed > 0 || fileErrors > 0;
-      showLoading("同步规则", msg).done(msg, hasError);
+      showLoading("拉取规则", msg).done(msg, hasError);
       if (hasError) flashOverlay();
       if (typeof loadSources === "function") loadSources();
       return;

@@ -55,4 +55,4 @@ python3 scripts/build.py desktop   # Serein Desktop
 程序首次启动时会在 `~/.vSoft/Serein/` 生成 `config.toml`。  
 通过环境变量 `SEREIN_HOME` 可自定义主目录。
 
-首次启动请前往规则页点击「同步规则」拉取内置规则表。
+首次启动请前往规则页点击「拉取规则」拉取内置规则表。
