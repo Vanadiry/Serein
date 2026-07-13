@@ -113,12 +113,7 @@ type leafSrc struct {
 // 2. 并发下载所有规则文件 → 发 file 事件（done/total）
 func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *Progress) {
 	defer p.Close()
-	if concurrency < 1 {
-		concurrency = 1
-	}
-	if concurrency > 64 {
-		concurrency = 64
-	}
+	concurrency = ClampConcurrency(concurrency)
 
 	rulesDir := filepath.Join(home, "rules")
 

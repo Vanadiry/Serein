@@ -159,13 +159,7 @@ func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) 
 		store.Emit("error", "[check]", fmt.Sprintf("加载用户数据失败: %v", udErr))
 	}
 
-	conc := cfg.Download.Concurrency
-	if conc < 1 {
-		conc = 1
-	}
-	if conc > 64 {
-		conc = 64
-	}
+	conc := store.ClampConcurrency(cfg.Download.Concurrency)
 
 	var jobs []checkJob
 	for _, entry := range entries {

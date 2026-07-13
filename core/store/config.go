@@ -96,3 +96,13 @@ func encodeTOML(path string, v any) error {
 	defer f.Close()
 	return toml.NewEncoder(f).Encode(v)
 }
+
+func ClampConcurrency(n int) int {
+	if n < 1 {
+		return 1
+	}
+	if n > 64 {
+		return 64
+	}
+	return n
+}
