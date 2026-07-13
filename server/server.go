@@ -47,6 +47,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/check/temp/{type}", s.handleCheckTemp)
 	s.mux.HandleFunc("GET /api/progress/{task_id}", store.HandleProgressSSE)
 	s.mux.HandleFunc("POST /api/check/cancel/{task_id}", store.HandleProgressCancel)
+	s.mux.HandleFunc("GET /api/events", handleEvents)
 
 	s.mux.HandleFunc("POST /api/rules/sync", s.handleRulesSync)
 	s.mux.HandleFunc("/api/rules/list/all", s.handleRulesListAll)
@@ -132,5 +133,6 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 func writeError(w http.ResponseWriter, status int, msg string) {
+	store.Emit("error", "", msg)
 	writeJSON(w, status, map[string]string{"error": msg})
 }

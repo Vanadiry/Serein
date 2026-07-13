@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/vanadiry/serein/core/store"
 )
 
 // CheckConfig 一次检查的配置
@@ -127,6 +129,7 @@ func extractValue(body []byte, typ string, pos any, join, baseURL string) (any, 
 	case "html_xpath":
 		return extractXPathValue(body, pos, baseURL)
 	default:
+		store.Emit("warn", "[checker]", fmt.Sprintf("未知提取类型: %s", typ))
 		return nil, nil
 	}
 }

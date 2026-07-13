@@ -3,6 +3,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"sync"
@@ -262,6 +263,7 @@ func runChecksSync(jobs []checkJob, conc int) []checker.CheckResponse {
 		for _, job := range jobs {
 			resp, err := checker.RunCheck(job.req)
 			if err != nil {
+				store.Emit("error", "[check]", fmt.Sprintf("%s: %v", job.name, err))
 				continue
 			}
 			results = append(results, resp)
@@ -286,6 +288,7 @@ func runChecksSync(jobs []checkJob, conc int) []checker.CheckResponse {
 
 			resp, err := checker.RunCheck(j.req)
 			if err != nil {
+				store.Emit("error", "[check]", fmt.Sprintf("%s: %v", j.name, err))
 				return
 			}
 			mu.Lock()
@@ -330,6 +333,7 @@ func (s *Server) runTrackerChecksAsync(entries []store.TrackerEntry, p *store.Pr
 
 			resp, err := checker.RunCheck(j.req)
 			if err != nil {
+				store.Emit("error", "[check]", fmt.Sprintf("%s: %v", j.name, err))
 				return
 			}
 			mu.Lock()

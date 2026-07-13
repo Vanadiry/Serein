@@ -540,3 +540,19 @@ function startSyncProgress(taskId) {
   };
   evt.onerror = function () { evt.close(); pm.close(); if (typeof loadSources === "function") loadSources(); };
 }
+
+(function() {
+  function connectEvents() {
+    var es = new EventSource(API + "/api/events");
+    es.onmessage = function(e) {
+      var d = JSON.parse(e.data);
+      if (d.level === "error") {
+        _makeToast("错误: " + (d.context || "后端"), d.message, "bg-err", "bg-err/80", 0);
+      } else if (d.level === "warn") {
+        _makeToast("警告: " + (d.context || "后端"), d.message, "bg-warn", "bg-warn/80", 8);
+      }
+    };
+    es.onerror = function() { es.close(); setTimeout(connectEvents, 3000); };
+  }
+  connectEvents();
+})();

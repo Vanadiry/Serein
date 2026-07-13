@@ -94,6 +94,7 @@ func LoadRules(home string) (map[string]Rule, error) {
 
 		rule, parseErr := ParseRuleFile(path)
 		if parseErr != nil {
+			Emit("error", "[rules]", fmt.Sprintf("解析规则文件失败 %s: %v", path, parseErr))
 			return nil
 		}
 		rule.SourceID = sourceID
