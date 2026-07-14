@@ -20,6 +20,7 @@ Serein 首次启动时，会生成默认配置：
 [serein]
 host = "127.0.0.1"     # 监听地址，设为 0.0.0.0 则允许局域网访问
 port = 12510           # 监听端口
+first_run = true       # 首次运行时展示欢迎指引，设为 false 可永久关闭
 
 [tracker]
 platforms = ["macos", "windows"]  # 全局平台偏好，可被 Tracker 中的记录覆盖
@@ -31,9 +32,12 @@ concurrency = 8        # 检查更新时的并发数，最大允许 64
 [access]
 # github_token = "github_pat_xxx" # GitHub 令牌，用于提升请求限制
 
-[[rule_sources]]                  # 规则源，默认为 Vanadiry 维护的规则源。你可以添加新的 url 来指定更多
-url = "https://111.xx/"
-[[rule_sources]]                  # 规则源 2
+[profile]              # 动态配置，指向 profile.json 文件
+url = "https://raw.githubusercontent.com/Vanadiry/SereinRulesList/refs/heads/main/profile.json"
+
+[[rule_sources]]       # 规则源，默认为 Vanadiry 维护的规则源。你可以添加新的 url 来指定更多
+url = "https://raw.githubusercontent.com/Vanadiry/SereinRulesList/refs/heads/main/_source.json"
+[[rule_sources]]       # 规则源 2
 url = "https://222.xx/"
 ```
 
@@ -60,6 +64,11 @@ Serein 不会收集你的 Token，请勿将 Token 外泄。
 
 规则源可以配置多个，每条都必须指向一个 `_source.json` 文件，远端或本地皆可。  
 如果你是规则编写者，请查看 [rules/source](rules/_source.md)。
+
+### 动态配置
+
+Serein 从远端拉取 `profile.json` 来自动更新前端行为，例如何种链接被下载器捕获、版本前后缀去除。  
+你可以在规则页面右上角拉取动态配置。
 
 ## Tracker
 
