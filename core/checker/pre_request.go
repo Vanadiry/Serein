@@ -125,6 +125,38 @@ func doRequest(client *http.Client, url, ua string, headers map[string]string) (
 	return body, nil
 }
 
+func doPostRequest(client *http.Client, url, ua string, headers map[string]string, bodyJSON []byte) ([]byte, error) {
+	req, err := http.NewRequest("POST", url, strings.NewReader(string(bodyJSON)))
+	if err != nil {
+		return nil, err
+	}
+	uaVal := ua
+	if uaVal == "" {
+		uaVal = defaultUA
+	}
+	req.Header.Set("User-Agent", uaVal)
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
 // JSON
 
 func extractFromJSON(body []byte, pos any, baseURL string) (string, error) {
