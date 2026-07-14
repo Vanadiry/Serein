@@ -90,8 +90,17 @@ paths:
         content:
           application/json:
             schema:
-              type: array
-              items: { type: string }
+              type: object
+              required: [ids]
+              properties:
+                type:
+                  type: string
+                  enum: [app, msvsix, openvsx]
+                  default: app
+                  description: "app 使用规则表检查，msvsix/openvsx 直接调用对应市场 API"
+                ids:
+                  type: array
+                  items: { type: string }
       responses:
         "200":
           description: OK
@@ -314,7 +323,7 @@ paths:
   /api/download:
     post:
       tags: [Download]
-      summary: 发送到下载器
+      summary: 发送到下载器（根据 config 的 downloader 配置分发：browser/builtin/ndm/自定义命令）
       requestBody:
         content:
           application/json:
@@ -368,6 +377,7 @@ components:
         id: { type: string }
         display_name: { type: string }
         order: { type: integer }
+        type: { type: string, description: "app（默认）| msvsix | openvsx" }
     TrackerDetail:
       type: object
       properties:

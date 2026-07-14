@@ -27,7 +27,7 @@ platforms = ["macos", "windows"]  # 全局平台偏好，可被 Tracker 中的�
 
 [download]
 concurrency = 8        # 检查更新时的并发数，最大允许 64
-# downloader = "ndm"   # 下载器：空=浏览器，ndm=NeatDM，也可填入命令行（{url}替换为链接）
+# downloader = "browser"   # 下载器：browser（默认）| builtin | ndm | 自定义命令（{url}替换为链接）
 
 [access]
 # github_token = "github_pat_xxx" # GitHub 令牌，用于提升请求限制
@@ -54,11 +54,13 @@ Serein 不会收集你的 Token，请勿将 Token 外泄。
 
 ### 下载器
 
-在 `[download]` 节配置 `downloader`：
+在 `[download]` 节配置 `downloader`，留空则为默认：
 
-- 留空：下载链接在浏览器中打开，使用浏览器的下载
-- `"ndm"`：Neat Download Manager（内建 WebSocket 支持）
+- `browser`（默认）：在浏览器中打开下载链接，调用浏览器下载
+- `ndm`：Neat Download Manager
 - 自定义命令：如 `"aria2c {url}"`、`"IDMan.exe /d {url}"`，`{url}` 会被 Serein 替换为下载链接
+
+对于 VSIX 下载，使用 `ndm` 或自定义命令时会自动使用内建下载弹窗。
 
 ### 规则源
 
@@ -79,6 +81,7 @@ Tracker 文件存放在主目录的 `tracker` 目录下，每个 `.toml` 文件�
 ```toml
 display_name = "Tracker Name"  # 可选，仅供前端展示
 order = 1                      # 可选，排序（数字小的在前）
+type = "app"                   # 可选，类型（默认为 app，表示普通应用，或 msvsix / openvsx）
 
 [[tracker]]
 app_id = "vanadiry-seshat"
@@ -96,10 +99,19 @@ Tracker 中的 `platforms` 优先级高于配置文件中的 `platforms`。
 可以从规则页面搜索规则并添加到默认 Tracker。  
 推荐你根据 Tracker 格式，手动创建和管理。
 
+对于 VSCode 使用的 VSIX 扩展，Serein 内置了一套规则。  
+这使得无须规则表即可追踪来自“VS 插件市场”和“OpenVSX”的内容。
+
+如何编写 Tracker，请查看[rules/vsix](rules/vsix.md)
+
 ## 备份
 
-Serein 依赖 Tracker 来取得你希望追踪的 AppID，依赖 Rules 中的规则来检查更新。  
-你只需要备份主目录下的 `tracker` 文件夹即可。如果你自己写了规则，则还应备份你写的规则文件。
+主目录下共有 3 个子目录、1 个文件存放重要数据。
 
-规则是独立于 Serein 本体的。  
-如果你希望备份规则源中的内容，可以备份主目录下的 `rules` 文件夹，也可以克隆规则源的分发仓库。
+- `rules/`：规则表
+- `tracker/`：追踪列表
+- `user/`：已追踪软件版本、确认时间，以及动态配置
+- `config.toml`：Serein 主配置
+
+通常，你只需要备份 `tracker/` 和 `user/profile.json` 即可。  
+你可以按需求决定。

@@ -16,6 +16,10 @@
 - [HTML 选择器](html_selector.md)
 - [GitHub Release](github.md)
 
+内置规则，无须规则表：
+
+- [VSCode VSIX 扩展](vsix.md)
+
 ## 创建规则源
 
 规则源通过 `_source.json` 配置，允许远端或本地源。  
