@@ -1,232 +1,323 @@
 <!doctype html>
 <html lang="zh-CN" class="bg-bg">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>规则 | Serein</title>
-<link rel="icon" href="/assets/favicon.svg">
-<link rel="stylesheet" href="/assets/style.css">
-</head>
-<body class="text-text font-[system-ui] min-h-screen">
-<div id="topbar"></div>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>规则 | Serein</title>
+        <link rel="icon" href="/assets/favicon.svg" />
+        <link rel="stylesheet" href="/assets/style.css" />
+    </head>
+    <body class="text-text font-[system-ui] min-h-screen">
+        <div id="topbar"></div>
 
-<div class="max-w-[1200px] mx-auto p-6 flex gap-6 min-h-[calc(100vh-49px)]">
-  <aside class="w-[200px] shrink-0 pr-4 border-r border-bord-mid">
-    <div class="sticky top-6">
-      <button id="btn-search-tab" class="text-left w-full px-3 py-2 text-sm rounded-r-md transition-colors text-text bg-surface border-l-[2px] border-l-accent">搜索规则</button>
-      <div class="text-sm text-sub font-semibold mt-4 mb-2">规则源</div>
-      <nav id="source-nav" class="flex flex-col gap-0.5"></nav>
-    </div>
-  </aside>
+        <div
+            class="max-w-[1200px] mx-auto p-6 flex gap-6 min-h-[calc(100vh-49px)]"
+        >
+            <aside class="w-[200px] shrink-0 pr-4 border-r border-bord-mid">
+                <div class="sticky top-6">
+                    <button
+                        id="btn-search-tab"
+                        class="text-left w-full px-3 py-2 text-sm rounded-r-md transition-colors text-text bg-surface border-l-[2px] border-l-accent"
+                    >
+                        搜索规则
+                    </button>
+                    <div class="text-sm text-sub font-semibold mt-4 mb-2">
+                        规则源
+                    </div>
+                    <nav id="source-nav" class="flex flex-col gap-0.5"></nav>
+                </div>
+            </aside>
 
-  <main class="flex-1 min-w-0">
-    <!-- 搜索视图（默认展示） -->
-    <div id="search-view">
-      <div class="flex items-center gap-2 mb-4">
-        <span class="w-[3px] h-[18px] bg-accent rounded-sm"></span>
-        <span class="font-bold text-sm">搜索规则</span>
-      </div>
-      <div class="flex gap-2 mb-4">
-        <input id="search-input" type="text" placeholder="输入关键词搜索..."
-          class="flex-1 bg-surface border border-bord rounded-lg px-4 py-2 text-sm outline-none focus:border-accent placeholder:text-sub"
-          onkeydown="if(event.key==='Enter') doSearch()">
-        <button id="btn-search" onclick="doSearch()" class="px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer border-0 hover:opacity-90">搜索</button>
-      </div>
-      <div id="search-results-grid" class="grid grid-cols-5 gap-3"></div>
-      <div id="search-placeholder" class="text-sub text-sm max-w-[600px] pt-[25vh] pl-2">
-        <h2 class="text-base font-semibold text-text mb-3">规则</h2>
-        <p class="mb-2">输入关键词来搜索规则。支持按 app_id 或名称匹配。</p>
-        <p>若是你第一次启动，请点击右上角的「拉取规则」来拉取内置的规则表。</p>
-      </div>
-    </div>
-    <!-- 卡片视图 -->
-    <div id="card-view" class="hidden">
-      <div class="flex items-center gap-2 mb-4">
-        <span class="w-[3px] h-[18px] bg-accent rounded-sm"></span>
-        <span id="source-title" class="font-bold text-sm"></span>
-        <span class="flex-1"></span>
-        <span id="filter-platforms" class="flex items-center gap-1"></span>
-      </div>
-      <div id="card-grid" class="grid grid-cols-5 gap-3"></div>
-    </div>
-  </main>
-</div>
+            <main class="flex-1 min-w-0">
+                <!-- 搜索视图（默认展示） -->
+                <div id="search-view">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span
+                            class="w-[3px] h-[18px] bg-accent rounded-sm"
+                        ></span>
+                        <span class="font-bold text-sm">搜索规则</span>
+                    </div>
+                    <div class="flex gap-2 mb-4">
+                        <input
+                            id="search-input"
+                            type="text"
+                            placeholder="输入关键词搜索..."
+                            class="flex-1 bg-surface border border-bord rounded-lg px-4 py-2 text-sm outline-none focus:border-accent placeholder:text-sub"
+                            onkeydown="if (event.key === 'Enter') doSearch();"
+                        />
+                        <button
+                            id="btn-search"
+                            onclick="doSearch()"
+                            class="px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer border-0 hover:opacity-90"
+                        >
+                            搜索
+                        </button>
+                    </div>
+                    <div
+                        id="search-results-grid"
+                        class="grid grid-cols-5 gap-3"
+                    ></div>
+                    <div
+                        id="search-placeholder"
+                        class="text-sub text-sm max-w-[600px] pt-[25vh] pl-2"
+                    >
+                        <h2 class="text-base font-semibold text-text mb-3">
+                            规则
+                        </h2>
+                        <p class="mb-2">
+                            输入关键词来搜索规则。支持按 app_id 或名称匹配。
+                        </p>
+                        <p>
+                            若是你第一次启动，请点击右上角的「拉取规则」来拉取内置的规则表。
+                        </p>
+                    </div>
+                </div>
+                <!-- 卡片视图 -->
+                <div id="card-view" class="hidden">
+                    <div class="flex items-center gap-2 mb-4">
+                        <span
+                            class="w-[3px] h-[18px] bg-accent rounded-sm"
+                        ></span>
+                        <span
+                            id="source-title"
+                            class="font-bold text-sm"
+                        ></span>
+                        <span class="flex-1"></span>
+                        <span
+                            id="filter-platforms"
+                            class="flex items-center gap-1"
+                        ></span>
+                    </div>
+                    <div id="card-grid" class="grid grid-cols-5 gap-3"></div>
+                </div>
+            </main>
+        </div>
 
-<script src="/assets/app.min.js"></script>
-<script>
-  var currentSource = null;
-  var allSourceRules = [];
-  var activeFilters = {};
+        <script src="/assets/app.min.js"></script>
+        <script>
+            var currentSource = null;
+            var allSourceRules = [];
+            var activeFilters = {};
 
-  renderTopbar("规则");
-  loadSources();
+            renderTopbar("规则");
+            loadSources();
 
-  document.getElementById("btn-search-tab").onclick = () => {
-    currentSource = null;
-    updateSidebar();
-    document.getElementById("search-results-grid").innerHTML = "";
-    document.getElementById("search-placeholder").classList.remove("hidden");
-    document.getElementById("search-input").value = "";
-    swapView(document.getElementById("card-view"), document.getElementById("search-view"));
-  };
+            document.getElementById("btn-search-tab").onclick = () => {
+                currentSource = null;
+                updateSidebar();
+                document.getElementById("search-results-grid").innerHTML = "";
+                document
+                    .getElementById("search-placeholder")
+                    .classList.remove("hidden");
+                document.getElementById("search-input").value = "";
+                swapView(
+                    document.getElementById("card-view"),
+                    document.getElementById("search-view")
+                );
+            };
 
-  document.getElementById("btn-search").onclick = () => doSearch();
+            document.getElementById("btn-search").onclick = () => doSearch();
 
-  async function loadSources() {
-    const sources = await api("/api/rules") || [];
-    const nav = document.getElementById("source-nav");
-    nav.innerHTML = sources.map(s => {
-      const active = s.source_id === currentSource ? "text-text bg-surface border-l-[2px] border-l-accent" : "text-sub hover:text-text border-l-[2px] border-l-transparent hover:bg-surface hover:border-l-bord";
-      return `<button onclick="selectSource('${s.source_id}')" class="text-left px-3 py-2 text-sm rounded-r-md transition-colors ${active}">${s.name || s.source_id} <span class="text-sub">(${s.app_count})</span></button>`;
-    }).join("");
-  }
+            async function loadSources() {
+                const sources = (await api("/api/rules")) || [];
+                const nav = document.getElementById("source-nav");
+                nav.innerHTML = sources
+                    .map((s) => {
+                        const active =
+                            s.source_id === currentSource
+                                ? "text-text bg-surface border-l-[2px] border-l-accent"
+                                : "text-sub hover:text-text border-l-[2px] border-l-transparent hover:bg-surface hover:border-l-bord";
+                        return `<button onclick="selectSource('${s.source_id}')" class="text-left px-3 py-2 text-sm rounded-r-md transition-colors ${active}">${s.name || s.source_id} <span class="text-sub">(${s.app_count})</span></button>`;
+                    })
+                    .join("");
+            }
 
-  function updateSidebar() {
-    loadSources();
-    var btn = document.getElementById("btn-search-tab");
-    if (currentSource === null) {
-      btn.className = "text-left w-full px-3 py-2 text-sm rounded-r-md transition-colors text-text bg-surface border-l-[2px] border-l-accent";
-    } else {
-      btn.className = "text-left w-full px-3 py-2 text-sm rounded-r-md transition-colors text-sub hover:text-text border-l-[2px] border-l-transparent hover:bg-surface hover:border-l-bord";
-    }
-  }
+            function updateSidebar() {
+                loadSources();
+                var btn = document.getElementById("btn-search-tab");
+                if (currentSource === null) {
+                    btn.className =
+                        "text-left w-full px-3 py-2 text-sm rounded-r-md transition-colors text-text bg-surface border-l-[2px] border-l-accent";
+                } else {
+                    btn.className =
+                        "text-left w-full px-3 py-2 text-sm rounded-r-md transition-colors text-sub hover:text-text border-l-[2px] border-l-transparent hover:bg-surface hover:border-l-bord";
+                }
+            }
 
-  async function selectSource(id) {
-    currentSource = id;
-    updateSidebar();
-    document.getElementById("source-title").textContent = id;
+            async function selectSource(id) {
+                currentSource = id;
+                updateSidebar();
+                document.getElementById("source-title").textContent = id;
 
-    var cardView = document.getElementById("card-view");
-    var searchView = document.getElementById("search-view");
-    var isNew = cardView.classList.contains("hidden");
+                var cardView = document.getElementById("card-view");
+                var searchView = document.getElementById("search-view");
+                var isNew = cardView.classList.contains("hidden");
 
-    var rules = await api("/api/rules?source=" + id) || [];
-    allSourceRules = rules;
-    activeFilters = {};
-    showTrackedOnly = false;
-    showUntrackedOnly = false;
-    buildPlatformFilters(rules);
+                var rules = (await api("/api/rules?source=" + id)) || [];
+                allSourceRules = rules;
+                activeFilters = {};
+                showTrackedOnly = false;
+                showUntrackedOnly = false;
+                buildPlatformFilters(rules);
 
-    var grid = document.getElementById("card-grid");
-    if (isNew) {
-      grid.innerHTML = renderCards(rules);
-      swapView(searchView, cardView);
-    } else {
-      refreshView(grid, function () { grid.innerHTML = renderCards(rules); });
-    }
-  }
+                var grid = document.getElementById("card-grid");
+                if (isNew) {
+                    grid.innerHTML = renderCards(rules);
+                    swapView(searchView, cardView);
+                } else {
+                    refreshView(grid, function () {
+                        grid.innerHTML = renderCards(rules);
+                    });
+                }
+            }
 
-  var trackedApps = [];
-  api("/api/tracker/apps").then(function(data) { trackedApps = data || []; });
+            var trackedApps = [];
+            api("/api/tracker/apps").then(function (data) {
+                trackedApps = data || [];
+            });
 
-  function buildPlatformFilters(rules) {
-    var allPlatforms = [];
-    var seen = {};
-    for (var i = 0; i < rules.length; i++) {
-      var plats = rules[i].platforms || [];
-      for (var j = 0; j < plats.length; j++) {
-        if (!seen[plats[j]]) { seen[plats[j]] = true; allPlatforms.push(plats[j]); }
-      }
-    }
-    var el = document.getElementById("filter-platforms");
-    var html = '<span class="text-xs text-sub mr-1">筛选</span>';
-    html += allPlatforms.map(function(p) {
-      return '<button onclick="toggleFilter(\'' + p + '\')" id="btn-filter-' + p + '" class="px-2 py-0.5 rounded text-xs border border-bord bg-transparent text-sub hover:text-text cursor-pointer transition-colors">' + platformLabel(p) + '</button>';
-    }).join("");
-    html += '<button onclick="toggleTrackedFilter()" id="btn-tracked-filter" class="px-2 py-0.5 rounded text-xs border border-bord bg-transparent text-sub hover:text-text cursor-pointer transition-colors">已追踪</button>';
-    html += '<button onclick="toggleUntrackedFilter()" id="btn-untracked-filter" class="px-2 py-0.5 rounded text-xs border border-bord bg-transparent text-sub hover:text-text cursor-pointer transition-colors">未追踪</button>';
-    el.innerHTML = html;
-  }
+            function buildPlatformFilters(rules) {
+                var allPlatforms = [];
+                var seen = {};
+                for (var i = 0; i < rules.length; i++) {
+                    var plats = rules[i].platforms || [];
+                    for (var j = 0; j < plats.length; j++) {
+                        if (!seen[plats[j]]) {
+                            seen[plats[j]] = true;
+                            allPlatforms.push(plats[j]);
+                        }
+                    }
+                }
+                var el = document.getElementById("filter-platforms");
+                var html = '<span class="text-xs text-sub mr-1">筛选</span>';
+                html += allPlatforms
+                    .map(function (p) {
+                        return (
+                            "<button onclick=\"toggleFilter('" +
+                            p +
+                            '\')" id="btn-filter-' +
+                            p +
+                            '" class="px-2 py-0.5 rounded text-xs border border-bord bg-transparent text-sub hover:text-text cursor-pointer transition-colors">' +
+                            platformLabel(p) +
+                            "</button>"
+                        );
+                    })
+                    .join("");
+                html +=
+                    '<button onclick="toggleTrackedFilter()" id="btn-tracked-filter" class="px-2 py-0.5 rounded text-xs border border-bord bg-transparent text-sub hover:text-text cursor-pointer transition-colors">已追踪</button>';
+                html +=
+                    '<button onclick="toggleUntrackedFilter()" id="btn-untracked-filter" class="px-2 py-0.5 rounded text-xs border border-bord bg-transparent text-sub hover:text-text cursor-pointer transition-colors">未追踪</button>';
+                el.innerHTML = html;
+            }
 
-  var showTrackedOnly = false;
-  var showUntrackedOnly = false;
-  function toggleTrackedFilter() {
-    showTrackedOnly = !showTrackedOnly;
-    if (showTrackedOnly) showUntrackedOnly = false;
-    updateFilterButtons();
-    applyFilter();
-  }
-  function toggleUntrackedFilter() {
-    showUntrackedOnly = !showUntrackedOnly;
-    if (showUntrackedOnly) showTrackedOnly = false;
-    updateFilterButtons();
-    applyFilter();
-  }
-  function updateFilterButtons() {
-    document.getElementById("btn-tracked-filter").className = showTrackedOnly
-      ? "px-2 py-0.5 rounded text-xs border border-accent bg-accent text-white cursor-pointer transition-colors"
-      : "px-2 py-0.5 rounded text-xs border border-bord bg-transparent text-sub hover:text-text cursor-pointer transition-colors";
-    document.getElementById("btn-untracked-filter").className = showUntrackedOnly
-      ? "px-2 py-0.5 rounded text-xs border border-accent bg-accent text-white cursor-pointer transition-colors"
-      : "px-2 py-0.5 rounded text-xs border border-bord bg-transparent text-sub hover:text-text cursor-pointer transition-colors";
-  }
+            var showTrackedOnly = false;
+            var showUntrackedOnly = false;
+            function toggleTrackedFilter() {
+                showTrackedOnly = !showTrackedOnly;
+                if (showTrackedOnly) showUntrackedOnly = false;
+                updateFilterButtons();
+                applyFilter();
+            }
+            function toggleUntrackedFilter() {
+                showUntrackedOnly = !showUntrackedOnly;
+                if (showUntrackedOnly) showTrackedOnly = false;
+                updateFilterButtons();
+                applyFilter();
+            }
+            function updateFilterButtons() {
+                document.getElementById("btn-tracked-filter").className =
+                    showTrackedOnly
+                        ? "px-2 py-0.5 rounded text-xs border border-accent bg-accent text-white cursor-pointer transition-colors"
+                        : "px-2 py-0.5 rounded text-xs border border-bord bg-transparent text-sub hover:text-text cursor-pointer transition-colors";
+                document.getElementById("btn-untracked-filter").className =
+                    showUntrackedOnly
+                        ? "px-2 py-0.5 rounded text-xs border border-accent bg-accent text-white cursor-pointer transition-colors"
+                        : "px-2 py-0.5 rounded text-xs border border-bord bg-transparent text-sub hover:text-text cursor-pointer transition-colors";
+            }
 
-  function toggleFilter(os) {
-    activeFilters[os] = !activeFilters[os];
-    var btn = document.getElementById("btn-filter-" + os);
-    if (activeFilters[os]) {
-      btn.className = "px-2 py-0.5 rounded text-xs border border-accent bg-accent text-white cursor-pointer transition-colors";
-    } else {
-      btn.className = "px-2 py-0.5 rounded text-xs border border-bord bg-transparent text-sub hover:text-text cursor-pointer transition-colors";
-    }
-    applyFilter();
-  }
+            function toggleFilter(os) {
+                activeFilters[os] = !activeFilters[os];
+                var btn = document.getElementById("btn-filter-" + os);
+                if (activeFilters[os]) {
+                    btn.className =
+                        "px-2 py-0.5 rounded text-xs border border-accent bg-accent text-white cursor-pointer transition-colors";
+                } else {
+                    btn.className =
+                        "px-2 py-0.5 rounded text-xs border border-bord bg-transparent text-sub hover:text-text cursor-pointer transition-colors";
+                }
+                applyFilter();
+            }
 
-  function applyFilter() {
-    var filtered = allSourceRules;
-    if (showTrackedOnly) {
-      filtered = filtered.filter(function(r) { return trackedApps.indexOf(r.app_id) >= 0; });
-    }
-    if (showUntrackedOnly) {
-      filtered = filtered.filter(function(r) { return trackedApps.indexOf(r.app_id) < 0; });
-    }
-    var activeCount = 0;
-    for (var k in activeFilters) { if (activeFilters[k]) activeCount++; }
-    if (activeCount > 0) {
-      filtered = filtered.filter(function(r) {
-        return (r.platforms || []).some(function(p) { return activeFilters[p]; });
-      });
-    }
-    var grid = document.getElementById("card-grid");
-    grid.innerHTML = renderCards(filtered);
-  }
+            function applyFilter() {
+                var filtered = allSourceRules;
+                if (showTrackedOnly) {
+                    filtered = filtered.filter(function (r) {
+                        return trackedApps.indexOf(r.app_id) >= 0;
+                    });
+                }
+                if (showUntrackedOnly) {
+                    filtered = filtered.filter(function (r) {
+                        return trackedApps.indexOf(r.app_id) < 0;
+                    });
+                }
+                var activeCount = 0;
+                for (var k in activeFilters) {
+                    if (activeFilters[k]) activeCount++;
+                }
+                if (activeCount > 0) {
+                    filtered = filtered.filter(function (r) {
+                        return (r.platforms || []).some(function (p) {
+                            return activeFilters[p];
+                        });
+                    });
+                }
+                var grid = document.getElementById("card-grid");
+                grid.innerHTML = renderCards(filtered);
+            }
 
-  async function doSearch() {
-    const q = document.getElementById("search-input").value.trim();
-    if (!q) return;
-    hideView(document.getElementById("search-placeholder"));
-    const grid = document.getElementById("search-results-grid");
-    grid.innerHTML = '<div class="col-span-full text-center py-10 text-sub text-sm">搜索中...</div>';
+            async function doSearch() {
+                const q = document.getElementById("search-input").value.trim();
+                if (!q) return;
+                hideView(document.getElementById("search-placeholder"));
+                const grid = document.getElementById("search-results-grid");
+                grid.innerHTML =
+                    '<div class="col-span-full text-center py-10 text-sub text-sm">搜索中...</div>';
 
-    const rules = await api("/api/rules?q=" + encodeURIComponent(q)) || [];
-    if (!rules.length) {
-      grid.innerHTML = '<div class="col-span-full text-center py-10 text-sub text-sm">未找到结果<br><span class="text-xs">请尝试点击右上角「拉取规则」拉取最新的规则表</span></div>';
-      return;
-    }
-    grid.innerHTML = renderCards(rules);
-  }
+                const rules =
+                    (await api("/api/rules?q=" + encodeURIComponent(q))) || [];
+                if (!rules.length) {
+                    grid.innerHTML =
+                        '<div class="col-span-full text-center py-10 text-sub text-sm">未找到结果<br><span class="text-xs">请尝试点击右上角「拉取规则」拉取最新的规则表</span></div>';
+                    return;
+                }
+                grid.innerHTML = renderCards(rules);
+            }
 
-  function renderCards(rules) {
-    return rules.map(r => {
-      const platforms = r.platforms || [];
-      return `<div class="bg-surface-alt border border-bord-mid rounded-xl p-3 flex flex-col card-h hover:border-bord transition-colors">
-        <div class="text-sm font-semibold truncate"><span class="select-text" ${tipAttr((r.app_id || '') + (r.status && r.status.length && r.status[0] ? '<br>状态：' + r.status.join(', ') : ''))}>${r.name || r.app_id}</span>${(r.status && r.status.length && r.status[0]) ? ' <span class="inline-block w-2 h-2 rounded-full bg-warn align-middle"></span>' : ''}</div>
+            function renderCards(rules) {
+                return rules
+                    .map((r) => {
+                        const platforms = r.platforms || [];
+                        return `<div class="bg-surface-alt border border-bord-mid rounded-xl p-3 flex flex-col card-h hover:border-bord transition-colors">
+        <div class="text-sm font-semibold truncate"><span class="select-text" ${tipAttr((r.app_id || "") + (r.status && r.status.length && r.status[0] ? "<br>状态：" + r.status.join(", ") : ""))}>${r.name || r.app_id}</span>${r.status && r.status.length && r.status[0] ? ' <span class="inline-block w-2 h-2 rounded-full bg-warn align-middle"></span>' : ""}</div>
         <div class="select-text text-xs text-sub mt-1 truncate">${r.description || r.app_id}</div>
         <div class="flex-1 mt-3 flex flex-col gap-1 pl-2">
-          ${platforms.map(p => `<label class="flex items-center gap-2 text-xs text-sub cursor-pointer"><input type="checkbox" class="rule-cb" data-os="${p}" onchange="event.stopPropagation()"> ${platformLabel(p)}</label>`).join("")}
+          ${platforms.map((p) => `<label class="flex items-center gap-2 text-xs text-sub cursor-pointer"><input type="checkbox" class="rule-cb" data-os="${p}" onchange="event.stopPropagation()"> ${platformLabel(p)}</label>`).join("")}
         </div>
         <button onclick="event.stopPropagation(); addToTracker('${r.app_id}', this)" class="mt-3 w-full text-center text-xs text-sub hover:text-text border border-bord rounded-lg py-1 cursor-pointer hover:border-accent transition-colors">添加到默认 Tracker</button>
       </div>`;
-    }).join("");
-  }
+                    })
+                    .join("");
+            }
 
-  async function addToTracker(appId, btn) {
-    const cbs = btn.closest(".card-h").querySelectorAll(".rule-cb:checked");
-    const platforms = Array.from(cbs).map(cb => cb.dataset.os);
-    await apiPost("/api/tracker/add", { app_id: appId, platforms });
-    btn.textContent = "✓";
-    btn.classList.add("text-ok");
-  }
-</script>
-</body>
+            async function addToTracker(appId, btn) {
+                const cbs = btn
+                    .closest(".card-h")
+                    .querySelectorAll(".rule-cb:checked");
+                const platforms = Array.from(cbs).map((cb) => cb.dataset.os);
+                await apiPost("/api/tracker/add", { app_id: appId, platforms });
+                btn.textContent = "✓";
+                btn.classList.add("text-ok");
+            }
+        </script>
+    </body>
 </html>

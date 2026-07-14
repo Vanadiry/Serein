@@ -1,474 +1,810 @@
 <!doctype html>
 <html lang="zh-CN" class="bg-bg">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Serein</title>
-<link rel="icon" href="/assets/favicon.svg">
-<link rel="stylesheet" href="/assets/style.css">
-</head>
-<body class="text-text min-h-screen">
-<div id="topbar"></div>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Serein</title>
+        <link rel="icon" href="/assets/favicon.svg" />
+        <link rel="stylesheet" href="/assets/style.css" />
+    </head>
+    <body class="text-text min-h-screen">
+        <div id="topbar"></div>
 
-<div class="max-w-[1200px] mx-auto p-6 flex gap-6 min-h-[calc(100vh-49px)]">
-  <aside class="w-[200px] shrink-0 pr-4 border-r border-bord-mid">
-    <div class="sticky top-6">
-      <div class="text-sm text-sub font-semibold mb-2">Tracker</div>
-      <nav id="tracker-nav" class="flex flex-col gap-0.5"></nav>
-      <button id="btn-new-tracker" class="mt-3 w-full text-center text-xs text-sub hover:text-text border border-dashed border-bord-strong rounded-lg py-1.5 cursor-pointer hover:border-accent transition-colors">新建 Tracker</button>
-    </div>
-  </aside>
+        <div
+            class="max-w-[1200px] mx-auto p-6 flex gap-6 min-h-[calc(100vh-49px)]"
+        >
+            <aside class="w-[200px] shrink-0 pr-4 border-r border-bord-mid">
+                <div class="sticky top-6">
+                    <div class="text-sm text-sub font-semibold mb-2">
+                        Tracker
+                    </div>
+                    <nav id="tracker-nav" class="flex flex-col gap-0.5"></nav>
+                    <button
+                        id="btn-new-tracker"
+                        class="mt-3 w-full text-center text-xs text-sub hover:text-text border border-dashed border-bord-strong rounded-lg py-1.5 cursor-pointer hover:border-accent transition-colors"
+                    >
+                        新建 Tracker
+                    </button>
+                </div>
+            </aside>
 
-  <main class="flex-1 min-w-0">
-    <div id="placeholder" class="text-sub text-sm max-w-[600px] pt-[25vh] pl-2">
-      <h2 class="text-lg font-semibold text-text mb-3">欢迎使用 Serein</h2>
-      <p class="mb-2">在左侧栏选择一个 Tracker 来查看对应列表中追踪的软件。</p>
-      <p class="mb-4">点击右上角的按钮，能够检查软件更新。</p>
-      <p class="mb-8">若是你第一次启动，请前往<a href="/rules" class="text-accent hover:underline">规则页</a>，点击右上角的「拉取规则」来拉取内置的规则表。</p>
+            <main class="flex-1 min-w-0">
+                <div
+                    id="placeholder"
+                    class="text-sub text-sm max-w-[600px] pt-[25vh] pl-2"
+                >
+                    <h2 class="text-lg font-semibold text-text mb-3">
+                        欢迎使用 Serein
+                    </h2>
+                    <p class="mb-2">
+                        在左侧栏选择一个 Tracker 来查看对应列表中追踪的软件。
+                    </p>
+                    <p class="mb-4">点击右上角的按钮，能够检查软件更新。</p>
+                    <p class="mb-8">
+                        若是你第一次启动，请前往<a
+                            href="/rules"
+                            class="text-accent hover:underline"
+                            >规则页</a
+                        >，点击右上角的「拉取规则」来拉取内置的规则表。
+                    </p>
 
-      <h2 class="text-lg font-semibold text-text mb-3">下载器</h2>
-      <p id="downloader-info" class="mb-8 text-sub text-sm">加载中...</p>
+                    <h2 class="text-lg font-semibold text-text mb-3">下载器</h2>
+                    <p id="downloader-info" class="mb-8 text-sub text-sm">
+                        加载中...
+                    </p>
 
-      <h2 class="text-lg font-semibold text-text mb-3">关于</h2>
-      <p class="mb-2">Serein 在 <a href="#" onclick="event.preventDefault();openExternalUrl('https://github.com/Vanadiry/Serein/')" class="text-accent hover:underline">GitHub</a> 开源。前后端分离，你可以在 GitHub 项目中查看 API 文档。</p>
-      <p>规则表也依赖于社区贡献，内置的规则表项目：<a href="#" onclick="event.preventDefault();openExternalUrl('https://github.com/Vanadiry/SereinRulesList/')" class="text-accent hover:underline">SereinRulesList</a>。</p>
+                    <h2 class="text-lg font-semibold text-text mb-3">关于</h2>
+                    <p class="mb-2">
+                        Serein 在
+                        <a
+                            href="#"
+                            onclick="
+                                event.preventDefault();
+                                openExternalUrl(
+                                    'https://github.com/Vanadiry/Serein/'
+                                );
+                            "
+                            class="text-accent hover:underline"
+                            >GitHub</a
+                        >
+                        开源。前后端分离，你可以在 GitHub 项目中查看 API 文档。
+                    </p>
+                    <p>
+                        规则表也依赖于社区贡献，内置的规则表项目：<a
+                            href="#"
+                            onclick="
+                                event.preventDefault();
+                                openExternalUrl(
+                                    'https://github.com/Vanadiry/SereinRulesList/'
+                                );
+                            "
+                            class="text-accent hover:underline"
+                            >SereinRulesList</a
+                        >。
+                    </p>
+                </div>
+                <div
+                    id="software-list"
+                    class="flex flex-col gap-0 hidden"
+                ></div>
+            </main>
+        </div>
 
-    </div>
-    <div id="software-list" class="flex flex-col gap-0 hidden"></div>
-  </main>
-</div>
+        <script src="/assets/app.min.js"></script>
+        <script>
+            var SEREIN_FIRST_RUN = __FIRST_RUN__;
+        </script>
+        <script>
+            var currentTracker = null;
+            var checkResults = {};
 
-<script src="/assets/app.min.js"></script>
-<script>var SEREIN_FIRST_RUN = __FIRST_RUN__;</script>
-<script>
-  var currentTracker = null;
-  var checkResults = {};
+            renderTopbar("应用");
+            loadTrackers();
 
-  renderTopbar("应用");
-  loadTrackers();
+            function showWelcome() {
+                if (localStorage.getItem("first_run_done")) return;
+                if (
+                    typeof SEREIN_FIRST_RUN !== "undefined" &&
+                    !SEREIN_FIRST_RUN
+                )
+                    return;
+                showWelcomeOverlay();
+            }
 
-  function showWelcome() {
-    if (localStorage.getItem("first_run_done")) return;
-    if (typeof SEREIN_FIRST_RUN !== "undefined" && !SEREIN_FIRST_RUN) return;
-    showWelcomeOverlay();
-  }
+            function showWelcomeOverlay() {
+                function extLink(href, text) {
+                    return (
+                        '<a href="#" onclick="event.preventDefault();openExternalUrl(\'' +
+                        href.replace(/'/g, "\\'") +
+                        '\')" class="text-accent underline">' +
+                        text +
+                        "</a>"
+                    );
+                }
+                var steps = [
+                    {
+                        title: "欢迎使用 Serein",
+                        html:
+                            '<p class="text-sm text-sub leading-relaxed mb-3">Serein 是一个<strong class="text-text">规则去中心化</strong>的软件更新追踪器。</p>' +
+                            '<p class="text-sm text-sub leading-relaxed mb-2">与传统软件更新器不同的是，Serein 直接从每个软件的官方获取新版本信息。因此，你不必信任单独的中心化服务。</p>' +
+                            '<p class="text-sm text-sub leading-relaxed">项目在 GitHub 开源：' +
+                            extLink(
+                                "https://github.com/Vanadiry/Serein/",
+                                "Serein"
+                            ) +
+                            "</p>"
+                    },
+                    {
+                        title: "了解运作方式",
+                        html:
+                            '<p class="text-sm text-sub leading-relaxed mb-3">Serein 依赖<strong class="text-text">规则表</strong>和<strong class="text-text">Tracker</strong>运行。</p>' +
+                            '<p class="text-sm text-sub leading-relaxed mb-2">Tracker 是由你创建的追踪列表，记录你希望追踪的软件和平台。你可以创建多个 Tracker，并自由命名和排序。</p>' +
+                            '<p class="text-sm text-sub leading-relaxed mb-2">规则表记录了 Serein 应该如何检查一个软件的更新。Serein 默认订阅了我维护的规则源 ' +
+                            extLink(
+                                "https://github.com/Vanadiry/SereinRulesList",
+                                "SereinRulesList"
+                            ) +
+                            "，涵盖了一些常用软件的规则。</p>" +
+                            '<p class="text-sm text-sub leading-relaxed">如果你要自己创建与分发规则，请阅读' +
+                            extLink(
+                                "https://github.com/Vanadiry/Serein/blob/main/docs/rules/_source.md",
+                                "文档 - 规则源"
+                            ) +
+                            "。</p>"
+                    },
+                    {
+                        title: "开始使用",
+                        html:
+                            '<div class="text-xs text-sub leading-relaxed space-y-1.5">' +
+                            '<div><span class="text-accent font-semibold">0. </span>请至少阅读' +
+                            extLink(
+                                "https://github.com/Vanadiry/Serein/blob/main/docs/guide.md",
+                                "文档 - 入门"
+                            ) +
+                            "</div>" +
+                            '<div><span class="text-accent font-semibold">1. </span>前往「规则」页面，在右上角拉取规则和动态配置</div>' +
+                            '<div><span class="text-accent font-semibold">2. </span>添加你想要追踪的软件，这会自动创建默认 Tracker</div>' +
+                            '<div><span class="text-accent font-semibold">3. </span>前往「应用」页面，点击「检查当前 Tracker」</div>' +
+                            "</div>" +
+                            '<p class="text-sm text-sub leading-relaxed mt-4">就是这么简单！谢谢你的使用，请随意探索吧。</p>'
+                    }
+                ];
 
-    function showWelcomeOverlay() {
-    function extLink(href, text) {
-      return '<a href="#" onclick="event.preventDefault();openExternalUrl(\'' + href.replace(/'/g, "\\'") + '\')" class="text-accent underline">' + text + '</a>';
-    }
-    var steps = [
-      {
-        title: "欢迎使用 Serein",
-        html: '<p class="text-sm text-sub leading-relaxed mb-3">Serein 是一个<strong class="text-text">规则去中心化</strong>的软件更新追踪器。</p>' +
-          '<p class="text-sm text-sub leading-relaxed mb-2">与传统软件更新器不同的是，Serein 直接从每个软件的官方获取新版本信息。因此，你不必信任单独的中心化服务。</p>' +
-          '<p class="text-sm text-sub leading-relaxed">项目在 GitHub 开源：' + extLink("https://github.com/Vanadiry/Serein/", "Serein") + '</p>'
-      },
-      {
-        title: "了解运作方式",
-        html: '<p class="text-sm text-sub leading-relaxed mb-3">Serein 依赖<strong class="text-text">规则表</strong>和<strong class="text-text">Tracker</strong>运行。</p>' +
-          '<p class="text-sm text-sub leading-relaxed mb-2">Tracker 是由你创建的追踪列表，记录你希望追踪的软件和平台。你可以创建多个 Tracker，并自由命名和排序。</p>' +
-          '<p class="text-sm text-sub leading-relaxed mb-2">规则表记录了 Serein 应该如何检查一个软件的更新。Serein 默认订阅了我维护的规则源 ' + extLink("https://github.com/Vanadiry/SereinRulesList", "SereinRulesList") + '，涵盖了一些常用软件的规则。</p>' +
-          '<p class="text-sm text-sub leading-relaxed">如果你要自己创建与分发规则，请阅读' + extLink("https://github.com/Vanadiry/Serein/blob/main/docs/rules/_source.md", "文档 - 规则源") + '。</p>'
-      },
-      {
-        title: "开始使用",
-        html: '<div class="text-xs text-sub leading-relaxed space-y-1.5">' +
-          '<div><span class="text-accent font-semibold">0. </span>请至少阅读' + extLink("https://github.com/Vanadiry/Serein/blob/main/docs/guide.md", "文档 - 入门") + '</div>' +
-          '<div><span class="text-accent font-semibold">1. </span>前往「规则」页面，在右上角拉取规则和动态配置</div>' +
-          '<div><span class="text-accent font-semibold">2. </span>添加你想要追踪的软件，这会自动创建默认 Tracker</div>' +
-          '<div><span class="text-accent font-semibold">3. </span>前往「应用」页面，点击「检查当前 Tracker」</div>' +
-          '</div>' +
-          '<p class="text-sm text-sub leading-relaxed mt-4">就是这么简单！谢谢你的使用，请随意探索吧。</p>'
-      }
-    ];
+                var current = 0;
+                var welcome = document.createElement("div");
+                welcome.className =
+                    "fixed inset-0 z-[50] flex items-center justify-center bg-overlay";
 
-    var current = 0;
-    var welcome = document.createElement("div");
-    welcome.className = "fixed inset-0 z-[50] flex items-center justify-center bg-overlay";
+                function render() {
+                    var s = steps[current];
+                    var tabs = steps
+                        .map(function (_, i) {
+                            var cls =
+                                i === current
+                                    ? "bg-accent text-white"
+                                    : "bg-surface border border-bord-mid text-sub";
+                            return (
+                                '<div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ' +
+                                cls +
+                                '">' +
+                                (i + 1) +
+                                "</div>"
+                            );
+                        })
+                        .join("");
 
-    function render() {
-      var s = steps[current];
-      var tabs = steps.map(function (_, i) {
-        var cls = i === current ? "bg-accent text-white" : "bg-surface border border-bord-mid text-sub";
-        return '<div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ' + cls + '">' + (i + 1) + '</div>';
-      }).join("");
+                    var btnLabel =
+                        current < steps.length - 1 ? "了解了！" : "开始使用";
 
-      var btnLabel = current < steps.length - 1 ? "了解了！" : "开始使用";
+                    welcome.innerHTML =
+                        '<div class="bg-surface-alt border border-bord rounded-xl p-6 max-w-[480px] w-[90vw] shadow-2xl">' +
+                        '<div class="flex items-center gap-2 mb-4">' +
+                        tabs +
+                        "</div>" +
+                        '<h3 class="text-base font-bold text-text mb-2">' +
+                        s.title +
+                        "</h3>" +
+                        s.html +
+                        '<div class="flex justify-end mt-5"><button id="welcome-btn" class="px-5 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer border-0 hover:opacity-90 transition-all active:scale-[0.98]">' +
+                        btnLabel +
+                        "</button></div>" +
+                        "</div>";
+                    welcome
+                        .querySelector("#welcome-btn")
+                        .addEventListener("click", function () {
+                            if (current < steps.length - 1) {
+                                current++;
+                                render();
+                            } else {
+                                dismiss();
+                            }
+                        });
+                }
+                function dismiss() {
+                    welcome.style.opacity = "0";
+                    welcome.style.transition = "opacity .2s";
+                    setTimeout(function () {
+                        welcome.remove();
+                    }, 200);
+                    localStorage.setItem("first_run_done", "1");
+                }
 
-      welcome.innerHTML = '<div class="bg-surface-alt border border-bord rounded-xl p-6 max-w-[480px] w-[90vw] shadow-2xl">' +
-        '<div class="flex items-center gap-2 mb-4">' + tabs + '</div>' +
-        '<h3 class="text-base font-bold text-text mb-2">' + s.title + '</h3>' +
-        s.html +
-        '<div class="flex justify-end mt-5"><button id="welcome-btn" class="px-5 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer border-0 hover:opacity-90 transition-all active:scale-[0.98]">' + btnLabel + '</button></div>' +
-        '</div>';
-      welcome.querySelector("#welcome-btn").addEventListener("click", function () {
-        if (current < steps.length - 1) { current++; render(); }
-        else { dismiss(); }
-      });
-    }
-    function dismiss() {
-      welcome.style.opacity = "0";
-      welcome.style.transition = "opacity .2s";
-      setTimeout(function () { welcome.remove(); }, 200);
-      localStorage.setItem("first_run_done", "1");
-    }
+                render();
+                document.body.appendChild(welcome);
+            }
 
-    render();
-    document.body.appendChild(welcome);
-  }
+            showWelcome();
+            document.getElementById("downloader-info").textContent =
+                "当前使用：" +
+                (typeof SEREIN_DOWNLOADER !== "undefined"
+                    ? SEREIN_DOWNLOADER
+                    : "无");
 
-  showWelcome();
-  document.getElementById("downloader-info").textContent =
-    "当前使用：" + (typeof SEREIN_DOWNLOADER !== "undefined" ? SEREIN_DOWNLOADER : "无");
-
-  document.getElementById("btn-tracker-check").onclick = () => {
-    confirmDialog("将检查当前 Tracker 中所有软件的更新", checkTracker);
-  };
-  document.getElementById("btn-read-cache").onclick = () => {
-    confirmDialog("将读取当前 Tracker 的检查结果缓存", readCache);
-  };
-  document.getElementById("btn-new-tracker").onclick = () => {
-    showModal(`
+            document.getElementById("btn-tracker-check").onclick = () => {
+                confirmDialog(
+                    "将检查当前 Tracker 中所有软件的更新",
+                    checkTracker
+                );
+            };
+            document.getElementById("btn-read-cache").onclick = () => {
+                confirmDialog("将读取当前 Tracker 的检查结果缓存", readCache);
+            };
+            document.getElementById("btn-new-tracker").onclick = () => {
+                showModal(`
       <div class="text-base font-bold mb-4">新建 Tracker</div>
       <input id="new-tracker-name" class="w-full bg-surface border border-bord rounded-lg px-3 py-2 text-sm outline-none focus:border-accent mb-3" placeholder="Tracker 名称">
       <div class="flex gap-2">
         <button onclick="closeModal(this.closest('.fixed'))" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>
         <button id="btn-create-tracker" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">创建</button>
       </div>`);
-    document.getElementById("btn-create-tracker").onclick = async () => {
-      const name = document.getElementById("new-tracker-name").value.trim();
-      if (!name) return;
-      await apiPost("/api/tracker/new", { id: name });
-      closeModal(document.querySelector(".fixed"));
-      loadTrackers();
-    };
-  };
+                document.getElementById("btn-create-tracker").onclick =
+                    async () => {
+                        const name = document
+                            .getElementById("new-tracker-name")
+                            .value.trim();
+                        if (!name) return;
+                        await apiPost("/api/tracker/new", { id: name });
+                        closeModal(document.querySelector(".fixed"));
+                        loadTrackers();
+                    };
+            };
 
-  async function loadTrackers() {
-    const list = await api("/api/tracker/list/all") || [];
-    const nav = document.getElementById("tracker-nav");
-    nav.innerHTML = list.map(t => {
-      const active = t.id === currentTracker && currentTracker ? "text-text bg-surface border-l-[2px] border-l-accent" : "text-sub hover:text-text border-l-[2px] border-l-transparent hover:bg-surface hover:border-l-bord";
-      return `<button onclick="selectTracker('${t.id}')" class="text-left px-3 py-2 text-sm rounded-r-md transition-colors ${active}">${t.display_name || t.id}</button>`;
-    }).join("");
-  }
+            async function loadTrackers() {
+                const list = (await api("/api/tracker/list/all")) || [];
+                const nav = document.getElementById("tracker-nav");
+                nav.innerHTML = list
+                    .map((t) => {
+                        const active =
+                            t.id === currentTracker && currentTracker
+                                ? "text-text bg-surface border-l-[2px] border-l-accent"
+                                : "text-sub hover:text-text border-l-[2px] border-l-transparent hover:bg-surface hover:border-l-bord";
+                        return `<button onclick="selectTracker('${t.id}')" class="text-left px-3 py-2 text-sm rounded-r-md transition-colors ${active}">${t.display_name || t.id}</button>`;
+                    })
+                    .join("");
+            }
 
-  async function selectTracker(id) {
-    currentTracker = id;
-    loadTrackers();
-    hideView(document.getElementById("placeholder"));
-    await loadTrackerDetail(id);
-  }
+            async function selectTracker(id) {
+                currentTracker = id;
+                loadTrackers();
+                hideView(document.getElementById("placeholder"));
+                await loadTrackerDetail(id);
+            }
 
-  async function loadTrackerDetail(id) {
-    const data = await api("/api/tracker/list/" + id) || [];
-    const list = document.getElementById("software-list");
-    const placeholder = document.getElementById("placeholder");
-    if (!data.length) {
-      placeholder.innerHTML = '<h2 class="text-lg font-semibold text-text mb-2">空的 Tracker</h2><p>这个 Tracker 还没有添加任何软件。前往<a href="/rules" class="text-accent hover:underline">规则页面</a>搜索并添加软件。</p>';
-      swapView(list, placeholder);
-      return;
-    }
-    if (list.classList.contains("hidden")) {
-      list.innerHTML = data.map(d => renderSoftwareRow(d)).join("");
-      swapView(placeholder, list);
-    } else {
-      refreshView(list, function () { list.innerHTML = data.map(d => renderSoftwareRow(d)).join(""); });
-    }
-  }
+            async function loadTrackerDetail(id) {
+                const data = (await api("/api/tracker/list/" + id)) || [];
+                const list = document.getElementById("software-list");
+                const placeholder = document.getElementById("placeholder");
+                if (!data.length) {
+                    placeholder.innerHTML =
+                        '<h2 class="text-lg font-semibold text-text mb-2">空的 Tracker</h2><p>这个 Tracker 还没有添加任何软件。前往<a href="/rules" class="text-accent hover:underline">规则页面</a>搜索并添加软件。</p>';
+                    swapView(list, placeholder);
+                    return;
+                }
+                if (list.classList.contains("hidden")) {
+                    list.innerHTML = data
+                        .map((d) => renderSoftwareRow(d))
+                        .join("");
+                    swapView(placeholder, list);
+                } else {
+                    refreshView(list, function () {
+                        list.innerHTML = data
+                            .map((d) => renderSoftwareRow(d))
+                            .join("");
+                    });
+                }
+            }
 
-  function formatRelativeTime(ts) {
-    if (!ts) return "";
-    var diff = Math.floor(Date.now() / 1000) - parseInt(ts);
-    if (diff < 0) return "";
-    if (diff < 180) return "刚刚";
-    if (diff > 172800) return Math.floor(diff / 86400) + "天前";
-    if (diff > 28800) return Math.floor(diff / 3600) + "小时前";
-    return Math.max(1, Math.floor(diff / 60)) + "分钟前";
-  }
-  function formatUTCTime(ts) {
-    if (!ts) return "";
-    var d = new Date(parseInt(ts) * 1000);
-    return d.toISOString().replace("T", " ").replace(/\.\d+Z/, "") + " UTC";
-  }
+            function formatRelativeTime(ts) {
+                if (!ts) return "";
+                var diff = Math.floor(Date.now() / 1000) - parseInt(ts);
+                if (diff < 0) return "";
+                if (diff < 180) return "刚刚";
+                if (diff > 172800) return Math.floor(diff / 86400) + "天前";
+                if (diff > 28800) return Math.floor(diff / 3600) + "小时前";
+                return Math.max(1, Math.floor(diff / 60)) + "分钟前";
+            }
+            function formatUTCTime(ts) {
+                if (!ts) return "";
+                var d = new Date(parseInt(ts) * 1000);
+                return (
+                    d
+                        .toISOString()
+                        .replace("T", " ")
+                        .replace(/\.\d+Z/, "") + " UTC"
+                );
+            }
 
-  function renderSoftwareRow(d) {
-    const checked = checkResults[d.app_id];
-    const hasUpdate = checked && Object.values(checked.platforms || {}).some(p => p.latest_version && p.latest_version !== p.current_version);
-    var timeHTML = "";
-    if (d.confirmed_at) {
-      timeHTML = ' <span class="text-sub text-xs ml-1" ' + tipAttr("确认于 " + formatUTCTime(d.confirmed_at)) + '>(' + formatRelativeTime(d.confirmed_at) + ')</span>';
-    }
-    let versionHTML = "";
-    if (d.rule_missing) {
-      versionHTML = `<span class="text-yellow-500 text-sm">⚠ 规则缺失</span>`;
-    } else if (hasUpdate) {
-      const parts = [];
-      var sortedOS = Object.keys(checked.platforms).sort(function(a, b) { var order = ["macos","windows","linux","ios","android"]; return order.indexOf(a) - order.indexOf(b); });
-      var groups = {};
-      var groupOrder = [];
-      for (var si = 0; si < sortedOS.length; si++) { var os = sortedOS[si]; var p = checked.platforms[os];
-        var cur = p.current_version || "-";
-        var lat = p.latest_version || "-";
-        var key = cur + "|" + lat;
-        if (!groups[key]) { groups[key] = { current: cur, latest: p.latest_version, oses: [] }; groupOrder.push(key); }
-        groups[key].oses.push(os);
-      }
-      for (var gi = 0; gi < groupOrder.length; gi++) {
-        var g = groups[groupOrder[gi]];
-        var icons = '<span class="inline-flex gap-px">';
-        for (var ii = 0; ii < g.oses.length; ii++) { icons += platformIcon(g.oses[ii], "w-4 h-4"); }
-        icons += '</span>';
-        if (g.latest && g.latest !== g.current) {
-          var cmp = compareVersions(g.latest, g.current);
-          if (cmp > 0) {
-            parts.push(`<span class="opacity-50">${icons}</span> <span class="text-warn">${g.current}</span> <span class="text-sub">→</span> <span class="text-ok">${g.latest}</span>`);
-          } else if (cmp < 0) {
-            parts.push(`<span class="opacity-50">${icons}</span> <span class="text-ok">${g.current}</span> <span class="text-sub">→</span> <span class="text-err">${g.latest}</span>`);
-          } else {
-            parts.push(`<span class="opacity-50">${icons}</span> <span class="text-warn">${g.current}</span> <span class="text-sub">→</span> <span class="text-ok">${g.latest}</span>`);
-          }
-        } else if (g.latest) {
-          parts.push(`<span class="opacity-50">${icons}</span> <span class="text-ok">${g.current}</span> <span class="text-sub">(无更新)</span>`);
-        } else {
-          parts.push(`<span class="opacity-50">${icons}</span> <span class="text-sub">${g.current}</span>`);
-        }
-      }
-      versionHTML = `<span class="select-text text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
-    } else if (checked && Object.keys(checked.platforms || {}).length > 0) {
-      const parts = [];
-      var sortedOS = Object.keys(checked.platforms).sort(function(a, b) { var order = ["macos","windows","linux","ios","android"]; return order.indexOf(a) - order.indexOf(b); });
-      var groups2 = {};
-      var groupOrder2 = [];
-      for (var si = 0; si < sortedOS.length; si++) { var os = sortedOS[si]; var p = checked.platforms[os];
-        var v = p.current_version || p.latest_version || d.current_version?.[os] || "-";
-        if (!groups2[v]) { groups2[v] = []; groupOrder2.push(v); }
-        groups2[v].push(os);
-      }
-      for (var gi = 0; gi < groupOrder2.length; gi++) {
-        var v2 = groupOrder2[gi];
-        var icons = '<span class="inline-flex gap-px">';
-        for (var ii = 0; ii < groups2[v2].length; ii++) { icons += platformIcon(groups2[v2][ii], "w-4 h-4"); }
-        icons += '</span>';
-        parts.push(`<span class="opacity-50">${icons}</span> <span class="text-ok">${v2}</span> <span class="text-sub">(无更新)</span>`);
-      }
-      versionHTML = `<span class="select-text text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
-    } else {
-      const parts = [];
-      var sortedOS2 = Object.keys(d.current_version || {}).sort(function(a, b) { var order = ["macos","windows","linux","ios","android"]; return order.indexOf(a) - order.indexOf(b); });
-      var groups3 = {};
-      var groupOrder3 = [];
-      for (var si2 = 0; si2 < sortedOS2.length; si2++) { var os = sortedOS2[si2]; var v = (d.current_version || {})[os] || "-";
-        if (!groups3[v]) { groups3[v] = []; groupOrder3.push(v); }
-        groups3[v].push(os);
-      }
-      for (var gi = 0; gi < groupOrder3.length; gi++) {
-        var v3 = groupOrder3[gi];
-        var icons = '<span class="inline-flex gap-px">';
-        for (var ii = 0; ii < groups3[v3].length; ii++) { icons += platformIcon(groups3[v3][ii], "w-4 h-4"); }
-        icons += '</span>';
-        parts.push(`<span class="opacity-50">${icons}</span> ${v3}`);
-      }
-      versionHTML = `<span class="select-text text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;") || "未记录版本"}</span>`;
-    }
+            function renderSoftwareRow(d) {
+                const checked = checkResults[d.app_id];
+                const hasUpdate =
+                    checked &&
+                    Object.values(checked.platforms || {}).some(
+                        (p) =>
+                            p.latest_version &&
+                            p.latest_version !== p.current_version
+                    );
+                var timeHTML = "";
+                if (d.confirmed_at) {
+                    timeHTML =
+                        ' <span class="text-sub text-xs ml-1" ' +
+                        tipAttr("确认于 " + formatUTCTime(d.confirmed_at)) +
+                        ">(" +
+                        formatRelativeTime(d.confirmed_at) +
+                        ")</span>";
+                }
+                let versionHTML = "";
+                if (d.rule_missing) {
+                    versionHTML = `<span class="text-yellow-500 text-sm">⚠ 规则缺失</span>`;
+                } else if (hasUpdate) {
+                    const parts = [];
+                    var sortedOS = Object.keys(checked.platforms).sort(
+                        function (a, b) {
+                            var order = [
+                                "macos",
+                                "windows",
+                                "linux",
+                                "ios",
+                                "android"
+                            ];
+                            return order.indexOf(a) - order.indexOf(b);
+                        }
+                    );
+                    var groups = {};
+                    var groupOrder = [];
+                    for (var si = 0; si < sortedOS.length; si++) {
+                        var os = sortedOS[si];
+                        var p = checked.platforms[os];
+                        var cur = p.current_version || "-";
+                        var lat = p.latest_version || "-";
+                        var key = cur + "|" + lat;
+                        if (!groups[key]) {
+                            groups[key] = {
+                                current: cur,
+                                latest: p.latest_version,
+                                oses: []
+                            };
+                            groupOrder.push(key);
+                        }
+                        groups[key].oses.push(os);
+                    }
+                    for (var gi = 0; gi < groupOrder.length; gi++) {
+                        var g = groups[groupOrder[gi]];
+                        var icons = '<span class="inline-flex gap-px">';
+                        for (var ii = 0; ii < g.oses.length; ii++) {
+                            icons += platformIcon(g.oses[ii], "w-4 h-4");
+                        }
+                        icons += "</span>";
+                        if (g.latest && g.latest !== g.current) {
+                            var cmp = compareVersions(g.latest, g.current);
+                            if (cmp > 0) {
+                                parts.push(
+                                    `<span class="opacity-50">${icons}</span> <span class="text-warn">${g.current}</span> <span class="text-sub">→</span> <span class="text-ok">${g.latest}</span>`
+                                );
+                            } else if (cmp < 0) {
+                                parts.push(
+                                    `<span class="opacity-50">${icons}</span> <span class="text-ok">${g.current}</span> <span class="text-sub">→</span> <span class="text-err">${g.latest}</span>`
+                                );
+                            } else {
+                                parts.push(
+                                    `<span class="opacity-50">${icons}</span> <span class="text-warn">${g.current}</span> <span class="text-sub">→</span> <span class="text-ok">${g.latest}</span>`
+                                );
+                            }
+                        } else if (g.latest) {
+                            parts.push(
+                                `<span class="opacity-50">${icons}</span> <span class="text-ok">${g.current}</span> <span class="text-sub">(无更新)</span>`
+                            );
+                        } else {
+                            parts.push(
+                                `<span class="opacity-50">${icons}</span> <span class="text-sub">${g.current}</span>`
+                            );
+                        }
+                    }
+                    versionHTML = `<span class="select-text text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
+                } else if (
+                    checked &&
+                    Object.keys(checked.platforms || {}).length > 0
+                ) {
+                    const parts = [];
+                    var sortedOS = Object.keys(checked.platforms).sort(
+                        function (a, b) {
+                            var order = [
+                                "macos",
+                                "windows",
+                                "linux",
+                                "ios",
+                                "android"
+                            ];
+                            return order.indexOf(a) - order.indexOf(b);
+                        }
+                    );
+                    var groups2 = {};
+                    var groupOrder2 = [];
+                    for (var si = 0; si < sortedOS.length; si++) {
+                        var os = sortedOS[si];
+                        var p = checked.platforms[os];
+                        var v =
+                            p.current_version ||
+                            p.latest_version ||
+                            d.current_version?.[os] ||
+                            "-";
+                        if (!groups2[v]) {
+                            groups2[v] = [];
+                            groupOrder2.push(v);
+                        }
+                        groups2[v].push(os);
+                    }
+                    for (var gi = 0; gi < groupOrder2.length; gi++) {
+                        var v2 = groupOrder2[gi];
+                        var icons = '<span class="inline-flex gap-px">';
+                        for (var ii = 0; ii < groups2[v2].length; ii++) {
+                            icons += platformIcon(groups2[v2][ii], "w-4 h-4");
+                        }
+                        icons += "</span>";
+                        parts.push(
+                            `<span class="opacity-50">${icons}</span> <span class="text-ok">${v2}</span> <span class="text-sub">(无更新)</span>`
+                        );
+                    }
+                    versionHTML = `<span class="select-text text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
+                } else {
+                    const parts = [];
+                    var sortedOS2 = Object.keys(d.current_version || {}).sort(
+                        function (a, b) {
+                            var order = [
+                                "macos",
+                                "windows",
+                                "linux",
+                                "ios",
+                                "android"
+                            ];
+                            return order.indexOf(a) - order.indexOf(b);
+                        }
+                    );
+                    var groups3 = {};
+                    var groupOrder3 = [];
+                    for (var si2 = 0; si2 < sortedOS2.length; si2++) {
+                        var os = sortedOS2[si2];
+                        var v = (d.current_version || {})[os] || "-";
+                        if (!groups3[v]) {
+                            groups3[v] = [];
+                            groupOrder3.push(v);
+                        }
+                        groups3[v].push(os);
+                    }
+                    for (var gi = 0; gi < groupOrder3.length; gi++) {
+                        var v3 = groupOrder3[gi];
+                        var icons = '<span class="inline-flex gap-px">';
+                        for (var ii = 0; ii < groups3[v3].length; ii++) {
+                            icons += platformIcon(groups3[v3][ii], "w-4 h-4");
+                        }
+                        icons += "</span>";
+                        parts.push(
+                            `<span class="opacity-50">${icons}</span> ${v3}`
+                        );
+                    }
+                    versionHTML = `<span class="select-text text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;") || "未记录版本"}</span>`;
+                }
 
-    // 右侧：[平台]  |  [yes]  |  [编辑] [地球] [刷新]
-    let rightIcons = `<span class="flex items-center gap-2 shrink-0">`;
-    // 平台下载图标（检查后有数据才显示）
-    if (checked && Object.keys(checked.platforms || {}).length > 0) {
-      var dlOS = Object.keys(checked.platforms).sort(function(a, b) { var order = ["macos","windows","linux","ios","android"]; return order.indexOf(a) - order.indexOf(b); });
-      for (var di = 0; di < dlOS.length; di++) { var os = dlOS[di]; var p = checked.platforms[os];
-        if (p.url) {
-          const urls = typeof p.url === "string" ? [p.url] : (p.url || []);
-          urls.forEach((url) => {
-            rightIcons += linkWithTooltip(url, platformIcon(os, "w-5 h-5"), os, p.force_downloader);
-          });
-        }
-      }
-      rightIcons += `<span onclick="event.stopPropagation(); confirmUpdate('${d.app_id}')" class="mx-3" ${tipAttr("确认这个更新")}>${iconYes("应用更新", "w-5 h-5")}</span>`;
-    }
-    // 常驻按钮：编辑、地球、刷新，粉色背景
-    rightIcons += `<span onclick="event.stopPropagation(); editVersion('${d.app_id}')" ${tipAttr("修改已记录的版本号")}>${iconImg("edit", "修改已记录的版本号", "w-5 h-5")}</span>`;
-    rightIcons += `<span class="${d.official_website ? "cursor-pointer hover:opacity-80 transition-opacity" : "opacity-30"}" ${d.official_website ? tipAttr(earthTooltip(d.official_website)) : ''}>${d.official_website ? '<span onclick="event.stopPropagation(); openExternalUrl(\'' + d.official_website.replace(/'/g, "\\'") + '\')">' + iconImg("earth", "官网", "w-5 h-5") + '</span>' : iconImg("earth", "无官网", "w-5 h-5")}</span>`;
-    rightIcons += `<span onclick="event.stopPropagation(); refreshApp('${d.app_id}')" ${tipAttr("检查更新")}>${iconImg("refresh", "检查更新", "w-5 h-5")}</span>`;
-    rightIcons += `</span>`;
+                // 右侧：[平台]  |  [yes]  |  [编辑] [地球] [刷新]
+                let rightIcons = `<span class="flex items-center gap-2 shrink-0">`;
+                // 平台下载图标（检查后有数据才显示）
+                if (
+                    checked &&
+                    Object.keys(checked.platforms || {}).length > 0
+                ) {
+                    var dlOS = Object.keys(checked.platforms).sort(
+                        function (a, b) {
+                            var order = [
+                                "macos",
+                                "windows",
+                                "linux",
+                                "ios",
+                                "android"
+                            ];
+                            return order.indexOf(a) - order.indexOf(b);
+                        }
+                    );
+                    for (var di = 0; di < dlOS.length; di++) {
+                        var os = dlOS[di];
+                        var p = checked.platforms[os];
+                        if (p.url) {
+                            const urls =
+                                typeof p.url === "string"
+                                    ? [p.url]
+                                    : p.url || [];
+                            urls.forEach((url) => {
+                                rightIcons += linkWithTooltip(
+                                    url,
+                                    platformIcon(os, "w-5 h-5"),
+                                    os,
+                                    p.force_downloader
+                                );
+                            });
+                        }
+                    }
+                    rightIcons += `<span onclick="event.stopPropagation(); confirmUpdate('${d.app_id}')" class="mx-3" ${tipAttr("确认这个更新")}>${iconYes("应用更新", "w-5 h-5")}</span>`;
+                }
+                // 常驻按钮：编辑、地球、刷新，粉色背景
+                rightIcons += `<span onclick="event.stopPropagation(); editVersion('${d.app_id}')" ${tipAttr("修改已记录的版本号")}>${iconImg("edit", "修改已记录的版本号", "w-5 h-5")}</span>`;
+                rightIcons += `<span class="${d.official_website ? "cursor-pointer hover:opacity-80 transition-opacity" : "opacity-30"}" ${d.official_website ? tipAttr(earthTooltip(d.official_website)) : ""}>${d.official_website ? "<span onclick=\"event.stopPropagation(); openExternalUrl('" + d.official_website.replace(/'/g, "\\'") + "')\">" + iconImg("earth", "官网", "w-5 h-5") + "</span>" : iconImg("earth", "无官网", "w-5 h-5")}</span>`;
+                rightIcons += `<span onclick="event.stopPropagation(); refreshApp('${d.app_id}')" ${tipAttr("检查更新")}>${iconImg("refresh", "检查更新", "w-5 h-5")}</span>`;
+                rightIcons += `</span>`;
 
-    return `<div class="flex items-center bg-surface-alt border border-bord-mid rounded-lg pl-2 pr-4 h-16 hover:border-bord transition-colors mb-2 overflow-hidden">
+                return `<div class="flex items-center bg-surface-alt border border-bord-mid rounded-lg pl-2 pr-4 h-16 hover:border-bord transition-colors mb-2 overflow-hidden">
       <div class="flex-1 min-w-0 pr-4 flex flex-col justify-center">
-        <div class="text-base font-semibold truncate pl-1"><span class="select-text" ${tipAttr((d.app_id || '') + (d.description ? '<br>' + d.description : '') + (d.status && d.status.length && d.status[0] ? '<br>状态：' + d.status.join(', ') : ''))}>${d.name || d.app_id}</span>${timeHTML}${(d.status && d.status.length && d.status[0]) ? ' <span class="inline-block w-2 h-2 rounded-full bg-warn align-middle"></span>' : ''}</div>
+        <div class="text-base font-semibold truncate pl-1"><span class="select-text" ${tipAttr((d.app_id || "") + (d.description ? "<br>" + d.description : "") + (d.status && d.status.length && d.status[0] ? "<br>状态：" + d.status.join(", ") : ""))}>${d.name || d.app_id}</span>${timeHTML}${d.status && d.status.length && d.status[0] ? ' <span class="inline-block w-2 h-2 rounded-full bg-warn align-middle"></span>' : ""}</div>
         <div class="mt-0.5">${versionHTML}</div>
       </div>
       ${rightIcons}
     </div>`;
-  }
+            }
 
-  async function refreshApp(appId) {
-    console.log("[check] ids:", appId);
-    const ld = showLoading("加载中", "正在检查...");
-    const data = await apiPost("/api/check/ids", [appId]);
-    mergeCheckResults(data || []);
-    const detail = await api("/api/tracker/list/" + currentTracker) || [];
-    const list = document.getElementById("software-list");
-    if (!list.classList.contains("hidden")) {
-      list.innerHTML = detail.map(d => renderSoftwareRow(d)).join("");
-    }
-    var errs = collectErrors(data || []);
-    showCheckDone(errs);
-  }
+            async function refreshApp(appId) {
+                console.log("[check] ids:", appId);
+                const ld = showLoading("加载中", "正在检查...");
+                const data = await apiPost("/api/check/ids", [appId]);
+                mergeCheckResults(data || []);
+                const detail =
+                    (await api("/api/tracker/list/" + currentTracker)) || [];
+                const list = document.getElementById("software-list");
+                if (!list.classList.contains("hidden")) {
+                    list.innerHTML = detail
+                        .map((d) => renderSoftwareRow(d))
+                        .join("");
+                }
+                var errs = collectErrors(data || []);
+                showCheckDone(errs);
+            }
 
-  async function confirmUpdate(appId) {
-    const cr = checkResults[appId];
-    if (!cr) return;
-    const body = { app_id: appId };
-    for (const [os, p] of Object.entries(cr.platforms || {})) {
-      if (p.latest_version) body[os] = p.latest_version;
-    }
-    console.log("[confirm]", appId, body);
-    await apiPost("/api/check/confirm", body);
-    delete checkResults[appId];
-    // 直接重新获取并渲染列表，不触发渐出渐入动画
-    const data = await api("/api/tracker/list/" + currentTracker) || [];
-    const list = document.getElementById("software-list");
-    if (!list.classList.contains("hidden")) {
-      list.innerHTML = data.map(d => renderSoftwareRow(d)).join("");
-    }
-  }
+            async function confirmUpdate(appId) {
+                const cr = checkResults[appId];
+                if (!cr) return;
+                const body = { app_id: appId };
+                for (const [os, p] of Object.entries(cr.platforms || {})) {
+                    if (p.latest_version) body[os] = p.latest_version;
+                }
+                console.log("[confirm]", appId, body);
+                await apiPost("/api/check/confirm", body);
+                delete checkResults[appId];
+                // 直接重新获取并渲染列表，不触发渐出渐入动画
+                const data =
+                    (await api("/api/tracker/list/" + currentTracker)) || [];
+                const list = document.getElementById("software-list");
+                if (!list.classList.contains("hidden")) {
+                    list.innerHTML = data
+                        .map((d) => renderSoftwareRow(d))
+                        .join("");
+                }
+            }
 
-  async function editVersion(appId) {
-    var modal = showModal(`
+            async function editVersion(appId) {
+                var modal = showModal(`
       <div class="text-base font-bold mb-4">编辑版本 — ${appId}</div>
       <div id="edit-platforms" class="flex flex-col gap-2 mb-4"></div>
       <div class="flex gap-2">
         <button onclick="closeModal(this.closest('.fixed'))" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>
         <button id="btn-save-version" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">保存</button>
       </div>`);
-    const detail = await api("/api/tracker/list/" + currentTracker);
-    const entry = (detail || []).find(e => e.app_id === appId);
-    var platforms = (entry && entry.current_version) ? Object.keys(entry.current_version) : [];
-    document.getElementById("edit-platforms").innerHTML = platforms.map(os => {
-      const cur = (entry && entry.current_version && entry.current_version[os]) || "";
-      return `<div class="flex items-center gap-2"><span class="text-xs text-sub w-16">${os}</span><input class="flex-1 bg-surface border border-bord rounded-lg px-3 py-1.5 text-sm outline-none focus:border-accent" value="${cur}" data-os="${os}"></div>`;
-    }).join("");
-    document.getElementById("btn-save-version").onclick = async () => {
-      const body = { app_id: appId };
-      document.querySelectorAll("#edit-platforms input").forEach(inp => { body[inp.dataset.os] = inp.value.trim(); });
-      await apiPost("/api/check/confirm", body);
-      closeModal(modal);
-      delete checkResults[appId];
-      const detail = await api("/api/tracker/list/" + currentTracker) || [];
-      const list = document.getElementById("software-list");
-      if (!list.classList.contains("hidden")) {
-        list.innerHTML = detail.map(d => renderSoftwareRow(d)).join("");
-      }
-    };
-  }
-
-  function escapeHtml(str) {
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-
-  function cleanGitHubError(msg) {
-    // 提取 JSON 中的 message 字段
-    var m = msg.match(/"message"\s*:\s*"([^"]+)"/);
-    if (m) msg = m[1];
-    // 截断 GitHub 提示
-    var idx = msg.indexOf("(But here's the good news");
-    if (idx >= 0) msg = msg.substring(0, idx).trim();
-    return msg;
-  }
-
-  function collectErrors(data) {
-    var errs = [];
-    if (!Array.isArray(data)) return errs;
-    for (const r of data) {
-      for (const [os, p] of Object.entries(r.platforms || {})) {
-        if (p.error) {
-          var msg = cleanGitHubError(p.error);
-          msg = escapeHtml(msg);
-          // HTTP 403：不展示 HTML 正文，检测人机验证
-          if (/^HTTP 403/.test(msg)) {
-            var challengePatterns = [
-              'challenges.cloudflare.com', '_cf_chl_opt', 'cf_chl', 'turnstile',
-              'captcha', 'recaptcha', 'hcaptcha',
-              '/cdn-cgi/challenge-platform',
-              'akamai', 'challenge-platform',
-              'distil', 'perimeterx', 'datadome', 'imperva', 'incapsula', 'sucuri',
-              'Just a moment', 'Checking your browser'
-            ];
-            var isChallenge = false;
-            for (var ci = 0; ci < challengePatterns.length; ci++) {
-              if (msg.indexOf(challengePatterns[ci]) !== -1) { isChallenge = true; break; }
+                const detail = await api("/api/tracker/list/" + currentTracker);
+                const entry = (detail || []).find((e) => e.app_id === appId);
+                var platforms =
+                    entry && entry.current_version
+                        ? Object.keys(entry.current_version)
+                        : [];
+                document.getElementById("edit-platforms").innerHTML = platforms
+                    .map((os) => {
+                        const cur =
+                            (entry &&
+                                entry.current_version &&
+                                entry.current_version[os]) ||
+                            "";
+                        return `<div class="flex items-center gap-2"><span class="text-xs text-sub w-16">${os}</span><input class="flex-1 bg-surface border border-bord rounded-lg px-3 py-1.5 text-sm outline-none focus:border-accent" value="${cur}" data-os="${os}"></div>`;
+                    })
+                    .join("");
+                document.getElementById("btn-save-version").onclick =
+                    async () => {
+                        const body = { app_id: appId };
+                        document
+                            .querySelectorAll("#edit-platforms input")
+                            .forEach((inp) => {
+                                body[inp.dataset.os] = inp.value.trim();
+                            });
+                        await apiPost("/api/check/confirm", body);
+                        closeModal(modal);
+                        delete checkResults[appId];
+                        const detail =
+                            (await api(
+                                "/api/tracker/list/" + currentTracker
+                            )) || [];
+                        const list = document.getElementById("software-list");
+                        if (!list.classList.contains("hidden")) {
+                            list.innerHTML = detail
+                                .map((d) => renderSoftwareRow(d))
+                                .join("");
+                        }
+                    };
             }
-            if (isChallenge) {
-              window._hasChallenge = true;
-              msg = 'HTTP 403 (Challenge)';
-            } else {
-              msg = 'HTTP 403';
+
+            function escapeHtml(str) {
+                return str
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;");
             }
-          }
-          errs.push('<span class="text-warn">' + r.name + " " + os + "</span>: " + msg);
-        }
-      }
-    }
-    return errs;
-  }
 
-  function finishCheckTracker() {
-    api("/api/check/temp/" + currentTracker).then(function (data) {
-      var results = (data && data.results) || [];
-      mergeCheckResults(results);
-      loadTrackerDetail(currentTracker);
-      var errs = collectErrors(results);
-      showCheckDone(errs);
-    });
-  }
+            function cleanGitHubError(msg) {
+                // 提取 JSON 中的 message 字段
+                var m = msg.match(/"message"\s*:\s*"([^"]+)"/);
+                if (m) msg = m[1];
+                // 截断 GitHub 提示
+                var idx = msg.indexOf("(But here's the good news");
+                if (idx >= 0) msg = msg.substring(0, idx).trim();
+                return msg;
+            }
 
-  function checkTracker() {
-    console.log("[check] tracker:", currentTracker);
-    asyncCheck("/api/check/tracker", { tracker_id: currentTracker }, finishCheckTracker);
-  }
+            function collectErrors(data) {
+                var errs = [];
+                if (!Array.isArray(data)) return errs;
+                for (const r of data) {
+                    for (const [os, p] of Object.entries(r.platforms || {})) {
+                        if (p.error) {
+                            var msg = cleanGitHubError(p.error);
+                            msg = escapeHtml(msg);
+                            // HTTP 403：不展示 HTML 正文，检测人机验证
+                            if (/^HTTP 403/.test(msg)) {
+                                var challengePatterns = [
+                                    "challenges.cloudflare.com",
+                                    "_cf_chl_opt",
+                                    "cf_chl",
+                                    "turnstile",
+                                    "captcha",
+                                    "recaptcha",
+                                    "hcaptcha",
+                                    "/cdn-cgi/challenge-platform",
+                                    "akamai",
+                                    "challenge-platform",
+                                    "distil",
+                                    "perimeterx",
+                                    "datadome",
+                                    "imperva",
+                                    "incapsula",
+                                    "sucuri",
+                                    "Just a moment",
+                                    "Checking your browser"
+                                ];
+                                var isChallenge = false;
+                                for (
+                                    var ci = 0;
+                                    ci < challengePatterns.length;
+                                    ci++
+                                ) {
+                                    if (
+                                        msg.indexOf(challengePatterns[ci]) !==
+                                        -1
+                                    ) {
+                                        isChallenge = true;
+                                        break;
+                                    }
+                                }
+                                if (isChallenge) {
+                                    window._hasChallenge = true;
+                                    msg = "HTTP 403 (Challenge)";
+                                } else {
+                                    msg = "HTTP 403";
+                                }
+                            }
+                            errs.push(
+                                '<span class="text-warn">' +
+                                    r.name +
+                                    " " +
+                                    os +
+                                    "</span>: " +
+                                    msg
+                            );
+                        }
+                    }
+                }
+                return errs;
+            }
 
-  function showCheckDone(errs) {
-    var ld = showLoading("检查完成", "");
-    if (!errs.length) { ld.done("检查完成"); return; }
-    flashOverlay();
-    var hasRateLimit = errs.some(function(e) { return e.indexOf("API rate limit exceeded") >= 0; });
-    var hasAbuse = errs.some(function(e) { return e.indexOf("abuse detection") >= 0; });
-    var body = "";
-    if (hasRateLimit) body += "提示：你似乎达到了 GitHub 请求速率限制，查看 Serein 文档获取更多信息。<br><br>";
-    if (hasAbuse) body += "提示：你似乎在短时间大量请求 GitHub API 导致被暂时封禁。请降低并发，不要频繁操作，稍等片刻再继续尝试。<br><br>";
-    var hasCloudflare = window._hasChallenge;
-    if (hasCloudflare) body += "提示：似乎触发了人机验证，请尝试手动更新。<br><br>";
-    window._hasChallenge = false;
-    body += errs.join("<br>");
-    ld.done(body, true, errs.length + " 个错误");
-  }
+            function finishCheckTracker() {
+                api("/api/check/temp/" + currentTracker).then(function (data) {
+                    var results = (data && data.results) || [];
+                    mergeCheckResults(results);
+                    loadTrackerDetail(currentTracker);
+                    var errs = collectErrors(results);
+                    showCheckDone(errs);
+                });
+            }
 
-  async function readCache() {
-    if (!currentTracker) return;
-    const ld = showLoading("加载中", "正在读取缓存...");
-    var data = await api("/api/check/temp/" + currentTracker);
-    var results = (data && data.results) || [];
-    mergeCheckResults(results);
-    if (data && data.expired) {
-      ld.done("缓存已超过 24 小时，可能不是最新", true, "过期缓存");
-    } else {
-      ld.done("读取完成");
-    }
-    loadTrackerDetail(currentTracker);
-  }
+            function checkTracker() {
+                console.log("[check] tracker:", currentTracker);
+                asyncCheck(
+                    "/api/check/tracker",
+                    { tracker_id: currentTracker },
+                    finishCheckTracker
+                );
+            }
 
-  function mergeCheckResults(data) {
-    if (!Array.isArray(data)) return;
-    for (const r of data) {
-      if (!checkResults[r.app_id]) { checkResults[r.app_id] = r; continue; }
-      for (const [os, p] of Object.entries(r.platforms || {})) {
-        checkResults[r.app_id].platforms[os] = p;
-      }
-    }
-  }
+            function showCheckDone(errs) {
+                var ld = showLoading("检查完成", "");
+                if (!errs.length) {
+                    ld.done("检查完成");
+                    return;
+                }
+                flashOverlay();
+                var hasRateLimit = errs.some(function (e) {
+                    return e.indexOf("API rate limit exceeded") >= 0;
+                });
+                var hasAbuse = errs.some(function (e) {
+                    return e.indexOf("abuse detection") >= 0;
+                });
+                var body = "";
+                if (hasRateLimit)
+                    body +=
+                        "提示：你似乎达到了 GitHub 请求速率限制，查看 Serein 文档获取更多信息。<br><br>";
+                if (hasAbuse)
+                    body +=
+                        "提示：你似乎在短时间大量请求 GitHub API 导致被暂时封禁。请降低并发，不要频繁操作，稍等片刻再继续尝试。<br><br>";
+                var hasCloudflare = window._hasChallenge;
+                if (hasCloudflare)
+                    body +=
+                        "提示：似乎触发了人机验证，请尝试手动更新。<br><br>";
+                window._hasChallenge = false;
+                body += errs.join("<br>");
+                ld.done(body, true, errs.length + " 个错误");
+            }
 
-</script>
-</body>
+            async function readCache() {
+                if (!currentTracker) return;
+                const ld = showLoading("加载中", "正在读取缓存...");
+                var data = await api("/api/check/temp/" + currentTracker);
+                var results = (data && data.results) || [];
+                mergeCheckResults(results);
+                if (data && data.expired) {
+                    ld.done(
+                        "缓存已超过 24 小时，可能不是最新",
+                        true,
+                        "过期缓存"
+                    );
+                } else {
+                    ld.done("读取完成");
+                }
+                loadTrackerDetail(currentTracker);
+            }
+
+            function mergeCheckResults(data) {
+                if (!Array.isArray(data)) return;
+                for (const r of data) {
+                    if (!checkResults[r.app_id]) {
+                        checkResults[r.app_id] = r;
+                        continue;
+                    }
+                    for (const [os, p] of Object.entries(r.platforms || {})) {
+                        checkResults[r.app_id].platforms[os] = p;
+                    }
+                }
+            }
+        </script>
+    </body>
 </html>

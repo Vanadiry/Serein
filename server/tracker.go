@@ -42,11 +42,11 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 	userData, _ := store.LoadUserData(s.home)
 
 	type detail struct {
-		AppID          string            `json:"app_id"`
-			Description     string            `json:"description,omitempty"`
+		AppID           string            `json:"app_id"`
+		Description     string            `json:"description,omitempty"`
 		Name            string            `json:"name"`
 		OfficialWebsite string            `json:"official_website,omitempty"`
-			Status          []string          `json:"status,omitempty"`
+		Status          []string          `json:"status,omitempty"`
 		SourceID        string            `json:"source_id,omitempty"`
 		SourceName      string            `json:"source_name,omitempty"`
 		CurrentVersion  map[string]string `json:"current_version"`
@@ -57,7 +57,7 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 	var result []detail
 	for _, entry := range entries {
 		d := detail{
-			AppID:         entry.AppID,
+			AppID:          entry.AppID,
 			CurrentVersion: make(map[string]string),
 		}
 		rule, ok := rules[entry.AppID]
@@ -124,10 +124,10 @@ func (s *Server) handleTrackerNew(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleTrackerAdd(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		TrackerID string   `json:"tracker_id"`
-		AppID     string   `json:"app_id"`
-			Description     string            `json:"description,omitempty"`
-		Platforms []string `json:"platforms"`
+		TrackerID   string   `json:"tracker_id"`
+		AppID       string   `json:"app_id"`
+		Description string   `json:"description,omitempty"`
+		Platforms   []string `json:"platforms"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid body")
@@ -142,7 +142,7 @@ func (s *Server) handleTrackerAdd(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := store.AddToTracker(s.home, body.TrackerID, store.TrackerEntry{
-		AppID:    body.AppID,
+		AppID:     body.AppID,
 		Platforms: body.Platforms,
 	}); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())

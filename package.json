@@ -1,17 +1,17 @@
 {
-	"scripts": {
-		"build:css": "pnpm tailwindcss -i web_raw/assets/tailwind-input.css -o web/assets/style.css --minify",
-		"build:js": "pnpm terser web_raw/assets/app.js -o web/assets/app.min.js -c -m",
-		"build:html": "node scripts/minify-html.js",
-		"build": "pnpm run build:css && pnpm run build:js && pnpm run build:html"
-	},
-	"dependencies": {
-		"@tailwindcss/cli": "^4.3.2",
-		"html-minifier-terser": "^7.2.0",
-		"tailwindcss": "^4.3.2",
-		"terser": "^5.49.0"
-	},
-	"devDependencies": {
-		"@tauri-apps/cli": "^2.11.4"
-	}
+    "scripts": {
+        "build:css": "pnpm tailwindcss -i web_raw/assets/tailwind-input.css -o web/assets/style.css --minify",
+        "build:js": "pnpm terser web_raw/assets/app.js -o web/assets/app.min.js -c -m",
+        "build:html": "node scripts/minify-html.js",
+        "build": "pnpm run build:css && pnpm run build:js && pnpm run build:html"
+    },
+    "dependencies": {
+        "@tailwindcss/cli": "^4.3.2",
+        "html-minifier-terser": "^7.2.0",
+        "tailwindcss": "^4.3.2",
+        "terser": "^5.49.0"
+    },
+    "devDependencies": {
+        "@tauri-apps/cli": "^2.11.4"
+    }
 }

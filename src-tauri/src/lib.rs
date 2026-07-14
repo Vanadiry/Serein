@@ -1,10 +1,10 @@
 use std::net::TcpStream;
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 use std::process::{Child, Command};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::Manager;
-#[cfg(target_os = "windows")]
-use std::os::windows::process::CommandExt;
 
 mod config;
 mod error_page;
@@ -16,40 +16,64 @@ pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
             #[cfg(mobile)]
-            unsafe { ffi::StartSerein(); }
+            unsafe {
+                ffi::StartSerein();
+            }
 
             #[cfg(not(mobile))]
             {
                 let port = config::get_port();
                 let addr = format!("127.0.0.1:{}", port);
-                let ext = if cfg!(target_os = "windows") { ".exe" } else { "" };
+                let ext = if cfg!(target_os = "windows") {
+                    ".exe"
+                } else {
+                    ""
+                };
                 let target = std::env::var("TARGET").unwrap_or_default();
                 let name_long = format!("serein_server-{}{}", target, ext);
                 let name_short = format!("serein_server{}", ext);
 
                 // 1) bundled: next to the main executable
                 // 2) dev: project_root/build/
-                let bin = std::env::current_exe().ok()
+                let bin = std::env::current_exe()
+                    .ok()
                     .and_then(|p| p.parent().map(|d| d.to_path_buf()))
                     .and_then(|exe_dir| {
                         let bundled = exe_dir.join(&name_short);
-                        if bundled.exists() { return Some(bundled); }
+                        if bundled.exists() {
+                            return Some(bundled);
+                        }
                         let bundled_long = exe_dir.join(&name_long);
-                        if bundled_long.exists() { return Some(bundled_long); }
+                        if bundled_long.exists() {
+                            return Some(bundled_long);
+                        }
                         None
                     })
                     .or_else(|| {
-                        let dev = std::env::current_dir().ok()?
-                            .parent()?.join("build").join(&name_long);
-                        if dev.exists() { Some(dev) } else { None }
+                        let dev = std::env::current_dir()
+                            .ok()?
+                            .parent()?
+                            .join("build")
+                            .join(&name_long);
+                        if dev.exists() {
+                            Some(dev)
+                        } else {
+                            None
+                        }
                     });
                 if TcpStream::connect(&addr).is_ok() {
-                    error_page::show(&app.get_webview_window("main").unwrap(), "无法启动后端", "Serein 后端使用的端口被占用，请检查");
+                    error_page::show(
+                        &app.get_webview_window("main").unwrap(),
+                        "无法启动后端",
+                        "Serein 后端使用的端口被占用，请检查",
+                    );
                 } else if let Some(path) = bin {
                     let mut cmd = Command::new(&path);
                     cmd.env("SEREIN_SIDECAR", "1");
                     #[cfg(target_os = "windows")]
-                    { cmd.creation_flags(0x08000000); } // CREATE_NO_WINDOW
+                    {
+                        cmd.creation_flags(0x08000000);
+                    } // CREATE_NO_WINDOW
                     if let Ok(child) = cmd.spawn() {
                         let child = Arc::new(Mutex::new(child));
                         // Monitor: detect unexpected sidecar exit
@@ -58,17 +82,25 @@ pub fn run() {
                         std::thread::spawn(move || {
                             loop {
                                 let exited = c.lock().unwrap().try_wait().ok().flatten().is_some();
-                                if exited { break; }
+                                if exited {
+                                    break;
+                                }
                                 std::thread::sleep(Duration::from_millis(200));
                             }
                             if let Some(window) = handle.get_webview_window("main") {
-                                error_page::show(&window, "后端已退出", "Serein 后端进程已终止，请重启应用");
+                                error_page::show(
+                                    &window,
+                                    "后端已退出",
+                                    "Serein 后端进程已终止，请重启应用",
+                                );
                             }
                         });
                         *SIDECAR.lock().unwrap() = Some(child);
                         for _ in 0..30 {
                             std::thread::sleep(Duration::from_millis(100));
-                            if TcpStream::connect(&addr).is_ok() { break; }
+                            if TcpStream::connect(&addr).is_ok() {
+                                break;
+                            }
                         }
                         // Navigate to the possibly non-default port
                         if let Some(w) = app.get_webview_window("main") {
@@ -91,7 +123,9 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
         .run(|_handle, _event| {
-            if matches!(_event, tauri::RunEvent::Exit) { graceful_exit(_handle.clone()); }
+            if matches!(_event, tauri::RunEvent::Exit) {
+                graceful_exit(_handle.clone());
+            }
         });
 }
 
@@ -112,13 +146,15 @@ fn graceful_exit(handle: tauri::AppHandle) {
     }
     #[cfg(mobile)]
     {
-        unsafe { ffi::StopSerein(); }
+        unsafe {
+            ffi::StopSerein();
+        }
         handle.exit(0);
     }
 }
 
 fn setup_menu(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    use tauri::menu::{MenuBuilder, SubmenuBuilder, PredefinedMenuItem};
+    use tauri::menu::{MenuBuilder, PredefinedMenuItem, SubmenuBuilder};
 
     let app_menu = SubmenuBuilder::new(app, "Serein")
         .item(&PredefinedMenuItem::about(app, Some("关于 Serein"), None)?)

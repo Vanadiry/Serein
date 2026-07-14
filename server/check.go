@@ -173,12 +173,12 @@ func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) 
 						Position: ps.Position,
 					})
 				}
-			preURL, err := checker.RunPreRequests(checkerSteps, checker.NewClient())
-			if err != nil {
-				store.Emit("error", "[check]", fmt.Sprintf("%s 前置请求失败: %v", jobName, err))
-			} else if preURL != "" {
-				platCfg.URL = preURL
-			}
+				preURL, err := checker.RunPreRequests(checkerSteps, checker.NewClient())
+				if err != nil {
+					store.Emit("error", "[check]", fmt.Sprintf("%s 前置请求失败: %v", jobName, err))
+				} else if preURL != "" {
+					platCfg.URL = preURL
+				}
 			}
 
 			if platCfg.URL == "" && platCfg.VURL == "" && platCfg.DURL == "" && platCfg.Type != "github" {

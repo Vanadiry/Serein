@@ -2,95 +2,154 @@
 
 /* ── Dark mode (default) ── */
 :root {
-  --c-bg: #1d1d1d;
-  --c-surface: #202028;
-  --c-surface-alt: #2a2a2a;
-  --c-surface-raised: #1c1c22;
-  --c-input: #151518;
-  --c-active: #30303b;
-  --c-text: rgba(255, 255, 255, 0.88);
-  --c-sub: rgba(255, 255, 255, 0.52);
-  --c-bord: rgba(255, 255, 255, 0.12);
-  --c-bord-light: rgba(255, 255, 255, 0.06);
-  --c-bord-mid: rgba(255, 255, 255, 0.08);
-  --c-bord-strong: rgba(255, 255, 255, 0.15);
-  --c-accent: #14b8a6;
-  --c-ok: #68a868;
-  --c-warn: #e8a040;
-  --c-err: #dc2626;
-  --c-overlay: rgba(0, 0, 0, 0.6);
-  --c-toast-warn-bg: #451a03;
-  --c-toast-ok-bg: #243624;
-  --c-toast-err-bg: #3a1a1a;
-  color-scheme: dark;
+    --c-bg: #1d1d1d;
+    --c-surface: #202028;
+    --c-surface-alt: #2a2a2a;
+    --c-surface-raised: #1c1c22;
+    --c-input: #151518;
+    --c-active: #30303b;
+    --c-text: rgba(255, 255, 255, 0.88);
+    --c-sub: rgba(255, 255, 255, 0.52);
+    --c-bord: rgba(255, 255, 255, 0.12);
+    --c-bord-light: rgba(255, 255, 255, 0.06);
+    --c-bord-mid: rgba(255, 255, 255, 0.08);
+    --c-bord-strong: rgba(255, 255, 255, 0.15);
+    --c-accent: #14b8a6;
+    --c-ok: #68a868;
+    --c-warn: #e8a040;
+    --c-err: #dc2626;
+    --c-overlay: rgba(0, 0, 0, 0.6);
+    --c-toast-warn-bg: #451a03;
+    --c-toast-ok-bg: #243624;
+    --c-toast-err-bg: #3a1a1a;
+    color-scheme: dark;
 }
 
 /* ── Light mode ── */
 html.light {
-  --c-bg: #f5f5f5;
-  --c-surface: #ffffff;
-  --c-surface-alt: #f0f0f2;
-  --c-surface-raised: #eaeaee;
-  --c-input: #e5e5ea;
-  --c-active: #e0e0e5;
-  --c-text: rgba(0, 0, 0, 0.85);
-  --c-sub: rgba(0, 0, 0, 0.5);
-  --c-bord: rgba(0, 0, 0, 0.1);
-  --c-bord-light: rgba(0, 0, 0, 0.05);
-  --c-bord-mid: rgba(0, 0, 0, 0.07);
-  --c-bord-strong: rgba(0, 0, 0, 0.13);
-  --c-accent: #0d9488;
-  --c-ok: #4a9a4a;
-  --c-warn: #d88810;
-  --c-err: #c62828;
-  --c-overlay: rgba(0, 0, 0, 0.4);
-  --c-toast-warn-bg: #fef3c7;
-  --c-toast-ok-bg: #e6f5e6;
-  --c-toast-err-bg: #fee2e2;
-  color-scheme: light;
+    --c-bg: #f5f5f5;
+    --c-surface: #ffffff;
+    --c-surface-alt: #f0f0f2;
+    --c-surface-raised: #eaeaee;
+    --c-input: #e5e5ea;
+    --c-active: #e0e0e5;
+    --c-text: rgba(0, 0, 0, 0.85);
+    --c-sub: rgba(0, 0, 0, 0.5);
+    --c-bord: rgba(0, 0, 0, 0.1);
+    --c-bord-light: rgba(0, 0, 0, 0.05);
+    --c-bord-mid: rgba(0, 0, 0, 0.07);
+    --c-bord-strong: rgba(0, 0, 0, 0.13);
+    --c-accent: #0d9488;
+    --c-ok: #4a9a4a;
+    --c-warn: #d88810;
+    --c-err: #c62828;
+    --c-overlay: rgba(0, 0, 0, 0.4);
+    --c-toast-warn-bg: #fef3c7;
+    --c-toast-ok-bg: #e6f5e6;
+    --c-toast-err-bg: #fee2e2;
+    color-scheme: light;
 }
 
 @theme {
-  --color-bg: var(--c-bg);
-  --color-surface: var(--c-surface);
-  --color-surface-alt: var(--c-surface-alt);
-  --color-surface-raised: var(--c-surface-raised);
-  --color-input: var(--c-input);
-  --color-active: var(--c-active);
-  --color-text: var(--c-text);
-  --color-sub: var(--c-sub);
-  --color-bord: var(--c-bord);
-  --color-bord-light: var(--c-bord-light);
-  --color-bord-mid: var(--c-bord-mid);
-  --color-bord-strong: var(--c-bord-strong);
-  --color-accent: var(--c-accent);
-  --color-ok: var(--c-ok);
-  --color-warn: var(--c-warn);
-  --color-err: var(--c-err);
-  --color-overlay: var(--c-overlay);
-  --color-toast-warn-bg: var(--c-toast-warn-bg);
-  --color-toast-ok-bg: var(--c-toast-ok-bg);
-  --color-toast-err-bg: var(--c-toast-err-bg);
+    --color-bg: var(--c-bg);
+    --color-surface: var(--c-surface);
+    --color-surface-alt: var(--c-surface-alt);
+    --color-surface-raised: var(--c-surface-raised);
+    --color-input: var(--c-input);
+    --color-active: var(--c-active);
+    --color-text: var(--c-text);
+    --color-sub: var(--c-sub);
+    --color-bord: var(--c-bord);
+    --color-bord-light: var(--c-bord-light);
+    --color-bord-mid: var(--c-bord-mid);
+    --color-bord-strong: var(--c-bord-strong);
+    --color-accent: var(--c-accent);
+    --color-ok: var(--c-ok);
+    --color-warn: var(--c-warn);
+    --color-err: var(--c-err);
+    --color-overlay: var(--c-overlay);
+    --color-toast-warn-bg: var(--c-toast-warn-bg);
+    --color-toast-ok-bg: var(--c-toast-ok-bg);
+    --color-toast-err-bg: var(--c-toast-err-bg);
 }
 
-body { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
-.card-h { min-height: 160px; }
-img { -webkit-user-drag: none; user-select: none; }
+body {
+    font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.card-h {
+    min-height: 160px;
+}
+img {
+    -webkit-user-drag: none;
+    user-select: none;
+}
 
 /* 全局禁止选中，白名单放开 */
-* { user-select: none; }
-input, textarea, .select-text, .select-text *, #prog-status, #search-placeholder { user-select: text; }
-.text-err { color: var(--c-err); }
-.text-ok { color: var(--c-ok); }
-.icon-bg { background: var(--c-bord-mid); border-radius: 4px; padding: 4px; display: inline-flex; align-items: center; justify-content: center; }
-.icon-bg img { display: block; }
-.icon-bg-pink { background: var(--c-accent); border-radius: 4px; padding: 4px; display: inline-flex; align-items: center; justify-content: center; }
-.icon-bg-pink img { display: block; }
-.icon-bg-green { background: var(--c-ok); border-radius: 4px; padding: 4px; display: inline-flex; align-items: center; justify-content: center; }
-.icon-bg-green img { display: block; }
+* {
+    user-select: none;
+}
+input,
+textarea,
+.select-text,
+.select-text *,
+#prog-status,
+#search-placeholder {
+    user-select: text;
+}
+.text-err {
+    color: var(--c-err);
+}
+.text-ok {
+    color: var(--c-ok);
+}
+.icon-bg {
+    background: var(--c-bord-mid);
+    border-radius: 4px;
+    padding: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.icon-bg img {
+    display: block;
+}
+.icon-bg-pink {
+    background: var(--c-accent);
+    border-radius: 4px;
+    padding: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.icon-bg-pink img {
+    display: block;
+}
+.icon-bg-green {
+    background: var(--c-ok);
+    border-radius: 4px;
+    padding: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.icon-bg-green img {
+    display: block;
+}
 /* 浅色模式下翻转 icon-bg 内的白色图标 */
-html.light .icon-bg img { filter: invert(1); }
+html.light .icon-bg img {
+    filter: invert(1);
+}
 
 /* 页面内容渐入 */
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-main > div:not(.hidden) { animation: fadeIn .15s ease; }
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+main > div:not(.hidden) {
+    animation: fadeIn 0.15s ease;
+}

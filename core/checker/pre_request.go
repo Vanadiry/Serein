@@ -218,4 +218,3 @@ func applyBaseURL(val, baseURL string) string {
 	}
 	return strings.TrimSuffix(baseURL, "/") + val
 }
-

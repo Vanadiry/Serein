@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	reGitHubURL  = regexp.MustCompile(`github\.com/([^/]+/[^/]+)`)
-	reRawGitHub  = regexp.MustCompile(`raw\.githubusercontent\.com/([^/]+/[^/]+)`)
+	reGitHubURL = regexp.MustCompile(`github\.com/([^/]+/[^/]+)`)
+	reRawGitHub = regexp.MustCompile(`raw\.githubusercontent\.com/([^/]+/[^/]+)`)
 )
 
 func formatSourceURL(url string) string {

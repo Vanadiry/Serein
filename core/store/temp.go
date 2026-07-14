@@ -23,8 +23,8 @@ type TempCheckResult struct {
 }
 
 type TempCache struct {
-	SavedAt int64              `json:"saved_at"`
-	Results []TempCheckResult  `json:"results"`
+	SavedAt int64             `json:"saved_at"`
+	Results []TempCheckResult `json:"results"`
 }
 
 func SaveTrackerTemp(home, trackerID string, results []TempCheckResult) error {

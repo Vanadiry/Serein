@@ -16,13 +16,13 @@ const (
 )
 
 var (
-	logMu        sync.Mutex
-	logDir       string
-	infoLogger   *log.Logger
-	warnLogger   *log.Logger
-	errorLogger  *log.Logger
-	logFile      *os.File
-	logInited    bool
+	logMu       sync.Mutex
+	logDir      string
+	infoLogger  *log.Logger
+	warnLogger  *log.Logger
+	errorLogger *log.Logger
+	logFile     *os.File
+	logInited   bool
 )
 
 func InitLogger(home string) error {
