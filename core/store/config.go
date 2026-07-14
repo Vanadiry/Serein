@@ -26,8 +26,9 @@ type ProfileConfig struct {
 }
 
 type SereinConfig struct {
-	Host string `toml:"host"`
-	Port int    `toml:"port"`
+	Host     string `toml:"host"`
+	Port     int    `toml:"port"`
+	FirstRun bool   `toml:"first_run"`
 }
 
 type TrackerConfig struct {
@@ -46,8 +47,9 @@ type AccessConfig struct {
 func DefaultConfig() Config {
 	return Config{
 		Serein: SereinConfig{
-			Host: "127.0.0.1",
-			Port: 12510,
+			Host:     "127.0.0.1",
+			Port:     12510,
+			FirstRun: true,
 		},
 		Tracker: TrackerConfig{
 			Platforms: []string{"macos", "windows"},

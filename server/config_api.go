@@ -68,6 +68,12 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		kv["动态配置源"] = "未配置"
 	}
 
+	if cfg.Serein.FirstRun {
+		kv["起始页"] = "由前端控制"
+	} else {
+		kv["起始页"] = "已永久关闭"
+	}
+
 	p, err := store.LoadProfile(s.home)
 	profileData := map[string]any{}
 	if err == nil {
@@ -77,7 +83,8 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"config":  kv,
-		"profile": profileData,
+		"config":    kv,
+		"profile":   profileData,
+		"first_run": cfg.Serein.FirstRun,
 	})
 }

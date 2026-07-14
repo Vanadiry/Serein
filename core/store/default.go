@@ -4,6 +4,7 @@ const DefaultConfigTOML = `# Serein 配置
 [serein]
 host = "127.0.0.1"                # 监听地址，设为 0.0.0.0 则允许局域网访问
 port = 12510                      # 监听端口
+first_run = true                  # 首次运行时展示欢迎指引，设为 false 可永久关闭
 
 [tracker]
 platforms = ["macos", "windows"]  # 全局平台偏好，可被 Tracker 中的记录覆盖

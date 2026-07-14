@@ -39,12 +39,83 @@
 </div>
 
 <script src="/assets/app.min.js"></script>
+<script>var SEREIN_FIRST_RUN = __FIRST_RUN__;</script>
 <script>
   var currentTracker = null;
   var checkResults = {};
 
   renderTopbar("应用");
   loadTrackers();
+
+  function showWelcome() {
+    if (localStorage.getItem("first_run_done")) return;
+    if (typeof SEREIN_FIRST_RUN !== "undefined" && !SEREIN_FIRST_RUN) return;
+    showWelcomeOverlay();
+  }
+
+  function showWelcomeOverlay() {
+    var steps = [
+      {
+        title: "欢迎使用 Serein",
+        html: '<p class="text-sm text-sub leading-relaxed mb-3">Serein 是一个<strong class="text-text">规则去中心化</strong>的软件更新追踪器。</p>' +
+          '<p class="text-sm text-sub leading-relaxed mb-2">与传统软件更新器不同的是，Serein 直接从每个软件的官方获取新版本信息。因此，你不必信任单独的中心化服务。</p>' +
+          '<p class="text-sm text-sub leading-relaxed">项目在 GitHub 开源：<a href="https://github.com/Vanadiry/Serein/" class="text-accent underline" target="_blank">Serein</a></p>'
+      },
+      {
+        title: "了解运作方式",
+        html: '<p class="text-sm text-sub leading-relaxed mb-3">Serein 依赖<strong class="text-text">规则表</strong>和<strong class="text-text">Tracker</strong>运行。</p>' +
+          '<p class="text-sm text-sub leading-relaxed mb-2">Tracker 是由你创建的追踪列表，记录你希望追踪的软件和平台。你可以创建多个 Tracker，并自由命名和排序。</p>' +
+          '<p class="text-sm text-sub leading-relaxed mb-2">规则表记录了 Serein 应该如何检查一个软件的更新。Serein 默认订阅了我维护的规则源 <a href="https://github.com/Vanadiry/SereinRulesList" class="text-accent underline" target="_blank">SereinRulesList</a>，涵盖了一些常用软件的规则。</p>' +
+          '<p class="text-sm text-sub leading-relaxed">如果你要自己创建与分发规则，请阅读<a href="https://github.com/Vanadiry/Serein/blob/main/docs/rules/_source.md" class="text-accent underline" target="_blank">文档 - 规则源</a>。</p>'
+      },
+      {
+        title: "开始使用",
+        html: '<div class="text-xs text-sub leading-relaxed space-y-1.5">' +
+          '<div><span class="text-accent font-semibold">0. </span>请至少阅读<a href="https://github.com/Vanadiry/Serein/blob/main/docs/guide.md" class="text-accent underline" target="_blank">文档 - 入门</a></div>' +
+          '<div><span class="text-accent font-semibold">1. </span>前往「规则」页面，在右上角拉取规则和动态配置</div>' +
+          '<div><span class="text-accent font-semibold">2. </span>添加你想要追踪的软件，这会自动创建默认 Tracker</div>' +
+          '<div><span class="text-accent font-semibold">3. </span>前往「应用」页面，点击「检查当前 Tracker」</div>' +
+          '</div>' +
+          '<p class="text-sm text-sub leading-relaxed mt-4">就是这么简单！谢谢你的使用，请随意探索吧。</p>'
+      }
+    ];
+
+    var current = 0;
+    var welcome = document.createElement("div");
+    welcome.className = "fixed inset-0 z-[300] flex items-center justify-center bg-overlay";
+
+    function render() {
+      var s = steps[current];
+      var tabs = steps.map(function (_, i) {
+        var cls = i === current ? "bg-accent text-white" : "bg-surface border border-bord-mid text-sub";
+        return '<div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ' + cls + '">' + (i + 1) + '</div>';
+      }).join("");
+
+      var btnLabel = current < steps.length - 1 ? "了解了！" : "开始使用";
+
+      welcome.innerHTML = '<div class="bg-surface-alt border border-bord rounded-xl p-6 max-w-[480px] w-[90vw] shadow-2xl">' +
+        '<div class="flex items-center gap-2 mb-4">' + tabs + '</div>' +
+        '<h3 class="text-base font-bold text-text mb-2">' + s.title + '</h3>' +
+        s.html +
+        '<div class="flex justify-end mt-5"><button id="welcome-btn" class="px-5 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer border-0 hover:opacity-90 transition-all active:scale-[0.98]">' + btnLabel + '</button></div>' +
+        '</div>';
+      welcome.querySelector("#welcome-btn").addEventListener("click", function () {
+        if (current < steps.length - 1) { current++; render(); }
+        else { dismiss(); }
+      });
+    }
+    function dismiss() {
+      welcome.style.opacity = "0";
+      welcome.style.transition = "opacity .2s";
+      setTimeout(function () { welcome.remove(); }, 200);
+      localStorage.setItem("first_run_done", "1");
+    }
+
+    render();
+    document.body.appendChild(welcome);
+  }
+
+  showWelcome();
   document.getElementById("downloader-info").textContent =
     "当前使用：" + (typeof SEREIN_DOWNLOADER !== "undefined" ? SEREIN_DOWNLOADER : "无");
 

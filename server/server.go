@@ -71,6 +71,18 @@ func (s *Server) registerRoutes() {
 					return
 				}
 			}
+			if r.URL.Path == "/" || r.URL.Path == "/index.html" {
+				data, err := fs.ReadFile(s.webFS, "index.html")
+				if err == nil {
+					firstRun := "true"
+					if !s.config.Serein.FirstRun {
+						firstRun = "false"
+					}
+					w.Header().Set("Content-Type", "text/html; charset=utf-8")
+					w.Write(bytes.Replace(data, []byte(`__FIRST_RUN__`), []byte(firstRun), 1))
+					return
+				}
+			}
 			fileServer.ServeHTTP(w, r)
 		})
 	}
