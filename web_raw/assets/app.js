@@ -1,5 +1,6 @@
 // Serein shared JS — API 封装、顶栏、公共函数
 var SEREIN_DOWNLOADER = "__DL__";
+var SEREIN_DOWNLOADER_TYPE = "__DL_TYPE__";
 var DOWNLOAD_EXTS = /(?!)/;
 const API = window.location.origin;
 
@@ -437,13 +438,16 @@ async function downloadFile(url) {
     }
 }
 
-function openDownloadWindow(url, id) {
+function openDownloadWindow(url, id, title) {
+    title = title || "下载";
     var isLight = document.documentElement.classList.contains("light");
     var themeParam = isLight ? "&theme=light" : "&theme=dark";
     var nameParam = id ? "&name=" + encodeURIComponent(id + ".vsix") : "";
     var modal = showModal(
         '<div class="flex items-center justify-between mb-3">' +
-            '<div class="text-base font-bold">下载 VSIX</div>' +
+            '<div class="text-base font-bold">' +
+            title +
+            "</div>" +
             '<button onclick="closeModal(this.closest(\'.fixed\'))" class="w-7 h-7 flex items-center justify-center rounded-lg border border-bord bg-transparent text-sub cursor-pointer hover:bg-active hover:text-text">&times;</button>' +
             "</div>" +
             '<iframe id="dl-iframe" src="/downloader?url=' +
@@ -491,6 +495,21 @@ function linkWithTooltip(href, innerHTML, os, forceDownloader) {
         );
         if (!m) m = href.match(/\/api\/([^/]+)\/([^/]+)\/([^/]+)\//);
         var vsixName = m ? m[1] + "." + m[2] + "[" + m[3] + "]" : "";
+        if (SEREIN_DOWNLOADER_TYPE === "browser") {
+            return (
+                '<a href="' +
+                href +
+                '" onclick="event.stopPropagation();event.preventDefault();openExternalUrl(\'' +
+                escapedHref +
+                '\')" class="no-underline"' +
+                ' data-tip="' +
+                tipHTML.replace(/"/g, "&quot;") +
+                '"' +
+                ' onmouseenter="showTooltip(event)" onmouseleave="hideTooltip()">' +
+                innerHTML +
+                "</a>"
+            );
+        }
         return (
             '<a href="' +
             href +
@@ -498,7 +517,7 @@ function linkWithTooltip(href, innerHTML, os, forceDownloader) {
             escapedHref +
             "', '" +
             vsixName +
-            '\')" class="no-underline"' +
+            "', '下载 VSIX')\" class=\"no-underline\"" +
             ' data-tip="' +
             tipHTML.replace(/"/g, "&quot;") +
             '"' +

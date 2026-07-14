@@ -42,14 +42,14 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 
 	dl := cfg.Download.Downloader
 	switch {
-	case dl == "":
-		kv["下载器"] = "无"
+	case dl == "" || dl == "browser":
+		kv["下载器"] = "浏览器"
 	case dl == "ndm":
-		kv["下载器"] = "Neat Download Manager（内建）"
+		kv["下载器"] = "Neat Download Manager"
 	case strings.Contains(dl, "{url}"):
 		kv["下载器"] = "自定义命令"
 	default:
-		kv["下载器"] = "无"
+		kv["下载器"] = "浏览器"
 	}
 
 	if len(cfg.RuleSources) > 0 {

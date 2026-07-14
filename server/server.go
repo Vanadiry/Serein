@@ -54,6 +54,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/rules", s.handleRules)
 
 	dlDesc := parseDownloaderDesc(s.config.Download.Downloader)
+	dlType := parseDownloaderType(s.config.Download.Downloader)
 	if s.webFS != nil {
 		fileServer := http.FileServer(http.FS(s.webFS))
 		s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -67,7 +68,9 @@ func (s *Server) registerRoutes() {
 				data, err := fs.ReadFile(s.webFS, "assets/app.min.js")
 				if err == nil {
 					w.Header().Set("Content-Type", "application/javascript")
-					w.Write(bytes.Replace(data, []byte(`"__DL__"`), []byte(dlDesc), 1))
+					data = bytes.Replace(data, []byte(`"__DL__"`), []byte(dlDesc), 1)
+					data = bytes.Replace(data, []byte(`"__DL_TYPE__"`), []byte(`"`+dlType+`"`), 1)
+					w.Write(data)
 					return
 				}
 			}
@@ -88,11 +91,25 @@ func (s *Server) registerRoutes() {
 	}
 }
 
+func parseDownloaderType(dl string) string {
+	dl = strings.TrimSpace(dl)
+	switch {
+	case dl == "" || dl == "browser":
+		return "browser"
+	case dl == "ndm":
+		return "ndm"
+	case strings.Contains(dl, "{url}"):
+		return "custom"
+	default:
+		return "browser"
+	}
+}
+
 func parseDownloaderDesc(dl string) string {
 	dl = strings.TrimSpace(dl)
 	switch {
-	case dl == "":
-		return `"无"`
+	case dl == "" || dl == "browser":
+		return `"浏览器"`
 	case dl == "ndm":
 		return `"Neat Download Manager（内建）"`
 	case strings.Contains(dl, "{url}"):
