@@ -588,12 +588,12 @@ function startSyncProgress(taskId) {
     if (d.step === "done") {
       evt.close(); pm.close();
       var parts = [];
-      if (sourcesSkipped > 0) parts.push(sourcesSkipped + " 个源已是最新（跳过）");
-      if (sourcesUpdated > 0) parts.push(sourcesUpdated + " 个源已更新（共 " + filesTotal + " 条规则）");
-      if (fileErrors > 0) parts.push(fileErrors + " 条规则下载失败");
-      if (sourcesFailed > 0) parts.push(sourcesFailed + " 个源获取失败");
-      var msg = parts.length > 0 ? "同步完成（" + parts.join("，") + "）" : "同步完成";
-      var hasError = sourcesFailed > 0 || fileErrors > 0;
+      if (d.sources_skipped > 0) parts.push(d.sources_skipped + " 个源已是最新，跳过");
+      if (d.sources_updated > 0) parts.push(d.sources_updated + " 个源已更新，共 " + d.files + " 条规则");
+      else if (d.sources_updated == 0 && d.sources_total > 0) parts.push("无任何规则源需要更新");
+      if (d.file_errors > 0) parts.push(d.file_errors + " 条规则下载失败");
+      var msg = parts.length > 0 ? parts.join("<br>") : "同步完成";
+      var hasError = d.file_errors > 0 || sourcesFailed > 0;
       showLoading("拉取规则", msg).done(msg, hasError);
       if (hasError) flashOverlay();
       if (typeof loadSources === "function") loadSources();
