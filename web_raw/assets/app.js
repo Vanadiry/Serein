@@ -450,7 +450,7 @@ function openDownloadWindow(url, id) {
             encodeURIComponent(url) +
             themeParam +
             nameParam +
-            '" class="w-full h-[200px] border-0 rounded-lg bg-bg"></iframe>'
+            '" class="w-full h-[180px] border-0 rounded-lg bg-bg"></iframe>'
     );
     window.addEventListener("message", function handler(e) {
         if (e.data === "serein-dl-done") {
