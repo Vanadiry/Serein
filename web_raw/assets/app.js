@@ -485,10 +485,11 @@ function linkWithTooltip(href, innerHTML, os, forceDownloader) {
         filename +
         "</span>";
     var escapedHref = href.replace(/'/g, "\\'");
-    if (os === "msvsix") {
+    if (os === "msvsix" || os === "openvsx") {
         var m = href.match(
             /\/publishers\/([^/]+)\/vsextensions\/([^/]+)\/([^/]+)\//
         );
+        if (!m) m = href.match(/\/api\/([^/]+)\/([^/]+)\/([^/]+)\//);
         var vsixName = m ? m[1] + "." + m[2] + "[" + m[3] + "]" : "";
         return (
             '<a href="' +

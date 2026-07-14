@@ -569,7 +569,11 @@
                 console.log("[check] ids:", appId);
                 const ld = showLoading("加载中", "正在检查...");
                 var body = { ids: [appId] };
-                if (currentTrackerType === "msvsix") body.type = "msvsix";
+                if (
+                    currentTrackerType === "msvsix" ||
+                    currentTrackerType === "openvsx"
+                )
+                    body.type = currentTrackerType;
                 else body.type = "app";
                 const data = await apiPost("/api/check/ids", body);
                 mergeCheckResults(data || []);

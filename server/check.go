@@ -30,31 +30,8 @@ func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
 	}
 	ids := body.IDs
 
-	if body.Type == "msvsix" {
-		client := checker.NewClient()
-		var results []checker.CheckResponse
-		for _, id := range ids {
-			pr, err := checker.CheckMSVSIX(id, client)
-			if err != nil {
-				store.Emit("error", "[msvsix]", fmt.Sprintf("%s: %v", id, err))
-				continue
-			}
-			results = append(results, checker.CheckResponse{
-				AppID: id,
-				Name:  id,
-				Platforms: map[string]checker.CheckPlatform{
-					"msvsix": {
-						LatestVersion:   pr.LatestVersion,
-						URL:             pr.URL,
-						ForceDownloader: true,
-					},
-				},
-			})
-		}
-		if results == nil {
-			results = []checker.CheckResponse{}
-		}
-		writeJSON(w, http.StatusOK, results)
+	if body.Type == "msvsix" || body.Type == "openvsx" {
+		s.handleDirectCheckIDs(w, ids, body.Type)
 		return
 	}
 
@@ -113,7 +90,11 @@ func (s *Server) handleCheckTracker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if store.GetTrackerType(s.home, body.TrackerID) == "msvsix" {
-		s.handleCheckMsvsix(w, entries)
+		s.handleDirectCheck(w, entries, "msvsix")
+		return
+	}
+	if store.GetTrackerType(s.home, body.TrackerID) == "openvsx" {
+		s.handleDirectCheck(w, entries, "openvsx")
 		return
 	}
 	store.Logf("[check/tracker] %s", body.TrackerID)
@@ -388,16 +369,52 @@ func saveCheckTemp(home, trackerID string, results []checker.CheckResponse) {
 	}
 }
 
-func (s *Server) handleCheckMsvsix(w http.ResponseWriter, entries []store.TrackerEntry) {
-	store.Logf("[check/msvsix] %d entries", len(entries))
+func (s *Server) handleDirectCheck(w http.ResponseWriter, entries []store.TrackerEntry, typ string) {
+	store.Logf("[check/%s] %d entries", typ, len(entries))
 	checker.ClearURLCache()
 	p := store.NewProgress(len(entries))
-	go s.runMsvsixChecksAsync(entries, p)
+	go s.runDirectChecksAsync(entries, p, typ)
 	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(len(entries))})
 }
 
-func (s *Server) runMsvsixChecksAsync(entries []store.TrackerEntry, p *store.Progress) {
+func (s *Server) handleDirectCheckIDs(w http.ResponseWriter, ids []string, typ string) {
+	checkFn := checker.CheckMSVSIX
+	if typ == "openvsx" {
+		checkFn = checker.CheckOpenVSX
+	}
+	client := checker.NewClient()
+	var results []checker.CheckResponse
+	for _, id := range ids {
+		pr, err := checkFn(id, client)
+		if err != nil {
+			store.Emit("error", "["+typ+"]", fmt.Sprintf("%s: %v", id, err))
+			continue
+		}
+		results = append(results, checker.CheckResponse{
+			AppID: id,
+			Name:  id,
+			Platforms: map[string]checker.CheckPlatform{
+				typ: {
+					LatestVersion:   pr.LatestVersion,
+					URL:             pr.URL,
+					ForceDownloader: true,
+				},
+			},
+		})
+	}
+	if results == nil {
+		results = []checker.CheckResponse{}
+	}
+	writeJSON(w, http.StatusOK, results)
+}
+
+func (s *Server) runDirectChecksAsync(entries []store.TrackerEntry, p *store.Progress, typ string) {
 	defer p.Close()
+
+	checkFn := checker.CheckMSVSIX
+	if typ == "openvsx" {
+		checkFn = checker.CheckOpenVSX
+	}
 
 	client := checker.NewClient()
 	total := len(entries)
@@ -414,9 +431,9 @@ func (s *Server) runMsvsixChecksAsync(entries []store.TrackerEntry, p *store.Pro
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			pr, err := checker.CheckMSVSIX(e.AppID, client)
+			pr, err := checkFn(e.AppID, client)
 			if err != nil {
-				store.Emit("error", "[msvsix]", fmt.Sprintf("%s: %v", e.AppID, err))
+				store.Emit("error", "["+typ+"]", fmt.Sprintf("%s: %v", e.AppID, err))
 				mu.Lock()
 				doneCount++
 				mu.Unlock()
@@ -427,7 +444,7 @@ func (s *Server) runMsvsixChecksAsync(entries []store.TrackerEntry, p *store.Pro
 				AppID: e.AppID,
 				Name:  e.AppID,
 				Platforms: map[string]checker.CheckPlatform{
-					"msvsix": {
+					typ: {
 						LatestVersion:   pr.LatestVersion,
 						URL:             pr.URL,
 						ForceDownloader: true,
@@ -442,5 +459,5 @@ func (s *Server) runMsvsixChecksAsync(entries []store.TrackerEntry, p *store.Pro
 	wg.Wait()
 
 	final := mergeResults(results)
-	saveCheckTemp(s.home, "msvsix", final)
+	saveCheckTemp(s.home, typ, final)
 }

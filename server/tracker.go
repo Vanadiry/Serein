@@ -39,11 +39,11 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	trackerType := store.GetTrackerType(s.home, id)
-	isMsvsix := trackerType == "msvsix"
+	isVsixType := trackerType == "msvsix" || trackerType == "openvsx"
 
 	var rules map[string]store.Rule
 	var userData store.UserData
-	if !isMsvsix {
+	if !isVsixType {
 		rules, _ = store.LoadRules(s.home)
 	}
 	userData, _ = store.LoadUserData(s.home)
@@ -67,9 +67,13 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 			AppID:          entry.AppID,
 			CurrentVersion: make(map[string]string),
 		}
-		if isMsvsix {
+		if isVsixType {
 			d.Name = entry.AppID
-			d.OfficialWebsite = "https://marketplace.visualstudio.com/items?itemName=" + entry.AppID
+			if trackerType == "openvsx" {
+				d.OfficialWebsite = "https://open-vsx.org/extension/" + entry.AppID
+			} else {
+				d.OfficialWebsite = "https://marketplace.visualstudio.com/items?itemName=" + entry.AppID
+			}
 		} else {
 			rule, ok := rules[entry.AppID]
 			if !ok {
@@ -88,7 +92,7 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 		}
 		platforms := entry.Platforms
 		if len(platforms) == 0 {
-			if isMsvsix {
+			if isVsixType {
 				platforms = []string{"msvsix"}
 			} else {
 				platforms = s.config.Tracker.Platforms
