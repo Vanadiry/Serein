@@ -30,21 +30,22 @@ type Position = any
 
 // PlatConfig 单个平台的最终配置
 type PlatConfig struct {
-	URL       string            `toml:"url,omitempty"`
-	Type      string            `toml:"type,omitempty"`
-	UA        string            `toml:"ua,omitempty"`
-	Headers   map[string]string `toml:"headers,omitempty"`
-	BaseURL   string            `toml:"baseurl,omitempty"`
-	Owner     string            `toml:"owner,omitempty"`
-	Repo      string            `toml:"repo,omitempty"`
-	VURL      string            `toml:"v_url,omitempty"`
-	VType     string            `toml:"v_type,omitempty"`
-	DURL      string            `toml:"d_url,omitempty"`
-	DType     string            `toml:"d_type,omitempty"`
-	VPosition Position          `toml:"v_position,omitempty"`
-	DPosition Position          `toml:"d_position,omitempty"`
-	VJoin     string            `toml:"v_join,omitempty"`
-	DJoin     string            `toml:"d_join,omitempty"`
+	URL             string            `toml:"url,omitempty"`
+	Type            string            `toml:"type,omitempty"`
+	UA              string            `toml:"ua,omitempty"`
+	Headers         map[string]string `toml:"headers,omitempty"`
+	BaseURL         string            `toml:"baseurl,omitempty"`
+	Owner           string            `toml:"owner,omitempty"`
+	Repo            string            `toml:"repo,omitempty"`
+	VURL            string            `toml:"v_url,omitempty"`
+	VType           string            `toml:"v_type,omitempty"`
+	DURL            string            `toml:"d_url,omitempty"`
+	DType           string            `toml:"d_type,omitempty"`
+	VPosition       Position          `toml:"v_position,omitempty"`
+	DPosition       Position          `toml:"d_position,omitempty"`
+	VJoin           string            `toml:"v_join,omitempty"`
+	DJoin           string            `toml:"d_join,omitempty"`
+	ForceDownloader bool              `toml:"force_downloader,omitempty"`
 }
 
 // rawPreStep 前置请求的原始 TOML 结构（position 字段名不同）
@@ -250,6 +251,9 @@ func mergePlatConfig(base, plat PlatConfig) PlatConfig {
 	}
 	if plat.DType != "" {
 		base.DType = plat.DType
+	}
+	if plat.ForceDownloader {
+		base.ForceDownloader = true
 	}
 	return base
 }

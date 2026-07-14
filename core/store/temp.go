@@ -9,10 +9,11 @@ import (
 )
 
 type TempCheckPlatform struct {
-	CurrentVersion string `json:"current_version,omitempty"`
-	LatestVersion  string `json:"latest_version,omitempty"`
-	URL            any    `json:"url,omitempty"`
-	Error          string `json:"error,omitempty"`
+	CurrentVersion  string `json:"current_version,omitempty"`
+	LatestVersion   string `json:"latest_version,omitempty"`
+	URL             any    `json:"url,omitempty"`
+	Error           string `json:"error,omitempty"`
+	ForceDownloader bool   `json:"force_downloader"`
 }
 
 type TempCheckResult struct {

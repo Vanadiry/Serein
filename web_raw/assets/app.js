@@ -350,12 +350,12 @@ async function downloadFile(url) {
   }
 }
 
-function linkWithTooltip(href, innerHTML, os) {
+function linkWithTooltip(href, innerHTML, os, forceDownloader) {
   var parts = href.split("/");
   var filename = parts[parts.length - 1];
   var tipHTML = parts.slice(0, -1).join("/") + "/" + '<span class="text-ok font-semibold">' + filename + "</span>";
   var escapedHref = href.replace(/'/g, "\\'");
-  if (isDirectDownload(href)) {
+  if (forceDownloader || isDirectDownload(href)) {
     return '<a href="' + href + '" onclick="event.stopPropagation();event.preventDefault();downloadFile(\'' + escapedHref + '\')" class="no-underline"' +
       ' data-tip="' + tipHTML.replace(/"/g, "&quot;") + '"' +
       ' onmouseenter="showTooltip(event)" onmouseleave="hideTooltip()">' +

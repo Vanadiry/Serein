@@ -208,7 +208,7 @@
         if (p.url) {
           const urls = typeof p.url === "string" ? [p.url] : (p.url || []);
           urls.forEach((url) => {
-            rightIcons += linkWithTooltip(url, platformIcon(os, "w-5 h-5"), os);
+            rightIcons += linkWithTooltip(url, platformIcon(os, "w-5 h-5"), os, p.force_downloader);
           });
         }
       }

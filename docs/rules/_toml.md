@@ -20,6 +20,7 @@ v_position = "..."
 
 [config.macos]
 d_position = "..."
+force_downloader = true
 
 [config.windows]
 d_position = "..."
@@ -34,6 +35,7 @@ d_position = "..."
 | `ua` | 自定义 UA（可选） |
 | `headers` | 自定义请求头内联字典（可选） |
 | `baseurl` | 拼接相对路径（仅 d_position 非直通模式时生效） |
+| `force_downloader` | 强制使用下载器（可选，默认 false） |
 | `v_position` | 版本号定位（各解析器格式不同，详见各解析器文档） |
 | `d_position` | 下载链接定位 |
 | `v_join` | 版本号多路径拼接分隔符 |
@@ -44,6 +46,9 @@ d_position = "..."
 | `d_type` | 下载链接独立解析器类型，覆盖 `type`（可选） |
 
 `[config.{os}]` 中同名字段覆盖 `[config]`，未覆盖则继承。
+
+当获取到的下载地址为带有重定向的链接，而非直链，且重定向链接能被下载器正确处理时，可以加入 `force_downloader = true`。  
+前端对于此类规则表，将不弹“可能不是一个下载链接”提示窗，而直接拉起可用的下载器。
 
 ## 分开请求版本号与下载链接
 

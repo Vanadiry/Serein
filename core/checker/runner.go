@@ -26,21 +26,22 @@ type CheckRequest struct {
 
 // PlatformCheckConfig 单个平台的检查配置（已合并）
 type PlatformCheckConfig struct {
-	OS             string
-	Type           string
-	URL            string
-	UA             string
-	Headers        map[string]string
-	BaseURL        string
-	VURL           string
-	VType          string
-	DURL           string
-	DType          string
-	VPosition      any
-	DPosition      any
-	VJoin          string
-	DJoin          string
-	CurrentVersion string
+	OS              string
+	Type            string
+	URL             string
+	UA              string
+	Headers         map[string]string
+	BaseURL         string
+	VURL            string
+	VType           string
+	DURL            string
+	DType           string
+	VPosition       any
+	DPosition       any
+	VJoin           string
+	DJoin           string
+	CurrentVersion  string
+	ForceDownloader bool
 }
 
 // CheckResponse API 返回的检查结果
@@ -53,10 +54,11 @@ type CheckResponse struct {
 
 // CheckPlatform 检查结果中单个平台的数据
 type CheckPlatform struct {
-	CurrentVersion string `json:"current_version,omitempty"`
-	LatestVersion  string `json:"latest_version,omitempty"`
-	URL            any    `json:"url,omitempty"`
-	Error          string `json:"error,omitempty"`
+	CurrentVersion  string `json:"current_version,omitempty"`
+	LatestVersion   string `json:"latest_version,omitempty"`
+	URL             any    `json:"url,omitempty"`
+	Error           string `json:"error,omitempty"`
+	ForceDownloader bool   `json:"force_downloader"`
 }
 
 // RunCheck 对一个软件执行检查，返回统一的 CheckResponse。
@@ -94,15 +96,17 @@ func RunCheck(req CheckRequest) (CheckResponse, error) {
 		pr, err := RunPlatformCheck(cfg, client)
 		if err != nil {
 			resp.Platforms[pc.OS] = CheckPlatform{
-				CurrentVersion: pc.CurrentVersion,
-				Error:          err.Error(),
+				CurrentVersion:  pc.CurrentVersion,
+				Error:           err.Error(),
+				ForceDownloader: pc.ForceDownloader,
 			}
 			continue
 		}
 		resp.Platforms[pc.OS] = CheckPlatform{
-			CurrentVersion: pc.CurrentVersion,
-			LatestVersion:  pr.LatestVersion,
-			URL:            pr.URL,
+			CurrentVersion:  pc.CurrentVersion,
+			LatestVersion:   pr.LatestVersion,
+			URL:             pr.URL,
+			ForceDownloader: pc.ForceDownloader,
 		}
 	}
 	return resp, nil
@@ -139,8 +143,9 @@ func runGitHubCheck(req CheckRequest, client *http.Client) (CheckResponse, error
 		pr, err := CheckGitHub(cfg, client)
 		if err != nil {
 			resp.Platforms[pc.OS] = CheckPlatform{
-				CurrentVersion: pc.CurrentVersion,
-				Error:          err.Error(),
+				CurrentVersion:  pc.CurrentVersion,
+				Error:           err.Error(),
+				ForceDownloader: pc.ForceDownloader,
 			}
 			continue
 		}
@@ -149,9 +154,10 @@ func runGitHubCheck(req CheckRequest, client *http.Client) (CheckResponse, error
 			if strings.Contains(dl, "{version}") {
 				if pr.LatestVersion == "" {
 					resp.Platforms[pc.OS] = CheckPlatform{
-						CurrentVersion: pc.CurrentVersion,
-						LatestVersion:  pr.LatestVersion,
-						Error:          "d_url 包含 {version} 但未能获取到版本号",
+						CurrentVersion:  pc.CurrentVersion,
+						LatestVersion:   pr.LatestVersion,
+						Error:           "d_url 包含 {version} 但未能获取到版本号",
+						ForceDownloader: pc.ForceDownloader,
 					}
 					continue
 				}
@@ -160,9 +166,10 @@ func runGitHubCheck(req CheckRequest, client *http.Client) (CheckResponse, error
 			pr.URL = dl
 		}
 		resp.Platforms[pc.OS] = CheckPlatform{
-			CurrentVersion: pc.CurrentVersion,
-			LatestVersion:  pr.LatestVersion,
-			URL:            pr.URL,
+			CurrentVersion:  pc.CurrentVersion,
+			LatestVersion:   pr.LatestVersion,
+			URL:             pr.URL,
+			ForceDownloader: pc.ForceDownloader,
 		}
 	}
 	return resp, nil

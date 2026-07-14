@@ -190,21 +190,22 @@ func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) 
 				currentVer = ud[os]
 			}
 			platCfgs = append(platCfgs, checker.PlatformCheckConfig{
-				OS:             os,
-				Type:           platCfg.Type,
-				URL:            platCfg.URL,
-				UA:             platCfg.UA,
-				Headers:        platCfg.Headers,
-				BaseURL:        platCfg.BaseURL,
-				VURL:           platCfg.VURL,
-				VType:          platCfg.VType,
-				DURL:           platCfg.DURL,
-				DType:          platCfg.DType,
-				VPosition:      platCfg.VPosition,
-				DPosition:      platCfg.DPosition,
-				VJoin:          platCfg.VJoin,
-				DJoin:          platCfg.DJoin,
-				CurrentVersion: currentVer,
+				OS:              os,
+				Type:            platCfg.Type,
+				URL:             platCfg.URL,
+				UA:              platCfg.UA,
+				Headers:         platCfg.Headers,
+				BaseURL:         platCfg.BaseURL,
+				VURL:            platCfg.VURL,
+				VType:           platCfg.VType,
+				DURL:            platCfg.DURL,
+				DType:           platCfg.DType,
+				VPosition:       platCfg.VPosition,
+				DPosition:       platCfg.DPosition,
+				VJoin:           platCfg.VJoin,
+				DJoin:           platCfg.DJoin,
+				CurrentVersion:  currentVer,
+				ForceDownloader: platCfg.ForceDownloader,
 			})
 		}
 
@@ -329,10 +330,11 @@ func saveCheckTemp(home, trackerID string, results []checker.CheckResponse) {
 		platforms := make(map[string]store.TempCheckPlatform)
 		for os, p := range r.Platforms {
 			platforms[os] = store.TempCheckPlatform{
-				CurrentVersion: p.CurrentVersion,
-				LatestVersion:  p.LatestVersion,
-				URL:            p.URL,
-				Error:          p.Error,
+				CurrentVersion:  p.CurrentVersion,
+				LatestVersion:   p.LatestVersion,
+				URL:             p.URL,
+				Error:           p.Error,
+				ForceDownloader: p.ForceDownloader,
 			}
 		}
 		temp = append(temp, store.TempCheckResult{
