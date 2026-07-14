@@ -96,7 +96,7 @@ func downloadFile(url, dest string) error {
 	return os.WriteFile(dest, body, 0644)
 }
 
-// ── 异步同步（带进度）──────────────────────────────────────────
+// 异步同步（带进度）
 
 type leafSrc struct {
 	id      string

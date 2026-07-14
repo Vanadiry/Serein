@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* ── Dark mode (default) ── */
+/* Dark mode (default) */
 :root {
     --c-bg: #1d1d1d;
     --c-surface: #202028;
@@ -25,7 +25,7 @@
     color-scheme: dark;
 }
 
-/* ── Light mode ── */
+/* Light mode */
 html.light {
     --c-bg: #f5f5f5;
     --c-surface: #ffffff;

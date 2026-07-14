@@ -692,7 +692,7 @@ function closeModal(el) {
     }, 200);
 }
 
-// ── 视图切换动画 ──
+// 视图切换动画
 function showView(el) {
     if (!el || !el.classList.contains("hidden")) return;
     el.classList.remove("hidden");
@@ -741,7 +741,7 @@ function refreshView(el, updateFn) {
     }, 80);
 }
 
-// ── 进度弹窗（全屏遮罩，不可关闭）──
+// 进度弹窗（全屏遮罩，不可关闭）
 
 function showProgressModal(title, cancelUrl) {
     var overlay = document.createElement("div");
