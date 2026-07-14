@@ -129,6 +129,10 @@ func (s *Server) handleTrackerNew(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "missing id")
 		return
 	}
+	if strings.ContainsAny(body.ID, "/\\") {
+		writeError(w, http.StatusBadRequest, "id contains invalid characters")
+		return
+	}
 	if store.TrackerExists(s.home, body.ID) {
 		writeError(w, http.StatusConflict, "tracker already exists")
 		return

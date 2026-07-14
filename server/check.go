@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -325,6 +326,10 @@ func (s *Server) handleCheckTemp(w http.ResponseWriter, r *http.Request) {
 	trackerID := r.PathValue("type")
 	if trackerID == "" {
 		writeError(w, http.StatusBadRequest, "missing tracker_id")
+		return
+	}
+	if strings.ContainsAny(trackerID, "/\\") {
+		writeError(w, http.StatusBadRequest, "invalid tracker_id")
 		return
 	}
 	cache, err := store.LoadTrackerTemp(s.home, trackerID)
