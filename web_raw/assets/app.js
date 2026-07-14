@@ -591,6 +591,7 @@ function startSyncProgress(taskId) {
       if (d.sources_skipped > 0) parts.push(d.sources_skipped + " 个源已是最新，跳过");
       if (d.sources_updated > 0) parts.push(d.sources_updated + " 个源已更新，共 " + d.files + " 条规则");
       else if (d.sources_updated == 0 && d.sources_total > 0) parts.push("无任何规则源需要更新");
+      if (d.deleted_files > 0) parts.push(d.deleted_files + " 条规则已被远端删除，已移入 _deleted");
       if (d.file_errors > 0) parts.push(d.file_errors + " 条规则下载失败");
       var msg = parts.length > 0 ? parts.join("<br>") : "同步完成";
       var hasError = d.file_errors > 0 || sourcesFailed > 0;
