@@ -444,7 +444,7 @@ function confirmDialog(msg, cb) {
 // 弹窗
 function showModal(html) {
   const el = document.createElement("div");
-  el.className = "fixed inset-0 z-50 flex items-center justify-center bg-overlay transition-opacity duration-200";
+  el.className = "fixed inset-0 z-[51] flex items-center justify-center bg-overlay transition-opacity duration-200";
   el.style.opacity = "0";
   el.onclick = e => { if (e.target === el) el.remove(); };
   el.innerHTML = `<div class="bg-surface-alt border border-bord rounded-xl p-6 min-w-[400px] max-w-[520px] shadow-2xl transition-all duration-200" style="opacity:0;transform:scale(.95)">${html}</div>`;
