@@ -38,8 +38,15 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rules, _ := store.LoadRules(s.home)
-	userData, _ := store.LoadUserData(s.home)
+	trackerType := store.GetTrackerType(s.home, id)
+	isMsvsix := trackerType == "msvsix"
+
+	var rules map[string]store.Rule
+	var userData store.UserData
+	if !isMsvsix {
+		rules, _ = store.LoadRules(s.home)
+	}
+	userData, _ = store.LoadUserData(s.home)
 
 	type detail struct {
 		AppID           string            `json:"app_id"`
@@ -60,23 +67,32 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 			AppID:          entry.AppID,
 			CurrentVersion: make(map[string]string),
 		}
-		rule, ok := rules[entry.AppID]
-		if !ok {
+		if isMsvsix {
 			d.Name = entry.AppID
-			d.RuleMissing = true
+			d.OfficialWebsite = "https://marketplace.visualstudio.com/items?itemName=" + entry.AppID
 		} else {
-			d.Name = rule.Info.Name
-			d.Description = rule.Info.Description
-			d.OfficialWebsite = rule.Info.OfficialWebsite
-			d.Status = rule.Info.Status
-			d.SourceID = rule.SourceID
-			if si, err := store.LoadSourceInfo(s.home, rule.SourceID); err == nil && si != nil {
-				d.SourceName = si.Name
+			rule, ok := rules[entry.AppID]
+			if !ok {
+				d.Name = entry.AppID
+				d.RuleMissing = true
+			} else {
+				d.Name = rule.Info.Name
+				d.Description = rule.Info.Description
+				d.OfficialWebsite = rule.Info.OfficialWebsite
+				d.Status = rule.Info.Status
+				d.SourceID = rule.SourceID
+				if si, err := store.LoadSourceInfo(s.home, rule.SourceID); err == nil && si != nil {
+					d.SourceName = si.Name
+				}
 			}
 		}
 		platforms := entry.Platforms
 		if len(platforms) == 0 {
-			platforms = s.config.Tracker.Platforms
+			if isMsvsix {
+				platforms = []string{"msvsix"}
+			} else {
+				platforms = s.config.Tracker.Platforms
+			}
 		}
 		ud := userData[entry.AppID]
 		if ud != nil {

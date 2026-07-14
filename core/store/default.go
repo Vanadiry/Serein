@@ -29,6 +29,7 @@ url = "https://raw.githubusercontent.com/Vanadiry/SereinRulesList/refs/heads/mai
 const DefaultTrackerTOML = `# Serein Tracker
 display_name = "新建追踪列表"    # 可选，仅供前端展示
 # order = 1                    # 可选，排序（数字小的在前）
+# type = "app"              # 可选，类型："app"（默认）或 "msvsix"（VSCode 扩展）
 
 # [[tracker]]
 # app_id = "abc-123"

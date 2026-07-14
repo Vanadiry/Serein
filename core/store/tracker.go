@@ -19,12 +19,14 @@ type TrackerInfo struct {
 	ID          string `json:"id"`
 	DisplayName string `json:"display_name"`
 	Order       int    `json:"order"`
+	Type        string `json:"type"`
 }
 
 // trackerFile 一个 tracker 文件，可含多条 [[tracker]]
 type trackerFile struct {
 	DisplayName string         `toml:"display_name,omitempty"`
 	Order       int            `toml:"order,omitempty"`
+	Type        string         `toml:"type,omitempty"`
 	Trackers    []TrackerEntry `toml:"tracker"`
 }
 
@@ -54,7 +56,11 @@ func LoadAllTrackerInfo(home string) ([]TrackerInfo, error) {
 		if name == "" {
 			name = id
 		}
-		list = append(list, TrackerInfo{ID: id, DisplayName: name, Order: tf.Order})
+		trackerType := tf.Type
+		if trackerType == "" {
+			trackerType = "app"
+		}
+		list = append(list, TrackerInfo{ID: id, DisplayName: name, Order: tf.Order, Type: trackerType})
 	}
 	sort.Slice(list, func(i, j int) bool {
 		if list[i].Order != list[j].Order {
@@ -102,6 +108,19 @@ func loadTrackerFiles(home, name string) ([]TrackerEntry, error) {
 		list = append(list, tf.Trackers...)
 	}
 	return list, nil
+}
+
+// GetTrackerType 返回 tracker 文件的 type（默认 "app"）。
+func GetTrackerType(home, name string) string {
+	path := filepath.Join(home, "tracker", name+".toml")
+	var tf trackerFile
+	if err := decodeTOML(path, &tf); err != nil {
+		return "app"
+	}
+	if tf.Type == "" {
+		return "app"
+	}
+	return tf.Type
 }
 
 // TrackerExists 检查 tracker 文件（按文件名）是否存在。

@@ -17,11 +17,47 @@ import (
 // POST /api/check/ids
 
 func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
-	var ids []string
-	if err := json.NewDecoder(r.Body).Decode(&ids); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid body: expected array of rule ids")
+	var body struct {
+		Type string   `json:"type"`
+		IDs  []string `json:"ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid body")
 		return
 	}
+	if body.Type == "" {
+		body.Type = "app"
+	}
+	ids := body.IDs
+
+	if body.Type == "msvsix" {
+		client := checker.NewClient()
+		var results []checker.CheckResponse
+		for _, id := range ids {
+			pr, err := checker.CheckMSVSIX(id, client)
+			if err != nil {
+				store.Emit("error", "[msvsix]", fmt.Sprintf("%s: %v", id, err))
+				continue
+			}
+			results = append(results, checker.CheckResponse{
+				AppID: id,
+				Name:  id,
+				Platforms: map[string]checker.CheckPlatform{
+					"msvsix": {
+						LatestVersion:   pr.LatestVersion,
+						URL:             pr.URL,
+						ForceDownloader: true,
+					},
+				},
+			})
+		}
+		if results == nil {
+			results = []checker.CheckResponse{}
+		}
+		writeJSON(w, http.StatusOK, results)
+		return
+	}
+
 	allEntries, err := store.LoadTracker(s.home)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
@@ -74,6 +110,10 @@ func (s *Server) handleCheckTracker(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(entries) == 0 {
 		writeJSON(w, http.StatusOK, map[string]string{"task_id": ""})
+		return
+	}
+	if store.GetTrackerType(s.home, body.TrackerID) == "msvsix" {
+		s.handleCheckMsvsix(w, entries)
 		return
 	}
 	store.Logf("[check/tracker] %s", body.TrackerID)
@@ -346,4 +386,61 @@ func saveCheckTemp(home, trackerID string, results []checker.CheckResponse) {
 	if err := store.SaveTrackerTemp(home, trackerID, temp); err != nil {
 		store.Emit("error", "[check]", fmt.Sprintf("保存检查结果缓存失败: %v", err))
 	}
+}
+
+func (s *Server) handleCheckMsvsix(w http.ResponseWriter, entries []store.TrackerEntry) {
+	store.Logf("[check/msvsix] %d entries", len(entries))
+	checker.ClearURLCache()
+	p := store.NewProgress(len(entries))
+	go s.runMsvsixChecksAsync(entries, p)
+	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(len(entries))})
+}
+
+func (s *Server) runMsvsixChecksAsync(entries []store.TrackerEntry, p *store.Progress) {
+	defer p.Close()
+
+	client := checker.NewClient()
+	total := len(entries)
+	var results []checker.CheckResponse
+	sem := make(chan struct{}, 4)
+	var mu sync.Mutex
+	var doneCount int
+	var wg sync.WaitGroup
+
+	for _, entry := range entries {
+		wg.Add(1)
+		go func(e store.TrackerEntry) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			pr, err := checker.CheckMSVSIX(e.AppID, client)
+			if err != nil {
+				store.Emit("error", "[msvsix]", fmt.Sprintf("%s: %v", e.AppID, err))
+				mu.Lock()
+				doneCount++
+				mu.Unlock()
+				return
+			}
+			mu.Lock()
+			results = append(results, checker.CheckResponse{
+				AppID: e.AppID,
+				Name:  e.AppID,
+				Platforms: map[string]checker.CheckPlatform{
+					"msvsix": {
+						LatestVersion:   pr.LatestVersion,
+						URL:             pr.URL,
+						ForceDownloader: true,
+					},
+				},
+			})
+			doneCount++
+			p.Send("app", e.AppID, doneCount, total)
+			mu.Unlock()
+		}(entry)
+	}
+	wg.Wait()
+
+	final := mergeResults(results)
+	saveCheckTemp(s.home, "msvsix", final)
 }
