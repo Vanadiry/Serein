@@ -5,7 +5,9 @@ package checker
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 )
@@ -81,15 +83,18 @@ func extractURL(body []byte, typ string, pos any, baseURL string) (string, error
 	}
 }
 
-func doRequest(client *http.Client, url, ua string, headers map[string]string) ([]byte, error) {
+func doRequest(client *http.Client, rawURL, ua string, headers map[string]string) ([]byte, error) {
+	if err := blockPrivate(rawURL); err != nil {
+		return nil, err
+	}
 	cacheMu.Lock()
-	if body, ok := urlCache[url]; ok {
+	if body, ok := urlCache[rawURL]; ok {
 		cacheMu.Unlock()
 		return body, nil
 	}
 	cacheMu.Unlock()
 
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", rawURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -119,14 +124,17 @@ func doRequest(client *http.Client, url, ua string, headers map[string]string) (
 	}
 
 	cacheMu.Lock()
-	urlCache[url] = body
+	urlCache[rawURL] = body
 	cacheMu.Unlock()
 
 	return body, nil
 }
 
-func doPostRequest(client *http.Client, url, ua string, headers map[string]string, bodyJSON []byte) ([]byte, error) {
-	req, err := http.NewRequest("POST", url, strings.NewReader(string(bodyJSON)))
+func doPostRequest(client *http.Client, rawURL, ua string, headers map[string]string, bodyJSON []byte) ([]byte, error) {
+	if err := blockPrivate(rawURL); err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequest("POST", rawURL, strings.NewReader(string(bodyJSON)))
 	if err != nil {
 		return nil, err
 	}
@@ -155,6 +163,41 @@ func doPostRequest(client *http.Client, url, ua string, headers map[string]strin
 		return nil, err
 	}
 	return body, nil
+}
+
+var privateCIDRs = []string{
+	"127.0.0.0/8",
+	"10.0.0.0/8",
+	"172.16.0.0/12",
+	"192.168.0.0/16",
+	"0.0.0.0/8",
+	"169.254.0.0/16",
+}
+
+func blockPrivate(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid url: %w", err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return nil
+	}
+	host := u.Hostname()
+	ip := net.ParseIP(host)
+	if ip == nil {
+		ips, err := net.LookupIP(host)
+		if err != nil || len(ips) == 0 {
+			return nil
+		}
+		ip = ips[0]
+	}
+	for _, cidr := range privateCIDRs {
+		_, n, _ := net.ParseCIDR(cidr)
+		if n.Contains(ip) {
+			return fmt.Errorf("blocked: %s is a private address", host)
+		}
+	}
+	return nil
 }
 
 // JSON
