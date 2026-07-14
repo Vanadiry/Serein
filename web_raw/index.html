@@ -96,7 +96,9 @@
         </script>
         <script>
             var currentTracker = null;
+            var currentTrackerType = "app";
             var checkResults = {};
+            var _trackerTypes = {};
 
             renderTopbar("应用");
             loadTrackers();
@@ -271,6 +273,10 @@
 
             async function loadTrackers() {
                 const list = (await api("/api/tracker/list/all")) || [];
+                _trackerTypes = {};
+                list.forEach(function (t) {
+                    _trackerTypes[t.id] = t.type || "app";
+                });
                 const nav = document.getElementById("tracker-nav");
                 nav.innerHTML = list
                     .map((t) => {
@@ -285,6 +291,7 @@
 
             async function selectTracker(id) {
                 currentTracker = id;
+                currentTrackerType = _trackerTypes[id] || "app";
                 loadTrackers();
                 hideView(document.getElementById("placeholder"));
                 await loadTrackerDetail(id);
@@ -561,7 +568,10 @@
             async function refreshApp(appId) {
                 console.log("[check] ids:", appId);
                 const ld = showLoading("加载中", "正在检查...");
-                const data = await apiPost("/api/check/ids", [appId]);
+                var body = { ids: [appId] };
+                if (currentTrackerType === "msvsix") body.type = "msvsix";
+                else body.type = "app";
+                const data = await apiPost("/api/check/ids", body);
                 mergeCheckResults(data || []);
                 const detail =
                     (await api("/api/tracker/list/" + currentTracker)) || [];

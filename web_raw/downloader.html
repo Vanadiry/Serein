@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>下载 - Serein</title>
+        <link rel="icon" href="/assets/favicon.svg" />
+        <link rel="stylesheet" href="/assets/style.css" />
+    </head>
+    <body class="text-text min-h-screen bg-bg p-6">
+        <script>
+            var theme = new URLSearchParams(window.location.search).get(
+                "theme"
+            );
+            if (theme === "light") {
+                document.documentElement.classList.add("light");
+            } else if (!theme) {
+                window.parent.postMessage("serein-dl-theme", "*");
+                window.addEventListener("message", function (e) {
+                    if (e.data && e.data.theme === "light") {
+                        document.documentElement.classList.add("light");
+                    }
+                });
+            }
+        </script>
+        <div id="dl-status" class="text-center text-sub text-sm py-8">
+            正在准备下载...
+        </div>
+        <div
+            class="bg-surface rounded-full h-2 mb-4 overflow-hidden max-w-[400px] mx-auto"
+        >
+            <div
+                id="dl-bar"
+                class="bg-accent h-full rounded-full transition-all duration-200"
+                style="width: 0%"
+            ></div>
+        </div>
+        <div id="dl-info" class="text-center text-xs text-sub"></div>
+        <div class="text-center text-xs text-sub mt-3">
+            文件将保存到用户下载文件夹
+        </div>
+
+        <script>
+            var url = new URLSearchParams(window.location.search).get("url");
+            var name = new URLSearchParams(window.location.search).get("name");
+            if (!url) {
+                document.getElementById("dl-status").textContent =
+                    "无效的下载链接";
+            } else {
+                download(url);
+            }
+
+            async function download(url) {
+                var status = document.getElementById("dl-status");
+                var bar = document.getElementById("dl-bar");
+                var info = document.getElementById("dl-info");
+
+                try {
+                    var res = await fetch(url);
+                    if (!res.ok) throw new Error("HTTP " + res.status);
+                    var total = parseInt(res.headers.get("Content-Length"));
+                    var reader = res.body.getReader();
+                    var chunks = [];
+                    var received = 0;
+
+                    while (true) {
+                        var result = await reader.read();
+                        if (result.done) break;
+                        chunks.push(result.value);
+                        received += result.value.length;
+                        if (total) {
+                            var pct = Math.round((received / total) * 100);
+                            bar.style.width = pct + "%";
+                            info.textContent =
+                                formatSize(received) +
+                                " / " +
+                                formatSize(total);
+                        }
+                    }
+
+                    var blob = new Blob(chunks);
+                    var blobUrl = URL.createObjectURL(blob);
+                    var a = document.createElement("a");
+                    a.href = blobUrl;
+                    a.download =
+                        name ||
+                        url.split("/").pop().split("?")[0] ||
+                        "download";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(blobUrl);
+
+                    status.textContent = "下载完成";
+                    bar.style.width = "100%";
+                    info.textContent = "";
+                    setTimeout(function () {
+                        window.parent.postMessage("serein-dl-done", "*");
+                    }, 500);
+                } catch (e) {
+                    status.textContent = "下载失败: " + e.message;
+                    status.className = "text-center text-err text-sm py-8";
+                    bar.parentElement.style.display = "none";
+                    info.textContent = "";
+                    window.parent.postMessage(
+                        "serein-dl-error:" + e.message,
+                        "*"
+                    );
+                }
+            }
+
+            function formatSize(bytes) {
+                if (bytes < 1024) return bytes + " B";
+                if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+                return (bytes / 1048576).toFixed(1) + " MB";
+            }
+        </script>
+    </body>
+</html>

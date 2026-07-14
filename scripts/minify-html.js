@@ -8,7 +8,8 @@ const DEST_DIR = path.join(__dirname, '../web');
 const FILES = [
     'index.html',
     'rules.html',
-    'settings.html'
+    'settings.html',
+    'downloader.html'
 ];
 
 async function processFile(file) {

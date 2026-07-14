@@ -437,6 +437,44 @@ async function downloadFile(url) {
     }
 }
 
+function openDownloadWindow(url, id) {
+    var isLight = document.documentElement.classList.contains("light");
+    var themeParam = isLight ? "&theme=light" : "&theme=dark";
+    var nameParam = id ? "&name=" + encodeURIComponent(id + ".vsix") : "";
+    var modal = showModal(
+        '<div class="flex items-center justify-between mb-3">' +
+            '<div class="text-base font-bold">下载 VSIX</div>' +
+            '<button onclick="closeModal(this.closest(\'.fixed\'))" class="w-7 h-7 flex items-center justify-center rounded-lg border border-bord bg-transparent text-sub cursor-pointer hover:bg-active hover:text-text">&times;</button>' +
+            "</div>" +
+            '<iframe id="dl-iframe" src="/downloader?url=' +
+            encodeURIComponent(url) +
+            themeParam +
+            nameParam +
+            '" class="w-full h-[200px] border-0 rounded-lg bg-bg"></iframe>'
+    );
+    window.addEventListener("message", function handler(e) {
+        if (e.data === "serein-dl-done") {
+            window.removeEventListener("message", handler);
+            closeModal(modal);
+        }
+        if (
+            typeof e.data === "string" &&
+            e.data.startsWith("serein-dl-error:")
+        ) {
+            window.removeEventListener("message", handler);
+        }
+        if (e.data === "serein-dl-theme") {
+            var iframe = document.getElementById("dl-iframe");
+            if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.postMessage(
+                    { theme: isLight ? "light" : "dark" },
+                    "*"
+                );
+            }
+        }
+    });
+}
+
 function linkWithTooltip(href, innerHTML, os, forceDownloader) {
     var parts = href.split("/");
     var filename = parts[parts.length - 1];
@@ -447,6 +485,27 @@ function linkWithTooltip(href, innerHTML, os, forceDownloader) {
         filename +
         "</span>";
     var escapedHref = href.replace(/'/g, "\\'");
+    if (os === "msvsix") {
+        var m = href.match(
+            /\/publishers\/([^/]+)\/vsextensions\/([^/]+)\/([^/]+)\//
+        );
+        var vsixName = m ? m[1] + "." + m[2] + "[" + m[3] + "]" : "";
+        return (
+            '<a href="' +
+            href +
+            '" onclick="event.stopPropagation();event.preventDefault();openDownloadWindow(\'' +
+            escapedHref +
+            "', '" +
+            vsixName +
+            '\')" class="no-underline"' +
+            ' data-tip="' +
+            tipHTML.replace(/"/g, "&quot;") +
+            '"' +
+            ' onmouseenter="showTooltip(event)" onmouseleave="hideTooltip()">' +
+            innerHTML +
+            "</a>"
+        );
+    }
     if (forceDownloader || isDirectDownload(href)) {
         return (
             '<a href="' +
