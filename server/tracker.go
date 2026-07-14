@@ -50,6 +50,7 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 		SourceID        string            `json:"source_id,omitempty"`
 		SourceName      string            `json:"source_name,omitempty"`
 		CurrentVersion  map[string]string `json:"current_version"`
+		ConfirmedAt     string            `json:"confirmed_at,omitempty"`
 		RuleMissing     bool              `json:"rule_missing,omitempty"`
 	}
 
@@ -78,13 +79,18 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 			platforms = s.config.Tracker.Platforms
 		}
 		ud := userData[entry.AppID]
+		if ud != nil {
 			for _, p := range platforms {
-				if ud != nil {
+				if ud[p] != "" {
 					d.CurrentVersion[p] = ud[p]
-				} else {
-					d.CurrentVersion[p] = ""
 				}
 			}
+			d.ConfirmedAt = ud["_confirmed_at"]
+		} else {
+			for _, p := range platforms {
+				d.CurrentVersion[p] = ""
+			}
+		}
 		result = append(result, d)
 	}
 	if result == nil {

@@ -104,9 +104,28 @@
     }
   }
 
+  function formatRelativeTime(ts) {
+    if (!ts) return "";
+    var diff = Math.floor(Date.now() / 1000) - parseInt(ts);
+    if (diff < 0) return "";
+    if (diff < 180) return "刚刚";
+    if (diff > 172800) return Math.floor(diff / 86400) + "天前";
+    if (diff > 28800) return Math.floor(diff / 3600) + "小时前";
+    return Math.max(1, Math.floor(diff / 60)) + "分钟前";
+  }
+  function formatUTCTime(ts) {
+    if (!ts) return "";
+    var d = new Date(parseInt(ts) * 1000);
+    return d.toISOString().replace("T", " ").replace(/\.\d+Z/, "") + " UTC";
+  }
+
   function renderSoftwareRow(d) {
     const checked = checkResults[d.app_id];
     const hasUpdate = checked && Object.values(checked.platforms || {}).some(p => p.latest_version && p.latest_version !== p.current_version);
+    var timeHTML = "";
+    if (d.confirmed_at) {
+      timeHTML = ' <span class="text-sub text-xs ml-1" ' + tipAttr("确认于 " + formatUTCTime(d.confirmed_at)) + '>(' + formatRelativeTime(d.confirmed_at) + ')</span>';
+    }
     let versionHTML = "";
     if (d.rule_missing) {
       versionHTML = `<span class="text-yellow-500 text-sm">⚠ 规则缺失</span>`;
@@ -203,7 +222,7 @@
 
     return `<div class="flex items-center bg-surface-alt border border-bord-mid rounded-lg pl-2 pr-4 h-16 hover:border-bord transition-colors mb-2 overflow-hidden">
       <div class="flex-1 min-w-0 pr-4 flex flex-col justify-center">
-        <div class="text-base font-semibold truncate pl-1"><span class="select-text" ${tipAttr((d.app_id || '') + (d.description ? '<br>' + d.description : '') + (d.status && d.status.length && d.status[0] ? '<br>状态：' + d.status.join(', ') : ''))}>${d.name || d.app_id}</span>${(d.status && d.status.length && d.status[0]) ? ' <span class="inline-block w-2 h-2 rounded-full bg-warn align-middle"></span>' : ''}</div>
+        <div class="text-base font-semibold truncate pl-1"><span class="select-text" ${tipAttr((d.app_id || '') + (d.description ? '<br>' + d.description : '') + (d.status && d.status.length && d.status[0] ? '<br>状态：' + d.status.join(', ') : ''))}>${d.name || d.app_id}</span>${timeHTML}${(d.status && d.status.length && d.status[0]) ? ' <span class="inline-block w-2 h-2 rounded-full bg-warn align-middle"></span>' : ''}</div>
         <div class="mt-0.5">${versionHTML}</div>
       </div>
       ${rightIcons}

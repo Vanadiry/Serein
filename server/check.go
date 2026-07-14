@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/vanadiry/serein/core/checker"
 	"github.com/vanadiry/serein/core/store"
@@ -110,6 +111,7 @@ func (s *Server) handleCheckConfirm(w http.ResponseWriter, r *http.Request) {
 		}
 		userData[appID][k] = v
 	}
+	userData[appID]["_confirmed_at"] = strconv.FormatInt(time.Now().UTC().Unix(), 10)
 	if err := store.SaveUserData(s.home, userData); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
