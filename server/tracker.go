@@ -93,7 +93,7 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 		platforms := entry.Platforms
 		if len(platforms) == 0 {
 			if isVsixType {
-				platforms = []string{"msvsix"}
+				platforms = []string{trackerType}
 			} else {
 				platforms = s.config.Tracker.Platforms
 			}

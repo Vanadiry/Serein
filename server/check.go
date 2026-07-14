@@ -391,6 +391,7 @@ func (s *Server) handleDirectCheckIDs(w http.ResponseWriter, ids []string, typ s
 		checkFn = checker.CheckOpenVSX
 	}
 	client := checker.NewClient()
+	userData, _ := store.LoadUserData(s.home)
 	var results []checker.CheckResponse
 	for _, id := range ids {
 		pr, err := checkFn(id, client)
@@ -398,11 +399,16 @@ func (s *Server) handleDirectCheckIDs(w http.ResponseWriter, ids []string, typ s
 			store.Emit("error", "["+typ+"]", fmt.Sprintf("%s: %v", id, err))
 			continue
 		}
+		currentVer := ""
+		if ud, ok := userData[id]; ok {
+			currentVer = ud[typ]
+		}
 		results = append(results, checker.CheckResponse{
 			AppID: id,
 			Name:  id,
 			Platforms: map[string]checker.CheckPlatform{
 				typ: {
+					CurrentVersion:  currentVer,
 					LatestVersion:   pr.LatestVersion,
 					URL:             pr.URL,
 					ForceDownloader: true,
@@ -425,6 +431,7 @@ func (s *Server) runDirectChecksAsync(entries []store.TrackerEntry, p *store.Pro
 	}
 
 	client := checker.NewClient()
+	userData, _ := store.LoadUserData(s.home)
 	total := len(entries)
 	var results []checker.CheckResponse
 	sem := make(chan struct{}, 4)
@@ -447,12 +454,17 @@ func (s *Server) runDirectChecksAsync(entries []store.TrackerEntry, p *store.Pro
 				mu.Unlock()
 				return
 			}
+			currentVer := ""
+			if ud, ok := userData[e.AppID]; ok {
+				currentVer = ud[typ]
+			}
 			mu.Lock()
 			results = append(results, checker.CheckResponse{
 				AppID: e.AppID,
 				Name:  e.AppID,
 				Platforms: map[string]checker.CheckPlatform{
 					typ: {
+						CurrentVersion:  currentVer,
 						LatestVersion:   pr.LatestVersion,
 						URL:             pr.URL,
 						ForceDownloader: true,
