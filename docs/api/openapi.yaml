@@ -82,21 +82,10 @@ paths:
                 items: { type: string }
 
   # Check
-  /api/check/all:
-    post:
-      tags: [Check]
-      summary: 检查全部软件更新（异步，返回 task_id）
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TaskResponse"
   /api/check/ids:
     post:
       tags: [Check]
-      summary: 检查指定软件（单个同步返回结果，批量异步返回 task_id）
+      summary: 检查指定软件（同步返回结果）
       requestBody:
         content:
           application/json:
@@ -109,11 +98,9 @@ paths:
           content:
             application/json:
               schema:
-                oneOf:
-                  - type: array
-                    items:
-                      $ref: "#/components/schemas/CheckResponse"
-                  - $ref: "#/components/schemas/TaskResponse"
+                type: array
+                items:
+                  $ref: "#/components/schemas/CheckResponse"
   /api/check/tracker:
     post:
       tags: [Check]
@@ -136,40 +123,46 @@ paths:
   /api/check/confirm:
     post:
       tags: [Check]
-      summary: 确认更新，写入版本号
+      summary: 批量确认更新，写入版本号和时间戳
       requestBody:
         content:
           application/json:
             schema:
-              type: object
-              required: [app_id]
-              properties:
-                app_id: { type: string }
-              additionalProperties:
-                type: string
-              description: "其他 key 为平台名，value 为版本号，如 \"macos\": \"1.0.0\""
+              type: array
+              items:
+                type: object
+                required: [app_id]
+                properties:
+                  app_id: { type: string }
+                additionalProperties:
+                  type: string
+              description: "数组中每个元素为一个 app 的确认数据，key 为平台名，value 为版本号，如 {\"app_id\":\"xxx\",\"macos\":\"1.0.0\"}"
       responses:
         "200": { description: OK }
-  /api/check/temp/{type}:
+  /api/check/temp/{tracker_id}:
     get:
       tags: [Check]
-      summary: 获取最新检查结果缓存
+      summary: 获取指定 tracker 的最新检查结果缓存
       parameters:
-        - name: type
+        - name: tracker_id
           in: path
           required: true
-          schema:
-            type: string
-            enum: [ids, all, tracker]
+          schema: { type: string }
       responses:
         "200":
           description: OK
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/TempCheckResult"
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TempCheckResult"
+                  expired:
+                    type: boolean
+                    description: 缓存是否超过 24 小时
 
   # Progress (SSE)
   /api/progress/{task_id}:
@@ -191,17 +184,18 @@ paths:
                 description: |
                   每行 `data: <json>\n\n`。
                   规则同步事件:
-                    start:  {"step":"start","name":"","done":0,"total":<files>}
-                    list:   {"step":"list","name":"<source_id>","done":0,"total":0}
-                    source: {"step":"source","name":"<source_id>","files":<n>}
-                    skip:   {"step":"skip","name":"<source_id>","files":<n>}
-                    file:   {"step":"file","name":"<filename>","done":5,"total":131}
-                    error:  {"step":"error","name":"<url> 获取失败","done":0,"total":0}
-                    done:   {"step":"done","sources_total":10,"sources_skipped":3,"sources_updated":6,"files":45,"file_errors":0}
+                    start:    {"step":"start","name":"","done":0,"total":<files>}
+                    list:     {"step":"list","name":"<source_id>","done":0,"total":0}
+                    source:   {"step":"source","name":"<source_id>","files":<n>}
+                    skip:     {"step":"skip","name":"<source_id>","files":<n>}
+                    file:     {"step":"file","name":"<filename>","done":5,"total":131}
+                    error:    {"step":"error","name":"<url> 获取失败","done":0,"total":0}
+                    done:     {"step":"done","sources_total":10,"sources_skipped":3,"sources_updated":6,"files":45,"file_errors":0,"deleted_files":2}
                   检查更新事件:
                     start: {"step":"start","name":"","done":0,"total":<n>}
                     app:   {"step":"app","name":"<app>","done":12,"total":30}
                     done:  {"step":"done"}
+
   /api/check/cancel/{task_id}:
     post:
       tags: [Progress]
@@ -245,13 +239,21 @@ paths:
                 properties:
                   config:
                     type: object
-                    description: 键值对，包括监听地址、下载器、并发数、默认平台、规则源、动态配置源
+                    description: 键值对，包括监听地址、下载器、并发数、默认平台、起始页、规则源、动态配置源
                   profile:
                     type: object
                     properties:
                       known_extensions:
                         type: array
                         items: { type: string }
+                      version_prefixes:
+                        type: array
+                        items: { type: string }
+                      version_suffixes:
+                        type: array
+                        items: { type: string }
+                  first_run:
+                    type: boolean
 
   # Sync
   /api/sync:
@@ -378,6 +380,7 @@ components:
         current_version:
           type: object
           additionalProperties: { type: string }
+        confirmed_at: { type: string, description: "上次确认更新的 UTC 时间戳" }
         rule_missing: { type: boolean }
     CheckResponse:
       type: object
@@ -398,6 +401,7 @@ components:
                   - type: array
                     items: { type: string }
               error: { type: string }
+              force_downloader: { type: boolean }
     RuleItem:
       type: object
       properties:
@@ -435,3 +439,4 @@ components:
                   - type: array
                     items: { type: string }
               error: { type: string }
+              force_downloader: { type: boolean }
