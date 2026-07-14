@@ -21,6 +21,7 @@ func OpenBrowser(url string) {
 }
 
 func (s *Server) handleOpenURL(w http.ResponseWriter, r *http.Request) {
+	limitBody(w, r)
 	var body struct {
 		URL string `json:"url"`
 	}

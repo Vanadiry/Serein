@@ -8,6 +8,7 @@ import (
 )
 
 func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
+	limitBody(w, r)
 	var body struct {
 		Type string `json:"type"`
 	}

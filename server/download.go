@@ -12,6 +12,7 @@ import (
 )
 
 func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
+	limitBody(w, r)
 	var body struct {
 		URL string `json:"url"`
 	}

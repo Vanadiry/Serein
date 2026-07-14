@@ -18,6 +18,7 @@ import (
 // POST /api/check/ids
 
 func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
+	limitBody(w, r)
 	var body struct {
 		Type string   `json:"type"`
 		IDs  []string `json:"ids"`
@@ -74,6 +75,7 @@ func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
 // POST /api/check/tracker
 
 func (s *Server) handleCheckTracker(w http.ResponseWriter, r *http.Request) {
+	limitBody(w, r)
 	var body struct {
 		TrackerID string `json:"tracker_id"`
 	}
@@ -108,6 +110,7 @@ func (s *Server) handleCheckTracker(w http.ResponseWriter, r *http.Request) {
 // POST /api/check/confirm
 
 func (s *Server) handleCheckConfirm(w http.ResponseWriter, r *http.Request) {
+	limitBody(w, r)
 	var body map[string]string
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid body")

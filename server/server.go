@@ -168,3 +168,7 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 	store.Emit("error", "", msg)
 	writeJSON(w, status, map[string]string{"error": msg})
 }
+
+func limitBody(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+}

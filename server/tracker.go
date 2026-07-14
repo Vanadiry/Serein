@@ -122,6 +122,7 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 // POST /api/tracker/new
 
 func (s *Server) handleTrackerNew(w http.ResponseWriter, r *http.Request) {
+	limitBody(w, r)
 	var body struct {
 		ID string `json:"id"`
 	}
@@ -147,6 +148,7 @@ func (s *Server) handleTrackerNew(w http.ResponseWriter, r *http.Request) {
 // POST /api/tracker/add
 
 func (s *Server) handleTrackerAdd(w http.ResponseWriter, r *http.Request) {
+	limitBody(w, r)
 	var body struct {
 		TrackerID   string   `json:"tracker_id"`
 		AppID       string   `json:"app_id"`
