@@ -2,14 +2,16 @@ use std::net::TcpStream;
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 use std::process::{Child, Command};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tauri::Manager;
 
 mod config;
 mod error_page;
 
 static SIDECAR: Mutex<Option<Arc<Mutex<Child>>>> = Mutex::new(None);
+static SHUTTING_DOWN: AtomicBool = AtomicBool::new(false);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -67,45 +69,69 @@ pub fn run() {
                         "无法启动后端",
                         "Serein 后端使用的端口被占用，请检查",
                     );
-                } else if let Some(path) = bin {
-                    let mut cmd = Command::new(&path);
-                    cmd.env("SEREIN_SIDECAR", "1");
-                    #[cfg(target_os = "windows")]
-                    {
-                        cmd.creation_flags(0x08000000);
-                    } // CREATE_NO_WINDOW
-                    if let Ok(child) = cmd.spawn() {
-                        let child = Arc::new(Mutex::new(child));
-                        // Monitor: detect unexpected sidecar exit
-                        let c = child.clone();
-                        let handle = app.handle().clone();
-                        std::thread::spawn(move || {
-                            loop {
-                                let exited = c.lock().unwrap().try_wait().ok().flatten().is_some();
-                                if exited {
-                                    break;
+                } else if let Some(bin_path) = bin {
+                    let bin_path = Arc::new(bin_path);
+                    let handle = app.handle().clone();
+                    let port = port;
+                    std::thread::spawn(move || {
+                        let mut crashes: Vec<Instant> = Vec::new();
+                        loop {
+                            let now = Instant::now();
+                            crashes.retain(|t| now.duration_since(*t) < Duration::from_secs(10));
+                            if crashes.len() >= 3 {
+                                if let Some(window) = handle.get_webview_window("main") {
+                                    error_page::show(
+                                        &window,
+                                        "后端反复崩溃",
+                                        "Serein 后端进程多次启动失败，请检查配置或重启应用",
+                                    );
                                 }
-                                std::thread::sleep(Duration::from_millis(200));
-                            }
-                            if let Some(window) = handle.get_webview_window("main") {
-                                error_page::show(
-                                    &window,
-                                    "后端已退出",
-                                    "Serein 后端进程已终止，请重启应用",
-                                );
-                            }
-                        });
-                        *SIDECAR.lock().unwrap() = Some(child);
-                        for _ in 0..30 {
-                            std::thread::sleep(Duration::from_millis(100));
-                            if TcpStream::connect(&addr).is_ok() {
                                 break;
                             }
+
+                            let mut cmd = Command::new(bin_path.as_ref());
+                            cmd.env("SEREIN_SIDECAR", "1");
+                            #[cfg(target_os = "windows")]
+                            {
+                                cmd.creation_flags(0x08000000);
+                            }
+                            if let Ok(child) = cmd.spawn() {
+                                let child = Arc::new(Mutex::new(child));
+                                let c = child.clone();
+                                *SIDECAR.lock().unwrap() = Some(child);
+
+                                for _ in 0..30 {
+                                    std::thread::sleep(Duration::from_millis(100));
+                                    if TcpStream::connect(format!("127.0.0.1:{}", port)).is_ok() {
+                                        break;
+                                    }
+                                }
+                                if let Some(w) = handle.get_webview_window("main") {
+                                    let url = format!("http://127.0.0.1:{}", port);
+                                    let _ = w.eval(&format!("location.replace('{}')", url));
+                                }
+
+                                loop {
+                                    let exited =
+                                        c.lock().unwrap().try_wait().ok().flatten().is_some();
+                                    if exited {
+                                        break;
+                                    }
+                                    std::thread::sleep(Duration::from_millis(200));
+                                }
+                            }
+
+                            if SHUTTING_DOWN.load(Ordering::Relaxed) {
+                                break;
+                            }
+                            crashes.push(Instant::now());
+                            std::thread::sleep(Duration::from_millis(500));
                         }
-                        // Navigate to the possibly non-default port
-                        if let Some(w) = app.get_webview_window("main") {
-                            let url = format!("http://{}", addr);
-                            let _ = w.eval(&format!("location.replace('{}')", url));
+                    });
+                    for _ in 0..30 {
+                        std::thread::sleep(Duration::from_millis(100));
+                        if TcpStream::connect(&addr).is_ok() {
+                            break;
                         }
                     }
                 }
@@ -130,6 +156,7 @@ pub fn run() {
 }
 
 fn graceful_exit(handle: tauri::AppHandle) {
+    SHUTTING_DOWN.store(true, Ordering::Relaxed);
     if let Some(w) = handle.get_webview_window("main") {
         error_page::show(&w, "正在退出", "等待后端进程结束...");
     }
