@@ -1,6 +1,6 @@
 [package]
 name = "Serein"
-version = "1.2.2"
+version = "1.2.3"
 description = "软件更新追踪器"
 authors = ["Vanadiry"]
 edition = "2021"

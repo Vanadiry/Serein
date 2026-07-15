@@ -1,5 +1,17 @@
 # Changelog
 
+## [v1.2.3] - 2026-07-15
+
+### Added
+
+- CORS 策略限制为服务器绑定地址
+- Tauri 桌面端 sidecar 退出后自动重启
+
+### Changed
+
+- 前端 toast 改为数组栈模式
+- 将错误打包的 Scalar UI 移除
+
 ## [v1.2.2] - 2026-07-15
 
 ### Fixed
