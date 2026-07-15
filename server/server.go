@@ -31,6 +31,22 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
+func withCORS(cfg store.Config) func(http.Handler) http.Handler {
+	origin := fmt.Sprintf("http://%s:%d", cfg.Serein.Host, cfg.Serein.Port)
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/open-url", s.handleOpenURL)
 	s.mux.HandleFunc("POST /api/download", s.handleDownload)
@@ -140,7 +156,7 @@ func (s *Server) Addr() string {
 
 func (s *Server) Run() error {
 	addr := fmt.Sprintf("%s:%d", s.config.Serein.Host, s.config.Serein.Port)
-	srv := &http.Server{Addr: addr, Handler: loggingMiddleware(s.mux)}
+	srv := &http.Server{Addr: addr, Handler: withCORS(s.config)(loggingMiddleware(s.mux))}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
