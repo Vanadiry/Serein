@@ -230,21 +230,26 @@ function formatURL(u) {
 }
 
 // 通知组件
-var _currentToast = null;
+var _toastStack = [];
+
+function _repositionToasts() {
+    _toastStack = _toastStack.filter(function (t) {
+        return !t.closed();
+    });
+    var bottom = 16;
+    for (var i = _toastStack.length - 1; i >= 0; i--) {
+        _toastStack[i].el.style.bottom = bottom + "px";
+        bottom += _toastStack[i].el.getBoundingClientRect().height + 12;
+    }
+}
 
 function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
-    if (_currentToast) {
-        var old = _currentToast;
-        old.style.opacity = "0";
-        setTimeout(function () {
-            old.remove();
-        }, 300);
-    }
-
     var el = document.createElement("div");
     el.className =
-        "fixed bottom-4 left-4 right-4 z-[200] rounded-lg shadow-xl text-sm transition-opacity duration-200";
+        "fixed left-4 right-4 z-[200] rounded-lg shadow-xl text-sm transition-all duration-300";
+    el.style.bottom = "16px";
     el.style.opacity = "0";
+    el.style.transform = "translateY(8px)";
     el.style.width = "fit-content";
     el.style.marginLeft = "auto";
     el.innerHTML =
@@ -264,19 +269,23 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
     document.body.appendChild(el);
     requestAnimationFrame(function () {
         el.style.opacity = "1";
+        el.style.transform = "translateY(0)";
     });
 
     var timer = null;
+    var closed = false;
     function close() {
+        if (closed) return;
+        closed = true;
         if (timer) clearTimeout(timer);
         el.style.opacity = "0";
+        el.style.transform = "translateY(8px)";
+        _repositionToasts();
         setTimeout(function () {
             el.remove();
+            _repositionToasts();
         }, 300);
-        if (_currentToast === el) _currentToast = null;
-        closed = true;
     }
-    var closed = false;
 
     el.querySelector("span[class*='cursor-pointer']").onclick = close;
 
@@ -284,7 +293,13 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
         timer = setTimeout(close, autoCloseSec * 1000);
     }
 
-    _currentToast = el;
+    _toastStack.push({
+        el: el,
+        closed: function () {
+            return closed;
+        }
+    });
+    _repositionToasts();
 
     return {
         el: el,
