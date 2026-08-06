@@ -6,7 +6,8 @@
 所有更新规则依赖用户贡献的规则表，直接从对应软件官方源获取版本信息。  
 规则表去中心化分发，任何人都可独立维护和分发，无需信任中心化服务。
 
-内置的规则表：[Vanadiry/SereinRulesList](https://github.com/Vanadiry/SereinRulesList)
+内置的规则表：[Vanadiry/SereinRulesList](https://github.com/Vanadiry/SereinRulesList)  
+由于 Serein 的解析引擎直接解析网页等数据，因此并不局限于监控软件。几乎任何能被看到的内容，都能被追踪。
 
 <img src="/docs/image/readme-01.png" width="500"/>
 <img src="/docs/image/readme-02.png" width="500"/>
