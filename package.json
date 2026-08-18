@@ -9,7 +9,7 @@
         "@tailwindcss/cli": "^4.3.3",
         "html-minifier-terser": "^7.2.0",
         "tailwindcss": "^4.3.3",
-        "terser": "^5.49.2"
+        "terser": "^5.50.0"
     },
     "devDependencies": {
         "@tauri-apps/cli": "^2.11.4"
