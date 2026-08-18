@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Serein Desktop",
-  "version": "1.2.3",
+  "productName": "Serein",
+  "version": "1.2.4",
   "identifier": "com.vanadiry.serein",
   "build": {
     "frontendDist": "../web",
@@ -10,7 +10,7 @@
   "app": {
     "windows": [
       {
-        "title": "Serein Desktop",
+        "title": "Serein",
         "url": "http://127.0.0.1:12510",
         "width": 1200,
         "height": 800,
