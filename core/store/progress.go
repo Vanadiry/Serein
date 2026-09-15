@@ -93,14 +93,9 @@ func GetProgress(id string) *Progress {
 }
 
 // HandleProgressCancel 终止端点：POST /api/check/cancel/{task_id}
-// 需要自定义头 X-Serein-ACCESS: 1，防止误操作和跨站
-func HandleProgressCancel(w http.ResponseWriter, r *http.Request) {
+// 跨站请求由 server 的 sameOriginGuard 统一拦截
+func HandleProgressCancel(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	if !HasAccess(r) {
-		w.WriteHeader(http.StatusForbidden)
-		json.NewEncoder(w).Encode(map[string]string{"error": "missing " + AccessHeader})
-		return
-	}
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"status": "cancelled"})
 	os.Exit(0)

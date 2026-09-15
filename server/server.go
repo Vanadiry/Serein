@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -49,6 +50,26 @@ func withCORS() func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// sameOriginGuard CSRF
+func sameOriginGuard(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			switch r.Header.Get("Sec-Fetch-Site") {
+			case "cross-site", "same-site":
+				writeError(w, http.StatusForbidden, "cross-site request blocked")
+				return
+			}
+			if o := r.Header.Get("Origin"); o != "" {
+				if u, err := url.Parse(o); err != nil || u.Host != r.Host {
+					writeError(w, http.StatusForbidden, "origin not allowed")
+					return
+				}
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) registerRoutes() {
@@ -186,7 +207,7 @@ func (s *Server) Serve() error {
 			return err
 		}
 	}
-	srv := &http.Server{Handler: withCORS()(loggingMiddleware(s.mux))}
+	srv := &http.Server{Handler: withCORS()(sameOriginGuard(loggingMiddleware(s.mux)))}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

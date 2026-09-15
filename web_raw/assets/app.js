@@ -97,10 +97,7 @@ async function api(path) {
 async function apiPost(path, body) {
     const r = await fetch(API + path, {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-Serein-ACCESS": "1"
-        },
+        headers: { "Content-Type": "application/json" },
         body: body ? JSON.stringify(body) : undefined
     });
     return r.json();
@@ -804,10 +801,7 @@ function showProgressModal(title, cancelUrl) {
     // 终止
     if (cancelUrl) {
         card.querySelector("#prog-cancel").onclick = function () {
-            fetch(cancelUrl, {
-                method: "POST",
-                headers: { "X-Serein-ACCESS": "1" }
-            });
+            fetch(cancelUrl, { method: "POST" });
             var bar = card.querySelector("#prog-bar");
             bar.style.background = "var(--c-warn)";
             card.querySelector("#prog-title").textContent =
