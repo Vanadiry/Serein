@@ -801,7 +801,10 @@ function showProgressModal(title, cancelUrl) {
     // 终止
     if (cancelUrl) {
         card.querySelector("#prog-cancel").onclick = function () {
-            fetch(cancelUrl, { method: "POST" });
+            fetch(cancelUrl, {
+                method: "POST",
+                headers: { "X-Serein-Exit": "1" }
+            });
             var bar = card.querySelector("#prog-bar");
             bar.style.background = "var(--c-warn)";
             card.querySelector("#prog-title").textContent =
