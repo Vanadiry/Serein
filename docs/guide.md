@@ -17,6 +17,7 @@ Tracker 是一个列表，记录了你需要检查更新的软件 ID。
 Serein 首次启动时，会生成默认配置：
 
 ```toml
+# Serein 配置
 [serein]
 host = "127.0.0.1"     # 监听地址，设为 0.0.0.0 则允许局域网访问
 port = 12510           # 监听端口
@@ -26,19 +27,23 @@ first_run = true       # 首次运行时展示欢迎指引，设为 false 可永
 platforms = ["macos", "windows"]  # 全局平台偏好，可被 Tracker 中的记录覆盖
 
 [download]
-concurrency = 8        # 检查更新时的并发数，最大允许 64
-# downloader = "browser"   # 下载器：browser（默认）| builtin | ndm | 自定义命令（{url}替换为链接）
+concurrency = 8        # 检查更新时的并发数
+# downloader = "browser"   # 下载器：browser（默认/空）| ndm | 自定义命令（{url}替换为链接）
 
 [access]
-# github_token = "github_pat_xxx" # GitHub 令牌，用于提升请求限制
+# github_token = "github_xxx" # GitHub 令牌，用于提升请求限制
 
-[profile]              # 动态配置，指向 profile.json 文件
-url = "https://raw.githubusercontent.com/Vanadiry/SereinRulesList/refs/heads/main/profile.json"
+[proxy]
+host = ""              # HTTP 代理，留空则不启用
+port = 0
 
 [[rule_sources]]       # 规则源，默认为 Vanadiry 维护的规则源。你可以添加新的 url 来指定更多
 url = "https://raw.githubusercontent.com/Vanadiry/SereinRulesList/refs/heads/main/_source.json"
-[[rule_sources]]       # 规则源 2
-url = "https://222.xx/"
+# [[rule_sources]]     # 规则源 2
+# url = "https://xxx.xx/"
+
+[profile]              # 动态配置，指向一个 profile.json 文件，用于热更新前端参数
+url = "https://raw.githubusercontent.com/Vanadiry/SereinRulesList/refs/heads/main/profile.json"
 ```
 
 ### GitHub 令牌
@@ -71,6 +76,23 @@ Serein 不会收集你的 Token，请勿将 Token 外泄。
 
 Serein 从远端拉取 `profile.json` 来自动更新前端行为，例如何种链接被下载器捕获、版本前后缀去除。  
 你可以在规则页面右上角拉取动态配置。
+
+### 代理
+
+如果你的网络无法直接访问上游（规则源、GitHub Release 等），可以为后端配置 HTTP 代理。  
+需要同时填写 `host`（IP 或域名）与 `port`，留空 `host` 即不启用代理。例如：
+
+```toml
+[proxy]
+host = "127.0.0.1"
+port = 7890
+```
+
+该代理作用于后端的检查更新，以及拉取规则源与动态配置。  
+由下载器（浏览器、NDM、自定义命令）发起的下载不受影响。
+
+如果你的代理工具支持 TUN 模式，启动它，将无须单独为 Serein 配置代理。  
+（视工具不同，此模式可能叫作：虚拟网卡模式、增强模式、接管所有流量、透明代理等）
 
 ## Tracker
 
