@@ -599,23 +599,6 @@ function tipAttr(html) {
     );
 }
 
-// 背景闪烁
-function flashOverlay() {
-    var el = document.createElement("div");
-    el.className = "fixed inset-0 z-[150] bg-overlay pointer-events-none";
-    el.style.opacity = "1";
-
-    document.body.appendChild(el);
-
-    setTimeout(function () {
-        el.style.transition = "opacity 0.5s ease-out";
-        el.style.opacity = "0";
-        setTimeout(function () {
-            el.remove();
-        }, 500);
-    }, 3000);
-}
-
 // 外部链接弹窗（桌面壳内无法拉起浏览器时展示）
 // 非白名单下载链接弹窗
 function openDownloadPage(url) {
@@ -896,7 +879,6 @@ function startSyncProgress(taskId) {
             var msg = parts.length > 0 ? parts.join("<br>") : "同步完成";
             var hasError = d.file_errors > 0 || sourcesFailed > 0;
             showLoading("拉取规则", msg).done(msg, hasError);
-            if (hasError) flashOverlay();
             if (typeof loadSources === "function") loadSources();
             return;
         }
