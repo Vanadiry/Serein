@@ -106,6 +106,11 @@ func (c Config) Validate() []string {
 	if c.Download.Concurrency < 1 {
 		errs = append(errs, fmt.Sprintf("download.concurrency 必须 >= 1（当前 %d）", c.Download.Concurrency))
 	}
+	if c.Proxy.Host == "" && c.Proxy.Port != 0 {
+		errs = append(errs, "填写了 proxy.port 但缺少 proxy.host")
+	} else if c.Proxy.Host != "" && (c.Proxy.Port < 1 || c.Proxy.Port > 65535) {
+		errs = append(errs, fmt.Sprintf("proxy.port 必须在 1-65535 之间（当前 %d）", c.Proxy.Port))
+	}
 	return errs
 }
 
