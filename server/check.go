@@ -83,6 +83,10 @@ func (s *Server) handleCheckTracker(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "missing tracker_id")
 		return
 	}
+	if !store.ValidTrackerName(body.TrackerID) {
+		writeError(w, http.StatusBadRequest, "invalid tracker_id")
+		return
+	}
 	entries, err := store.LoadTrackerFile(s.home, body.TrackerID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())

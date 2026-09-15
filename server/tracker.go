@@ -130,7 +130,7 @@ func (s *Server) handleTrackerNew(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "missing id")
 		return
 	}
-	if strings.ContainsAny(body.ID, "/\\") {
+	if !store.ValidTrackerName(body.ID) {
 		writeError(w, http.StatusBadRequest, "id contains invalid characters")
 		return
 	}
@@ -165,6 +165,10 @@ func (s *Server) handleTrackerAdd(w http.ResponseWriter, r *http.Request) {
 	}
 	if body.TrackerID == "" {
 		body.TrackerID = "_serein"
+	}
+	if !store.ValidTrackerName(body.TrackerID) {
+		writeError(w, http.StatusBadRequest, "tracker_id contains invalid characters")
+		return
 	}
 
 	if err := store.AddToTracker(s.home, body.TrackerID, store.TrackerEntry{

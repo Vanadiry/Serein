@@ -110,9 +110,31 @@ func loadTrackerFiles(home, name string) ([]TrackerEntry, error) {
 	return list, nil
 }
 
+// ValidTrackerName 校验 tracker 名称是否安全
+func ValidTrackerName(name string) bool {
+	if name == "" || name == "." || name == ".." || filepath.IsAbs(name) {
+		return false
+	}
+	return !strings.ContainsAny(name, `/\`)
+}
+
+// trackerPath 返回 home/tracker/<name>.toml，并确保结果不逃出 tracker 目录
+func trackerPath(home, name string) (string, error) {
+	dir := filepath.Join(home, "tracker")
+	p := filepath.Join(dir, name+".toml")
+	rel, err := filepath.Rel(dir, p)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("invalid tracker name %q", name)
+	}
+	return p, nil
+}
+
 // GetTrackerType 返回 tracker 文件的 type（默认 "app"）。
 func GetTrackerType(home, name string) string {
-	path := filepath.Join(home, "tracker", name+".toml")
+	path, err := trackerPath(home, name)
+	if err != nil {
+		return "app"
+	}
 	var tf trackerFile
 	if err := decodeTOML(path, &tf); err != nil {
 		return "app"
@@ -125,21 +147,30 @@ func GetTrackerType(home, name string) string {
 
 // TrackerExists 检查 tracker 文件（按文件名）是否存在。
 func TrackerExists(home, name string) bool {
-	path := filepath.Join(home, "tracker", name+".toml")
-	_, err := os.Stat(path)
-	return err == nil
+	path, err := trackerPath(home, name)
+	if err != nil {
+		return false
+	}
+	_, statErr := os.Stat(path)
+	return statErr == nil
 }
 
 // CreateTrackerFile 创建 tracker 文件，写入默认模板。
 func CreateTrackerFile(home, name string) error {
-	path := filepath.Join(home, "tracker", name+".toml")
+	path, err := trackerPath(home, name)
+	if err != nil {
+		return err
+	}
 	return os.WriteFile(path, []byte(DefaultTrackerTOML), 0644)
 }
 
 // AddToTracker 追加 [[tracker]] 条目到指定 tracker 文件，保留 display_name。
 // 若 app_id 已存在则合并平台（去重追加），否则新增条目。
 func AddToTracker(home, name string, entry TrackerEntry) error {
-	path := filepath.Join(home, "tracker", name+".toml")
+	path, err := trackerPath(home, name)
+	if err != nil {
+		return err
+	}
 
 	var tf trackerFile
 	if _, err := os.Stat(path); err == nil {
