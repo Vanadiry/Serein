@@ -285,7 +285,9 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
         "</div>" +
         '<div class="' +
         bodyBg +
-        ' text-white px-4 py-2 rounded-b-lg select-text">' +
+        " text-white px-4 py-2 rounded-b-lg" +
+        (titleBg === "bg-ok" ? "" : " select-text") +
+        '">' +
         (body || "") +
         "</div>";
     document.body.appendChild(el);
@@ -310,6 +312,11 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
     }
 
     el.querySelector("span[class*='cursor-pointer']").onclick = close;
+    // 成功 toast 可整块点击关闭
+    if (titleBg === "bg-ok") {
+        el.style.cursor = "pointer";
+        el.onclick = close;
+    }
 
     if (autoCloseSec > 0) {
         timer = setTimeout(close, autoCloseSec * 1000);
@@ -348,13 +355,17 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
                 " text-white font-semibold px-4 py-2 rounded-t-lg flex items-center justify-between";
             el.querySelector("span:first-child").textContent = tt;
             el.querySelector("div:last-child").className =
-                bb + " text-white px-4 py-2 rounded-b-lg select-text";
+                bb +
+                " text-white px-4 py-2 rounded-b-lg" +
+                (isError ? " select-text" : "");
             el.querySelector("div:last-child").innerHTML = okBody || "";
             if (isError) {
                 if (timer) clearTimeout(timer);
             } else {
                 if (timer) clearTimeout(timer);
                 timer = setTimeout(close, 5000);
+                el.style.cursor = "pointer";
+                el.onclick = close;
             }
         }
     };
