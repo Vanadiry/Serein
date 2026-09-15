@@ -45,38 +45,13 @@ type AccessConfig struct {
 	GithubToken string `toml:"github_token,omitempty"`
 }
 
-func DefaultConfig() Config {
-	return Config{
-		Serein: SereinConfig{
-			Host:     "127.0.0.1",
-			Port:     12510,
-			FirstRun: true,
-		},
-		Tracker: TrackerConfig{
-			Platforms: []string{"macos", "windows"},
-		},
-		Download: DownloadConfig{
-			Concurrency: 8,
-		},
-	}
-}
-
 func LoadConfig(home string) (Config, error) {
 	path := filepath.Join(home, "config.toml")
-	cfg := DefaultConfig()
-
+	var cfg Config
 	if err := decodeTOML(path, &cfg); err != nil {
 		return cfg, fmt.Errorf("read config: %w", err)
 	}
 	return cfg, nil
-}
-
-func SaveConfig(home string, cfg Config) error {
-	path := filepath.Join(home, "config.toml")
-	if err := encodeTOML(path, cfg); err != nil {
-		return fmt.Errorf("write config: %w", err)
-	}
-	return nil
 }
 
 func decodeTOML(path string, v any) error {
@@ -96,16 +71,6 @@ func encodeTOML(path string, v any) error {
 	}
 	defer f.Close()
 	return toml.NewEncoder(f).Encode(v)
-}
-
-func ClampConcurrency(n int) int {
-	if n < 1 {
-		return 1
-	}
-	if n > 64 {
-		return 64
-	}
-	return n
 }
 
 // Validate 校验会影响程序正常运行的字段，返回全部错误

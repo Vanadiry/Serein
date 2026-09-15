@@ -39,17 +39,13 @@ func (s *Server) syncRules(w http.ResponseWriter) {
 }
 
 func (s *Server) syncProfile(w http.ResponseWriter) {
-	cfg, err := store.LoadConfig(s.home)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	if cfg.Profile.URL == "" {
+	url := s.config.Profile.URL
+	if url == "" {
 		writeJSON(w, http.StatusOK, map[string]any{"updated": false, "message": "未配置 profile URL"})
 		return
 	}
 
-	p, updated, err := store.SyncProfile(s.home, cfg.Profile.URL)
+	p, updated, err := store.SyncProfile(s.home, url)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

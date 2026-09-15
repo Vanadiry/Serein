@@ -28,11 +28,7 @@ func formatSourceURL(url string) string {
 }
 
 func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
-	cfg, err := store.LoadConfig(s.home)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
+	cfg := s.config
 
 	kv := map[string]string{
 		"监听地址": fmt.Sprintf("%s:%d", cfg.Serein.Host, cfg.Serein.Port),

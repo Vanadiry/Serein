@@ -157,10 +157,6 @@ type checkJob struct {
 }
 
 func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) {
-	cfg, cfgErr := store.LoadConfig(s.home)
-	if cfgErr != nil {
-		store.Emit("error", "[check]", fmt.Sprintf("加载配置失败: %v", cfgErr))
-	}
 	rules, rulesErr := store.LoadRules(s.home)
 	if rulesErr != nil {
 		store.Emit("error", "[check]", fmt.Sprintf("加载规则失败: %v", rulesErr))
@@ -170,7 +166,7 @@ func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) 
 		store.Emit("error", "[check]", fmt.Sprintf("加载用户数据失败: %v", udErr))
 	}
 
-	conc := store.ClampConcurrency(cfg.Download.Concurrency)
+	conc := s.config.Download.Concurrency
 
 	var jobs []checkJob
 	for _, entry := range entries {
@@ -179,7 +175,7 @@ func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) 
 			continue
 		}
 		jobName := rule.Info.Name
-		platforms := store.PlatformsFor(entry, cfg.Tracker.Platforms)
+		platforms := store.PlatformsFor(entry, s.config.Tracker.Platforms)
 
 		var platCfgs []checker.PlatformCheckConfig
 		for _, os := range platforms {
@@ -250,7 +246,7 @@ func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) 
 				RuleType:        typ,
 				Owner:           rule.Config.Owner,
 				Repo:            rule.Config.Repo,
-				GithubToken:     cfg.Access.GithubToken,
+				GithubToken:     s.config.Access.GithubToken,
 				Platforms:       group,
 			}, name: jobName})
 		}
