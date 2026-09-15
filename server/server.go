@@ -35,11 +35,11 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-func withCORS(cfg store.Config) func(http.Handler) http.Handler {
-	origin := fmt.Sprintf("http://%s:%d", cfg.Serein.Host, cfg.Serein.Port)
+func withCORS() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Access-Control-Allow-Origin", origin)
+			// 用请求的 Host 作为允许来源，兼容 host=0.0.0.0
+			w.Header().Set("Access-Control-Allow-Origin", "http://"+r.Host)
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 			if r.Method == http.MethodOptions {
@@ -186,7 +186,7 @@ func (s *Server) Serve() error {
 			return err
 		}
 	}
-	srv := &http.Server{Handler: withCORS(s.config)(loggingMiddleware(s.mux))}
+	srv := &http.Server{Handler: withCORS()(loggingMiddleware(s.mux))}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
