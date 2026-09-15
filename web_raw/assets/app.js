@@ -325,6 +325,7 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
 
     return {
         el: el,
+        close: close,
         done: function (okBody, isError, titleText) {
             if (closed) {
                 var t = _makeToast(

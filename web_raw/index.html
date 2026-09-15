@@ -586,6 +586,7 @@
                         .join("");
                 }
                 var errs = collectErrors(data || []);
+                ld.close();
                 showCheckDone(errs);
             }
 
