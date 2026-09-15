@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -105,4 +106,28 @@ func ClampConcurrency(n int) int {
 		return 64
 	}
 	return n
+}
+
+// Validate 校验会影响程序正常运行的字段，返回全部错误
+func (c Config) Validate() []string {
+	var errs []string
+	if c.Serein.Host == "" {
+		errs = append(errs, "serein.host 不能为空")
+	}
+	if c.Serein.Port < 1 || c.Serein.Port > 65535 {
+		errs = append(errs, fmt.Sprintf("serein.port 必须在 1-65535 之间（当前 %d）", c.Serein.Port))
+	}
+	if c.Download.Concurrency < 1 {
+		errs = append(errs, fmt.Sprintf("download.concurrency 必须 >= 1（当前 %d）", c.Download.Concurrency))
+	}
+	return errs
+}
+
+// ValidationError 汇总配置校验错误
+type ValidationError struct {
+	Errors []string
+}
+
+func (e *ValidationError) Error() string {
+	return "配置有误: " + strings.Join(e.Errors, "; ")
 }

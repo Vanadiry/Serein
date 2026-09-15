@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -38,19 +39,33 @@ func sereinHome() string {
 }
 
 func startServer(home string, openBrowser_ bool) {
-	webFS, _ := fs.Sub(webFiles, "web")
-	s, err := server.New(home, webFS)
+	webFS, err := fs.Sub(webFiles, "web")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
 		os.Exit(1)
 	}
-	if openBrowser_ {
-		go func() {
-			addr := "http://" + s.Addr()
-			server.OpenBrowser(addr)
-		}()
+	s, err := server.New(home, webFS)
+	if err != nil {
+		var ve *store.ValidationError
+		if errors.As(err, &ve) {
+			// SEREIN_ERROR=<标题> 指定错误页标题，其余行作为正文
+			fmt.Fprintln(os.Stderr, "SEREIN_ERROR=配置有误")
+			for _, e := range ve.Errors {
+				fmt.Fprintln(os.Stderr, e)
+			}
+		} else {
+			fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
+		}
+		os.Exit(1)
 	}
-	if err := s.Run(); err != nil {
+	if err := s.Listen(); err != nil {
+		fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
+		os.Exit(1)
+	}
+	if openBrowser_ {
+		go server.OpenBrowser("http://" + s.Addr())
+	}
+	if err := s.Serve(); err != nil {
 		fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
 		os.Exit(1)
 	}

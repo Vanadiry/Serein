@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"net"
 	"net/http"
+	"os"
 	"os/signal"
 	"strings"
 	"syscall"
@@ -18,10 +20,12 @@ import (
 )
 
 type Server struct {
-	home   string
-	config store.Config
-	mux    *http.ServeMux
-	webFS  fs.FS
+	home       string
+	config     store.Config
+	mux        *http.ServeMux
+	webFS      fs.FS
+	ln         net.Listener
+	actualAddr string
 }
 
 func loggingMiddleware(next http.Handler) http.Handler {
@@ -140,6 +144,9 @@ func New(home string, webFS fs.FS) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	if errs := cfg.Validate(); len(errs) > 0 {
+		return nil, &store.ValidationError{Errors: errs}
+	}
 	store.InitLogger(home)
 	if p, err := store.LoadProfile(home); err == nil {
 		checker.SetVersionPrefixes(p.VersionPrefixes)
@@ -151,20 +158,41 @@ func New(home string, webFS fs.FS) (*Server, error) {
 }
 
 func (s *Server) Addr() string {
+	if s.actualAddr != "" {
+		return s.actualAddr
+	}
 	return fmt.Sprintf("%s:%d", s.config.Serein.Host, s.config.Serein.Port)
 }
 
-func (s *Server) Run() error {
+// Listen 绑定端口，并向Tauri报告实际监听地址。
+func (s *Server) Listen() error {
 	addr := fmt.Sprintf("%s:%d", s.config.Serein.Host, s.config.Serein.Port)
-	srv := &http.Server{Addr: addr, Handler: withCORS(s.config)(loggingMiddleware(s.mux))}
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("listen %s: %w", addr, err)
+	}
+	s.ln = ln
+	s.actualAddr = ln.Addr().String()
+	fmt.Fprintf(os.Stdout, "SEREIN_ADDR=%s\n", s.actualAddr)
+	return nil
+}
+
+// Serve 在已绑定的监听器上提供服务，直到收到退出信号
+func (s *Server) Serve() error {
+	if s.ln == nil {
+		if err := s.Listen(); err != nil {
+			return err
+		}
+	}
+	srv := &http.Server{Handler: withCORS(s.config)(loggingMiddleware(s.mux))}
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	go func() {
-		fmt.Printf("Serein → http://%s\n", addr)
-		if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-			fmt.Printf("server: %v\n", err)
+		store.LogfInfo("listening on %s", s.actualAddr)
+		if err := srv.Serve(s.ln); err != nil && err != http.ErrServerClosed {
+			store.LogfError("server: %v", err)
 		}
 	}()
 

@@ -1,13 +1,12 @@
-use std::net::TcpStream;
+use std::io::{BufRead, BufReader};
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
-use std::process::{Child, Command};
+use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use tauri::Manager;
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
-mod config;
 mod error_page;
 
 static SIDECAR: Mutex<Option<Arc<Mutex<Child>>>> = Mutex::new(None);
@@ -23,119 +22,7 @@ pub fn run() {
             }
 
             #[cfg(not(mobile))]
-            {
-                let port = config::get_port();
-                let addr = format!("127.0.0.1:{}", port);
-                let ext = if cfg!(target_os = "windows") {
-                    ".exe"
-                } else {
-                    ""
-                };
-                let target = std::env::var("TARGET").unwrap_or_default();
-                let name_long = format!("serein_server-{}{}", target, ext);
-                let name_short = format!("serein_server{}", ext);
-
-                // 1) bundled: next to the main executable
-                // 2) dev: project_root/build/
-                let bin = std::env::current_exe()
-                    .ok()
-                    .and_then(|p| p.parent().map(|d| d.to_path_buf()))
-                    .and_then(|exe_dir| {
-                        let bundled = exe_dir.join(&name_short);
-                        if bundled.exists() {
-                            return Some(bundled);
-                        }
-                        let bundled_long = exe_dir.join(&name_long);
-                        if bundled_long.exists() {
-                            return Some(bundled_long);
-                        }
-                        None
-                    })
-                    .or_else(|| {
-                        let dev = std::env::current_dir()
-                            .ok()?
-                            .parent()?
-                            .join("build")
-                            .join(&name_long);
-                        if dev.exists() {
-                            Some(dev)
-                        } else {
-                            None
-                        }
-                    });
-                if TcpStream::connect(&addr).is_ok() {
-                    error_page::show(
-                        &app.get_webview_window("main").unwrap(),
-                        "无法启动后端",
-                        "Serein 后端使用的端口被占用，请检查",
-                    );
-                } else if let Some(bin_path) = bin {
-                    let bin_path = Arc::new(bin_path);
-                    let handle = app.handle().clone();
-                    let port = port;
-                    std::thread::spawn(move || {
-                        let mut crashes: Vec<Instant> = Vec::new();
-                        loop {
-                            let now = Instant::now();
-                            crashes.retain(|t| now.duration_since(*t) < Duration::from_secs(10));
-                            if crashes.len() >= 3 {
-                                if let Some(window) = handle.get_webview_window("main") {
-                                    error_page::show(
-                                        &window,
-                                        "后端反复崩溃",
-                                        "Serein 后端进程多次启动失败，请检查配置或重启应用",
-                                    );
-                                }
-                                break;
-                            }
-
-                            let mut cmd = Command::new(bin_path.as_ref());
-                            cmd.env("SEREIN_SIDECAR", "1");
-                            #[cfg(target_os = "windows")]
-                            {
-                                cmd.creation_flags(0x08000000);
-                            }
-                            if let Ok(child) = cmd.spawn() {
-                                let child = Arc::new(Mutex::new(child));
-                                let c = child.clone();
-                                *SIDECAR.lock().unwrap() = Some(child);
-
-                                for _ in 0..30 {
-                                    std::thread::sleep(Duration::from_millis(100));
-                                    if TcpStream::connect(format!("127.0.0.1:{}", port)).is_ok() {
-                                        break;
-                                    }
-                                }
-                                if let Some(w) = handle.get_webview_window("main") {
-                                    let url = format!("http://127.0.0.1:{}", port);
-                                    let _ = w.eval(&format!("location.replace('{}')", url));
-                                }
-
-                                loop {
-                                    let exited =
-                                        c.lock().unwrap().try_wait().ok().flatten().is_some();
-                                    if exited {
-                                        break;
-                                    }
-                                    std::thread::sleep(Duration::from_millis(200));
-                                }
-                            }
-
-                            if SHUTTING_DOWN.load(Ordering::Relaxed) {
-                                break;
-                            }
-                            crashes.push(Instant::now());
-                            std::thread::sleep(Duration::from_millis(500));
-                        }
-                    });
-                    for _ in 0..30 {
-                        std::thread::sleep(Duration::from_millis(100));
-                        if TcpStream::connect(&addr).is_ok() {
-                            break;
-                        }
-                    }
-                }
-            }
+            setup_desktop(app)?;
 
             setup_menu(app)?;
             Ok(())
@@ -153,6 +40,197 @@ pub fn run() {
                 graceful_exit(_handle.clone());
             }
         });
+}
+
+/// 解析 sidecar stderr
+fn split_error(raw: &str) -> (String, String) {
+    let mut title = "后端启动失败".to_string();
+    let mut body: Vec<&str> = Vec::new();
+    for line in raw.lines() {
+        if let Some(t) = line.strip_prefix("SEREIN_ERROR=") {
+            title = t.trim().to_string();
+        } else {
+            body.push(line);
+        }
+    }
+    let msg = body.join("\n");
+    let msg = msg.trim();
+    let msg = if msg.is_empty() {
+        "请检查配置或重启应用".to_string()
+    } else {
+        msg.to_string()
+    };
+    (title, msg)
+}
+
+/// 桌面端：先建初始窗口，再拉起 Go sidecar，等通过 stdout 报告监听地址后导航
+#[cfg(not(mobile))]
+fn setup_desktop(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    // 初始页用自包含的 data: 空白页
+    let blank: tauri::Url =
+        "data:text/html,%3C!doctype%20html%3E%3Cmeta%20charset=utf-8%3E".parse()?;
+    let win = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(blank))
+        .title("Serein")
+        .inner_size(1200.0, 800.0)
+        .min_inner_size(1000.0, 600.0)
+        .center()
+        .resizable(true)
+        .fullscreen(false)
+        .build()?;
+
+    let ext = if cfg!(target_os = "windows") {
+        ".exe"
+    } else {
+        ""
+    };
+    let target = std::env::var("TARGET").unwrap_or_default();
+    let name_long = format!("serein_server-{}{}", target, ext);
+    let name_short = format!("serein_server{}", ext);
+
+    // 1) bundled: next to the main executable
+    // 2) dev: project_root/build/
+    let bin = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.to_path_buf()))
+        .and_then(|exe_dir| {
+            let bundled = exe_dir.join(&name_short);
+            if bundled.exists() {
+                return Some(bundled);
+            }
+            let bundled_long = exe_dir.join(&name_long);
+            if bundled_long.exists() {
+                return Some(bundled_long);
+            }
+            None
+        })
+        .or_else(|| {
+            let dev = std::env::current_dir()
+                .ok()?
+                .parent()?
+                .join("build")
+                .join(&name_long);
+            if dev.exists() {
+                Some(dev)
+            } else {
+                None
+            }
+        });
+
+    let bin = match bin {
+        Some(b) => b,
+        None => {
+            error_page::show(
+                &win,
+                "找不到后端程序",
+                "Serein 后端 sidecar 缺失，请重新安装",
+            );
+            return Ok(());
+        }
+    };
+
+    let handle = app.handle().clone();
+    std::thread::spawn(move || {
+        let mut crashes: Vec<Instant> = Vec::new();
+        loop {
+            let now = Instant::now();
+            crashes.retain(|t| now.duration_since(*t) < Duration::from_secs(10));
+            if crashes.len() >= 3 {
+                break;
+            }
+
+            let mut cmd = Command::new(&bin);
+            cmd.env("SEREIN_SIDECAR", "1");
+            cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+            #[cfg(target_os = "windows")]
+            {
+                cmd.creation_flags(0x08000000);
+            }
+
+            let mut child = match cmd.spawn() {
+                Ok(c) => c,
+                Err(e) => {
+                    if let Some(w) = handle.get_webview_window("main") {
+                        error_page::show(&w, "无法启动后端", &e.to_string());
+                    }
+                    break;
+                }
+            };
+
+            let stdout = child.stdout.take();
+            let stderr = child.stderr.take();
+            let child = Arc::new(Mutex::new(child));
+            *SIDECAR.lock().unwrap() = Some(child.clone());
+
+            // 读 stdout，等待 sidecar 报告监听地址后导航窗口
+            if let Some(out) = stdout {
+                let h = handle.clone();
+                std::thread::spawn(move || {
+                    let mut navigated = false;
+                    for line in BufReader::new(out).lines().map_while(Result::ok) {
+                        if navigated {
+                            continue;
+                        }
+                        if let Some(addr) = line.strip_prefix("SEREIN_ADDR=") {
+                            if let Some(w) = h.get_webview_window("main") {
+                                if let Ok(url) =
+                                    tauri::Url::parse(&format!("http://{}", addr.trim()))
+                                {
+                                    let _ = w.navigate(url);
+                                }
+                            }
+                            navigated = true;
+                        }
+                    }
+                });
+            }
+
+            // 收集 stderr，启动失败时展示原因
+            let errbuf = Arc::new(Mutex::new(String::new()));
+            let stderr_handle = if let Some(err) = stderr {
+                let eb = errbuf.clone();
+                Some(std::thread::spawn(move || {
+                    for line in BufReader::new(err).lines().map_while(Result::ok) {
+                        let mut b = eb.lock().unwrap();
+                        b.push_str(&line);
+                        b.push('\n');
+                    }
+                }))
+            } else {
+                None
+            };
+
+            // 等待 sidecar 退出
+            loop {
+                let exited = child.lock().unwrap().try_wait().ok().flatten().is_some();
+                if exited {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(200));
+            }
+
+            // 等 stderr 读完，避免竞态导致错误信息为空
+            if let Some(h) = stderr_handle {
+                let _ = h.join();
+            }
+
+            if SHUTTING_DOWN.load(Ordering::Relaxed) {
+                break;
+            }
+            crashes.push(Instant::now());
+
+            let raw = errbuf.lock().unwrap().clone();
+            let (title, msg) = split_error(&raw);
+            if let Some(w) = handle.get_webview_window("main") {
+                error_page::show(&w, &title, &msg);
+            }
+            if raw.contains("SEREIN_ERROR=") {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(500));
+        }
+    });
+
+    Ok(())
 }
 
 fn graceful_exit(handle: tauri::AppHandle) {

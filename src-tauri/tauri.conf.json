@@ -8,19 +8,7 @@
     "beforeBuildCommand": "pnpm run build"
   },
   "app": {
-    "windows": [
-      {
-        "title": "Serein",
-        "url": "http://127.0.0.1:12510",
-        "width": 1200,
-        "height": 800,
-        "minWidth": 1000,
-        "minHeight": 600,
-        "center": true,
-        "resizable": true,
-        "fullscreen": false
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": null
     }
