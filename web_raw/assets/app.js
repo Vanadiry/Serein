@@ -938,10 +938,30 @@ function startSyncProgress(taskId) {
 }
 
 (function () {
+    var SEEN_KEY = "serein_seen_events";
+    var seen = {};
+    try {
+        seen = JSON.parse(sessionStorage.getItem(SEEN_KEY) || "{}") || {};
+    } catch (e) {
+        seen = {};
+    }
+    function remember(id) {
+        seen[id] = 1;
+        var keys = Object.keys(seen);
+        for (var i = 0; i < keys.length - 200; i++) delete seen[keys[i]];
+        try {
+            sessionStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+        } catch (e) {}
+    }
     function connectEvents() {
         var es = new EventSource(API + "/api/events");
         es.onmessage = function (e) {
             var d = JSON.parse(e.data);
+            // 已处理过的事件（含历史回放）不再弹出；跨翻页/刷新保留
+            if (d.id) {
+                if (seen[d.id]) return;
+                remember(d.id);
+            }
             if (d.level === "error") {
                 _makeToast(
                     "错误: " + (d.context || "后端"),

@@ -4,11 +4,13 @@ package store
 import (
 	"encoding/json"
 	"log"
+	"strconv"
 	"sync"
 	"time"
 )
 
 type Event struct {
+	ID      string `json:"id"`
 	Level   string `json:"level"`
 	Context string `json:"context,omitempty"`
 	Message string `json:"message"`
@@ -19,10 +21,14 @@ type eventBus struct {
 	mu          sync.Mutex
 	subscribers map[chan []byte]struct{}
 	history     [][]byte
+	seq         int
 }
 
 // historyLimit 回放给新订阅者的历史事件条数上限
 const historyLimit = 50
+
+// eventSession 每次进程启动唯一，避免重启后 id 与旧客户端已见的重复。
+var eventSession = strconv.FormatInt(time.Now().UnixNano(), 36)
 
 var globalBus = &eventBus{
 	subscribers: map[chan []byte]struct{}{},
@@ -51,7 +57,11 @@ func Unsubscribe(ch chan []byte) {
 }
 
 func Emit(level, context, message string) {
+	globalBus.mu.Lock()
+	defer globalBus.mu.Unlock()
+	globalBus.seq++
 	evt := Event{
+		ID:      eventSession + "-" + strconv.Itoa(globalBus.seq),
 		Level:   level,
 		Context: context,
 		Message: message,
@@ -62,8 +72,6 @@ func Emit(level, context, message string) {
 		log.Printf("[events] marshal error: %v", err)
 		return
 	}
-	globalBus.mu.Lock()
-	defer globalBus.mu.Unlock()
 	globalBus.history = append(globalBus.history, data)
 	if len(globalBus.history) > historyLimit {
 		globalBus.history = globalBus.history[len(globalBus.history)-historyLimit:]
