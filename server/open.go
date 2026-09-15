@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"os/exec"
 	"runtime"
+
+	"github.com/vanadiry/serein/core/store"
 )
 
 func OpenBrowser(url string) {
@@ -23,6 +25,10 @@ func OpenBrowser(url string) {
 
 func (s *Server) handleOpenURL(w http.ResponseWriter, r *http.Request) {
 	limitBody(w, r)
+	if !store.HasAccess(r) {
+		writeError(w, http.StatusForbidden, "missing "+store.AccessHeader)
+		return
+	}
 	var body struct {
 		URL string `json:"url"`
 	}

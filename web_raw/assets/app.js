@@ -97,7 +97,10 @@ async function api(path) {
 async function apiPost(path, body) {
     const r = await fetch(API + path, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+            "Content-Type": "application/json",
+            "X-Serein-ACCESS": "1"
+        },
         body: body ? JSON.stringify(body) : undefined
     });
     return r.json();
@@ -803,7 +806,7 @@ function showProgressModal(title, cancelUrl) {
         card.querySelector("#prog-cancel").onclick = function () {
             fetch(cancelUrl, {
                 method: "POST",
-                headers: { "X-Serein-Exit": "1" }
+                headers: { "X-Serein-ACCESS": "1" }
             });
             var bar = card.querySelector("#prog-bar");
             bar.style.background = "var(--c-warn)";

@@ -93,12 +93,12 @@ func GetProgress(id string) *Progress {
 }
 
 // HandleProgressCancel 终止端点：POST /api/check/cancel/{task_id}
-// 需要自定义头 X-Serein-Exit: 1，防止误操作和跨站
+// 需要自定义头 X-Serein-ACCESS: 1，防止误操作和跨站
 func HandleProgressCancel(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	if r.Header.Get("X-Serein-Exit") != "1" {
+	if !HasAccess(r) {
 		w.WriteHeader(http.StatusForbidden)
-		json.NewEncoder(w).Encode(map[string]string{"error": "missing X-Serein-Exit"})
+		json.NewEncoder(w).Encode(map[string]string{"error": "missing " + AccessHeader})
 		return
 	}
 	w.WriteHeader(http.StatusOK)
