@@ -113,7 +113,7 @@
                                 '<input id="f-' +
                                 d.key +
                                 '" value="' +
-                                val +
+                                escapeAttr(val) +
                                 '" class="w-[200px] shrink-0 px-3 py-2 rounded-lg border border-bord bg-input text-sm outline-none">';
                         }
                         html += "</div>";
@@ -137,7 +137,9 @@
                         var k = sec.keys[i];
                         var v = config[k] || "";
                         var display =
-                            k === "规则源" ? v.replace(/\n/g, "<br>") : v;
+                            k === "规则源"
+                                ? escapeHtml(v).replace(/\n/g, "<br>")
+                                : escapeHtml(v);
                         html +=
                             '<div class="flex items-start gap-3 py-1.5 px-2 -mx-2 rounded-lg transition-colors duration-200 hover:bg-active">' +
                             '<div class="flex-1 min-w-0"><div class="text-sm text-text truncate">' +

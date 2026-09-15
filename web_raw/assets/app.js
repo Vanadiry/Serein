@@ -4,6 +4,24 @@ var SEREIN_DOWNLOADER_TYPE = "__DL_TYPE__";
 var DOWNLOAD_EXTS = /(?!)/;
 const API = window.location.origin;
 
+// HTML 文本转义：把动态文本安全地拼进 innerHTML
+function escapeHtml(s) {
+    if (s == null) return "";
+    return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+// 属性值转义：只转义 & 与 "，保留 < > 以便 data-tip 这类承载 HTML 的属性
+function escapeAttr(s) {
+    if (s == null) return "";
+    return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+}
+window.escapeHtml = escapeHtml;
+window.escapeAttr = escapeAttr;
+
 // 主题：localStorage > 系统偏好
 (function () {
     var saved = localStorage.getItem("theme");
@@ -42,7 +60,9 @@ fetch(API + "/api/config")
             d.profile.known_extensions.length
         ) {
             var escaped = d.profile.known_extensions.map(function (e) {
-                return e.replace(/\./g, "\\.");
+                return e.replace(/[.*+?^${}()|[\]\\]/g, function (m) {
+                    return "\\" + m;
+                });
             });
             DOWNLOAD_EXTS = new RegExp("\\.(" + escaped.join("|") + ")$", "i");
         }
@@ -165,7 +185,9 @@ async function syncProfile() {
         }
         if (res.known_extensions && res.known_extensions.length) {
             var escaped = res.known_extensions.map(function (e) {
-                return e.replace(/\./g, "\\.");
+                return e.replace(/[.*+?^${}()|[\]\\]/g, function (m) {
+                    return "\\" + m;
+                });
             });
             DOWNLOAD_EXTS = new RegExp("\\.(" + escaped.join("|") + ")$", "i");
         }
@@ -257,7 +279,7 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
         titleBg +
         ' text-white font-semibold px-4 py-2 rounded-t-lg flex items-center justify-between">' +
         "<span>" +
-        title +
+        escapeHtml(title) +
         "</span>" +
         '<span class="cursor-pointer text-white opacity-60 hover:opacity-100 text-base leading-none ml-3">✕</span>' +
         "</div>" +
@@ -461,7 +483,7 @@ function openDownloadWindow(url, id, title) {
     var modal = showModal(
         '<div class="flex items-center justify-between mb-3">' +
             '<div class="text-base font-bold">' +
-            title +
+            escapeHtml(title) +
             "</div>" +
             '<button onclick="closeModal(this.closest(\'.fixed\'))" class="w-7 h-7 flex items-center justify-center rounded-lg border border-bord bg-transparent text-sub cursor-pointer hover:bg-active hover:text-text">&times;</button>' +
             "</div>" +
@@ -498,12 +520,20 @@ function linkWithTooltip(href, innerHTML, os, forceDownloader) {
     var parts = href.split("/");
     var filename = parts[parts.length - 1];
     var tipHTML =
-        parts.slice(0, -1).join("/") +
+        escapeHtml(parts.slice(0, -1).join("/")) +
         "/" +
         '<span class="text-ok font-semibold">' +
-        filename +
+        escapeHtml(filename) +
         "</span>";
-    var escapedHref = href.replace(/'/g, "\\'");
+    var hrefAttr = escapeAttr(href);
+    var attrs =
+        ' href="' +
+        hrefAttr +
+        '" class="no-underline" data-url="' +
+        hrefAttr +
+        '" data-tip="' +
+        escapeAttr(tipHTML) +
+        '" onmouseenter="showTooltip(event)" onmouseleave="hideTooltip()"';
     if (os === "msvsix" || os === "openvsx") {
         var m = href.match(
             /\/publishers\/([^/]+)\/vsextensions\/([^/]+)\/([^/]+)\//
@@ -512,60 +542,36 @@ function linkWithTooltip(href, innerHTML, os, forceDownloader) {
         var vsixName = m ? m[1] + "." + m[2] + "[" + m[3] + "]" : "";
         if (SEREIN_DOWNLOADER_TYPE === "browser") {
             return (
-                '<a href="' +
-                href +
-                '" onclick="event.stopPropagation();event.preventDefault();openExternalUrl(\'' +
-                escapedHref +
-                '\')" class="no-underline"' +
-                ' data-tip="' +
-                tipHTML.replace(/"/g, "&quot;") +
-                '"' +
-                ' onmouseenter="showTooltip(event)" onmouseleave="hideTooltip()">' +
+                "<a" +
+                attrs +
+                ' onclick="event.stopPropagation();event.preventDefault();openExternalUrl(this.dataset.url)">' +
                 innerHTML +
                 "</a>"
             );
         }
         return (
-            '<a href="' +
-            href +
-            '" onclick="event.stopPropagation();event.preventDefault();openDownloadWindow(\'' +
-            escapedHref +
-            "', '" +
-            vsixName +
-            "', '下载 VSIX')\" class=\"no-underline\"" +
-            ' data-tip="' +
-            tipHTML.replace(/"/g, "&quot;") +
-            '"' +
-            ' onmouseenter="showTooltip(event)" onmouseleave="hideTooltip()">' +
+            "<a" +
+            attrs +
+            ' data-name="' +
+            escapeAttr(vsixName) +
+            '" onclick="event.stopPropagation();event.preventDefault();openDownloadWindow(this.dataset.url,this.dataset.name,\'下载 VSIX\')">' +
             innerHTML +
             "</a>"
         );
     }
     if (forceDownloader || isDirectDownload(href)) {
         return (
-            '<a href="' +
-            href +
-            '" onclick="event.stopPropagation();event.preventDefault();downloadFile(\'' +
-            escapedHref +
-            '\')" class="no-underline"' +
-            ' data-tip="' +
-            tipHTML.replace(/"/g, "&quot;") +
-            '"' +
-            ' onmouseenter="showTooltip(event)" onmouseleave="hideTooltip()">' +
+            "<a" +
+            attrs +
+            ' onclick="event.stopPropagation();event.preventDefault();downloadFile(this.dataset.url)">' +
             innerHTML +
             "</a>"
         );
     }
     return (
-        '<a href="' +
-        href +
-        '" onclick="event.stopPropagation();event.preventDefault();openDownloadPage(\'' +
-        escapedHref +
-        '\')" class="no-underline"' +
-        ' data-tip="' +
-        tipHTML.replace(/"/g, "&quot;") +
-        '"' +
-        ' onmouseenter="showTooltip(event)" onmouseleave="hideTooltip()">' +
+        "<a" +
+        attrs +
+        ' onclick="event.stopPropagation();event.preventDefault();openDownloadPage(this.dataset.url)">' +
         innerHTML +
         "</a>"
     );
@@ -575,9 +581,12 @@ function linkWithTooltip(href, innerHTML, os, forceDownloader) {
 function earthTooltip(href) {
     var m = href.match(/^(https?:\/\/[^\/]+)/);
     var domain = m ? m[1] : href;
-    return href.replace(
-        domain,
-        '<span class="text-ok font-semibold">' + domain + "</span>"
+    var rest = m ? href.slice(domain.length) : "";
+    return (
+        '<span class="text-ok font-semibold">' +
+        escapeHtml(domain) +
+        "</span>" +
+        escapeHtml(rest)
     );
 }
 
@@ -585,7 +594,7 @@ function earthTooltip(href) {
 function tipAttr(html) {
     return (
         ' data-tip="' +
-        html.replace(/"/g, "&quot;") +
+        escapeAttr(html) +
         '" onmouseenter="showTooltip(event)" onmouseleave="hideTooltip()"'
     );
 }
@@ -610,27 +619,27 @@ function flashOverlay() {
 // 外部链接弹窗（桌面壳内无法拉起浏览器时展示）
 // 非白名单下载链接弹窗
 function openDownloadPage(url) {
-    var escaped = url.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
     var hasDL =
         typeof SEREIN_DOWNLOADER !== "undefined" && SEREIN_DOWNLOADER !== "无";
+    var urlAttr = escapeAttr(url);
     var row1 =
         '<button onclick="closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>' +
-        "<button onclick=\"var s=this;navigator.clipboard.writeText('" +
-        escaped +
-        "');s.textContent='已复制';setTimeout(function(){s.textContent='复制链接'},1500)\" class=\"flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text\">复制链接</button>" +
-        "<button onclick=\"var el=this.closest('.fixed');apiPost('/api/open-url',{url:'" +
-        escaped +
-        '\'});closeModal(el)" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">打开</button>';
+        '<button data-url="' +
+        urlAttr +
+        '" onclick="var s=this;navigator.clipboard.writeText(this.dataset.url);s.textContent=\'已复制\';setTimeout(function(){s.textContent=\'复制链接\'},1500)" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">复制链接</button>' +
+        '<button data-url="' +
+        urlAttr +
+        '" onclick="apiPost(\'/api/open-url\',{url:this.dataset.url});closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">打开</button>';
     var row2 = hasDL
-        ? "<button onclick=\"var el=this.closest('.fixed');downloadFile('" +
-          escaped +
-          '\');closeModal(el)" class="w-full px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">仍然发送到下载器</button>'
+        ? '<button data-url="' +
+          urlAttr +
+          '" onclick="downloadFile(this.dataset.url);closeModal(this.closest(\'.fixed\'))" class="w-full px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">仍然发送到下载器</button>'
         : "";
     showModal(
         '<div class="text-base font-bold mb-3">外部地址</div>' +
             '<p class="text-text text-sm mb-3 leading-relaxed">此链接看起来不是一个常见的文件，或许是一个网页而非安装包。<br />是否要在外部浏览器打开？</p>' +
             '<p class="select-text text-text text-xs break-all bg-bg rounded-lg px-3 py-2 border border-bord-mid mb-4 leading-relaxed">' +
-            url +
+            escapeHtml(url) +
             "</p>" +
             '<div class="flex gap-2 mb-2">' +
             row1 +
@@ -640,21 +649,21 @@ function openDownloadPage(url) {
 }
 
 function openExternalUrl(url) {
-    var escaped = url.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    var urlAttr = escapeAttr(url);
     showModal(
         '<div class="text-base font-bold mb-3">外部地址</div>' +
             '<p class="text-text text-sm mb-3 leading-relaxed">将会在浏览器中打开此链接。</p>' +
             '<p class="select-text text-text text-xs break-all bg-bg rounded-lg px-3 py-2 border border-bord-mid mb-4 leading-relaxed">' +
-            url +
+            escapeHtml(url) +
             "</p>" +
             '<div class="flex gap-2">' +
             '<button onclick="closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>' +
-            "<button onclick=\"var s=this;navigator.clipboard.writeText('" +
-            escaped +
-            "');s.textContent='已复制';setTimeout(function(){s.textContent='复制链接'},1500)\" class=\"flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text\">复制链接</button>" +
-            "<button onclick=\"var el=this.closest('.fixed');apiPost('/api/open-url',{url:'" +
-            escaped +
-            '\'});closeModal(el)" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">打开</button>' +
+            '<button data-url="' +
+            urlAttr +
+            '" onclick="var s=this;navigator.clipboard.writeText(this.dataset.url);s.textContent=\'已复制\';setTimeout(function(){s.textContent=\'复制链接\'},1500)" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">复制链接</button>' +
+            '<button data-url="' +
+            urlAttr +
+            '" onclick="apiPost(\'/api/open-url\',{url:this.dataset.url});closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">打开</button>' +
             "</div>"
     );
 }
@@ -663,7 +672,7 @@ function openExternalUrl(url) {
 function confirmDialog(msg, cb) {
     showModal(
         '<p class="text-sm mb-4 leading-relaxed">' +
-            msg +
+            escapeHtml(msg) +
             "</p>" +
             '<div class="flex gap-2">' +
             '<button onclick="closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>' +
@@ -773,7 +782,7 @@ function showProgressModal(title, cancelUrl) {
     card.innerHTML =
         '<div class="flex items-center justify-between mb-4">' +
         '<h3 id="prog-title" class="text-base font-bold text-text">' +
-        title +
+        escapeHtml(title) +
         "</h3>" +
         '<button id="prog-cancel" class="px-3 py-1 rounded-lg border border-[rgba(255,0,0,.3)] bg-transparent text-[#dc2626] text-xs cursor-pointer hover:bg-[rgba(255,0,0,.1)]">终止</button>' +
         "</div>" +
@@ -936,7 +945,7 @@ function startSyncProgress(taskId) {
             if (d.level === "error") {
                 _makeToast(
                     "错误: " + (d.context || "后端"),
-                    d.message,
+                    escapeHtml(d.message),
                     "bg-err",
                     "bg-err/80",
                     0
@@ -944,7 +953,7 @@ function startSyncProgress(taskId) {
             } else if (d.level === "warn") {
                 _makeToast(
                     "警告: " + (d.context || "后端"),
-                    d.message,
+                    escapeHtml(d.message),
                     "bg-warn",
                     "bg-warn/80",
                     8

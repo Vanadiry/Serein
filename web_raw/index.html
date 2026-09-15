@@ -116,9 +116,9 @@
             function showWelcomeOverlay() {
                 function extLink(href, text) {
                     return (
-                        '<a href="#" onclick="event.preventDefault();openExternalUrl(\'' +
-                        href.replace(/'/g, "\\'") +
-                        '\')" class="text-accent underline">' +
+                        '<a href="#" data-url="' +
+                        escapeAttr(href) +
+                        '" onclick="event.preventDefault();openExternalUrl(this.dataset.url)" class="text-accent underline">' +
                         text +
                         "</a>"
                     );
@@ -284,7 +284,7 @@
                             t.id === currentTracker && currentTracker
                                 ? "text-text bg-surface border-l-[2px] border-l-accent"
                                 : "text-sub hover:text-text border-l-[2px] border-l-transparent hover:bg-surface hover:border-l-bord";
-                        return `<button onclick="selectTracker('${t.id}')" class="text-left px-3 py-2 text-sm rounded-r-md transition-colors ${active}">${t.display_name || t.id}</button>`;
+                        return `<button onclick="selectTracker(this.dataset.id)" data-id="${escapeAttr(t.id)}" class="text-left px-3 py-2 text-sm rounded-r-md transition-colors ${active}">${escapeHtml(t.display_name || t.id)}</button>`;
                     })
                     .join("");
             }
@@ -405,24 +405,24 @@
                             var cmp = compareVersions(g.latest, g.current);
                             if (cmp > 0) {
                                 parts.push(
-                                    `<span class="opacity-50">${icons}</span> <span class="text-warn">${g.current}</span> <span class="text-sub">→</span> <span class="text-ok">${g.latest}</span>`
+                                    `<span class="opacity-50">${icons}</span> <span class="text-warn">${escapeHtml(g.current)}</span> <span class="text-sub">→</span> <span class="text-ok">${escapeHtml(g.latest)}</span>`
                                 );
                             } else if (cmp < 0) {
                                 parts.push(
-                                    `<span class="opacity-50">${icons}</span> <span class="text-ok">${g.current}</span> <span class="text-sub">→</span> <span class="text-err">${g.latest}</span>`
+                                    `<span class="opacity-50">${icons}</span> <span class="text-ok">${escapeHtml(g.current)}</span> <span class="text-sub">→</span> <span class="text-err">${escapeHtml(g.latest)}</span>`
                                 );
                             } else {
                                 parts.push(
-                                    `<span class="opacity-50">${icons}</span> <span class="text-warn">${g.current}</span> <span class="text-sub">→</span> <span class="text-ok">${g.latest}</span>`
+                                    `<span class="opacity-50">${icons}</span> <span class="text-warn">${escapeHtml(g.current)}</span> <span class="text-sub">→</span> <span class="text-ok">${escapeHtml(g.latest)}</span>`
                                 );
                             }
                         } else if (g.latest) {
                             parts.push(
-                                `<span class="opacity-50">${icons}</span> <span class="text-ok">${g.current}</span> <span class="text-sub">(无更新)</span>`
+                                `<span class="opacity-50">${icons}</span> <span class="text-ok">${escapeHtml(g.current)}</span> <span class="text-sub">(无更新)</span>`
                             );
                         } else {
                             parts.push(
-                                `<span class="opacity-50">${icons}</span> <span class="text-sub">${g.current}</span>`
+                                `<span class="opacity-50">${icons}</span> <span class="text-sub">${escapeHtml(g.current)}</span>`
                             );
                         }
                     }
@@ -468,7 +468,7 @@
                         }
                         icons += "</span>";
                         parts.push(
-                            `<span class="opacity-50">${icons}</span> <span class="text-ok">${v2}</span> <span class="text-sub">(无更新)</span>`
+                            `<span class="opacity-50">${icons}</span> <span class="text-ok">${escapeHtml(v2)}</span> <span class="text-sub">(无更新)</span>`
                         );
                     }
                     versionHTML = `<span class="select-text text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
@@ -505,7 +505,7 @@
                         }
                         icons += "</span>";
                         parts.push(
-                            `<span class="opacity-50">${icons}</span> ${v3}`
+                            `<span class="opacity-50">${icons}</span> ${escapeHtml(v3)}`
                         );
                     }
                     versionHTML = `<span class="select-text text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;") || "未记录版本"}</span>`;
@@ -548,17 +548,17 @@
                             });
                         }
                     }
-                    rightIcons += `<span onclick="event.stopPropagation(); confirmUpdate('${d.app_id}')" class="mx-3" ${tipAttr("确认这个更新")}>${iconYes("应用更新", "w-5 h-5")}</span>`;
+                    rightIcons += `<span onclick="event.stopPropagation(); confirmUpdate(this.dataset.appid)" data-appid="${escapeAttr(d.app_id)}" class="mx-3" ${tipAttr("确认这个更新")}>${iconYes("应用更新", "w-5 h-5")}</span>`;
                 }
                 // 常驻按钮：编辑、地球、刷新，粉色背景
-                rightIcons += `<span onclick="event.stopPropagation(); editVersion('${d.app_id}')" ${tipAttr("修改已记录的版本号")}>${iconImg("edit", "修改已记录的版本号", "w-5 h-5")}</span>`;
-                rightIcons += `<span class="${d.official_website ? "cursor-pointer hover:opacity-80 transition-opacity" : "opacity-30"}" ${d.official_website ? tipAttr(earthTooltip(d.official_website)) : ""}>${d.official_website ? "<span onclick=\"event.stopPropagation(); openExternalUrl('" + d.official_website.replace(/'/g, "\\'") + "')\">" + iconImg("earth", "官网", "w-5 h-5") + "</span>" : iconImg("earth", "无官网", "w-5 h-5")}</span>`;
-                rightIcons += `<span onclick="event.stopPropagation(); refreshApp('${d.app_id}')" ${tipAttr("检查更新")}>${iconImg("refresh", "检查更新", "w-5 h-5")}</span>`;
+                rightIcons += `<span onclick="event.stopPropagation(); editVersion(this.dataset.appid)" data-appid="${escapeAttr(d.app_id)}" ${tipAttr("修改已记录的版本号")}>${iconImg("edit", "修改已记录的版本号", "w-5 h-5")}</span>`;
+                rightIcons += `<span class="${d.official_website ? "cursor-pointer hover:opacity-80 transition-opacity" : "opacity-30"}" ${d.official_website ? tipAttr(earthTooltip(d.official_website)) : ""}>${d.official_website ? '<span data-url="' + escapeAttr(d.official_website) + '" onclick="event.stopPropagation(); openExternalUrl(this.dataset.url)">' + iconImg("earth", "官网", "w-5 h-5") + "</span>" : iconImg("earth", "无官网", "w-5 h-5")}</span>`;
+                rightIcons += `<span onclick="event.stopPropagation(); refreshApp(this.dataset.appid)" data-appid="${escapeAttr(d.app_id)}" ${tipAttr("检查更新")}>${iconImg("refresh", "检查更新", "w-5 h-5")}</span>`;
                 rightIcons += `</span>`;
 
                 return `<div class="flex items-center bg-surface-alt border border-bord-mid rounded-lg pl-2 pr-4 h-16 hover:border-bord transition-colors mb-2 overflow-hidden">
       <div class="flex-1 min-w-0 pr-4 flex flex-col justify-center">
-        <div class="text-base font-semibold truncate pl-1"><span class="select-text" ${tipAttr((d.app_id || "") + (d.description ? "<br>" + d.description : "") + (d.status && d.status.length && d.status[0] ? "<br>状态：" + d.status.join(", ") : ""))}>${d.name || d.app_id}</span>${timeHTML}${d.status && d.status.length && d.status[0] ? ' <span class="inline-block w-2 h-2 rounded-full bg-warn align-middle"></span>' : ""}</div>
+        <div class="text-base font-semibold truncate pl-1"><span class="select-text" ${tipAttr(escapeHtml(d.app_id || "") + (d.description ? "<br>" + escapeHtml(d.description) : "") + (d.status && d.status.length && d.status[0] ? "<br>状态：" + escapeHtml(d.status.join(", ")) : ""))}>${escapeHtml(d.name || d.app_id)}</span>${timeHTML}${d.status && d.status.length && d.status[0] ? ' <span class="inline-block w-2 h-2 rounded-full bg-warn align-middle"></span>' : ""}</div>
         <div class="mt-0.5">${versionHTML}</div>
       </div>
       ${rightIcons}
@@ -612,7 +612,7 @@
 
             async function editVersion(appId) {
                 var modal = showModal(`
-      <div class="text-base font-bold mb-4">编辑版本 — ${appId}</div>
+      <div class="text-base font-bold mb-4">编辑版本 — ${escapeHtml(appId)}</div>
       <div id="edit-platforms" class="flex flex-col gap-2 mb-4"></div>
       <div class="flex gap-2">
         <button onclick="closeModal(this.closest('.fixed'))" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>
@@ -631,7 +631,7 @@
                                 entry.current_version &&
                                 entry.current_version[os]) ||
                             "";
-                        return `<div class="flex items-center gap-2"><span class="text-xs text-sub w-16">${os}</span><input class="flex-1 bg-surface border border-bord rounded-lg px-3 py-1.5 text-sm outline-none focus:border-accent" value="${cur}" data-os="${os}"></div>`;
+                        return `<div class="flex items-center gap-2"><span class="text-xs text-sub w-16">${escapeHtml(os)}</span><input class="flex-1 bg-surface border border-bord rounded-lg px-3 py-1.5 text-sm outline-none focus:border-accent" value="${escapeAttr(cur)}" data-os="${escapeAttr(os)}"></div>`;
                     })
                     .join("");
                 document.getElementById("btn-save-version").onclick =
@@ -656,14 +656,6 @@
                                 .join("");
                         }
                     };
-            }
-
-            function escapeHtml(str) {
-                return str
-                    .replace(/&/g, "&amp;")
-                    .replace(/</g, "&lt;")
-                    .replace(/>/g, "&gt;")
-                    .replace(/"/g, "&quot;");
             }
 
             function cleanGitHubError(msg) {
