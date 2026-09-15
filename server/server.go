@@ -147,7 +147,9 @@ func New(home string, webFS fs.FS) (*Server, error) {
 	if errs := cfg.Validate(); len(errs) > 0 {
 		return nil, &store.ValidationError{Errors: errs}
 	}
-	store.InitLogger(home)
+	if err := store.InitLogger(home); err != nil {
+		return nil, err
+	}
 	if p, err := store.LoadProfile(home); err == nil {
 		checker.SetVersionPrefixes(p.VersionPrefixes)
 		checker.SetVersionSuffixes(p.VersionSuffixes)
@@ -190,7 +192,7 @@ func (s *Server) Serve() error {
 	defer stop()
 
 	go func() {
-		store.LogfInfo("listening on %s", s.actualAddr)
+		store.Logf("listening on %s", s.actualAddr)
 		if err := srv.Serve(s.ln); err != nil && err != http.ErrServerClosed {
 			store.LogfError("server: %v", err)
 		}

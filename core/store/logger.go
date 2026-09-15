@@ -66,6 +66,7 @@ func rotateIfNeeded() {
 	}
 }
 
+// rotateOnSize 在日志超过上限时切换新文件
 func rotateOnSize() {
 	if logFile == nil {
 		return
@@ -74,69 +75,50 @@ func rotateOnSize() {
 	if err != nil || fi.Size() < maxLogSize {
 		return
 	}
-	logFile.Close()
 
 	name := time.Now().Format("20060102_150405") + ".log"
-	path := filepath.Join(logDir, name)
-	f, err := os.Create(path)
+	f, err := os.Create(filepath.Join(logDir, name))
 	if err != nil {
 		return
 	}
 
+	logFile.Close()
+	logFile = f
 	rotateIfNeeded()
 
 	multi := io.MultiWriter(os.Stdout, f)
 	infoLogger.SetOutput(multi)
 	warnLogger.SetOutput(multi)
 	errorLogger.SetOutput(multi)
-	infoLogger.SetFlags(log.LstdFlags)
-	warnLogger.SetFlags(log.LstdFlags)
-	errorLogger.SetFlags(log.LstdFlags)
-	logFile = f
 }
 
+// Logf 输出 info 级日志。判空与写入都在锁内，避免与 InitLogger/rotateOnSize 竞争。
 func Logf(format string, args ...any) {
-	logfInfo(format, args...)
-}
-
-func LogfInfo(format string, args ...any) {
-	logfInfo(format, args...)
-}
-
-func LogfWarn(format string, args ...any) {
-	logfWarn(format, args...)
-}
-
-func LogfError(format string, args ...any) {
-	logfError(format, args...)
-}
-
-func logfInfo(format string, args ...any) {
+	logMu.Lock()
+	defer logMu.Unlock()
 	if infoLogger == nil {
 		return
 	}
-	logMu.Lock()
-	defer logMu.Unlock()
 	infoLogger.Printf(format, args...)
 	rotateOnSize()
 }
 
-func logfWarn(format string, args ...any) {
+func LogfWarn(format string, args ...any) {
+	logMu.Lock()
+	defer logMu.Unlock()
 	if warnLogger == nil {
 		return
 	}
-	logMu.Lock()
-	defer logMu.Unlock()
 	warnLogger.Printf(format, args...)
 	rotateOnSize()
 }
 
-func logfError(format string, args ...any) {
+func LogfError(format string, args ...any) {
+	logMu.Lock()
+	defer logMu.Unlock()
 	if errorLogger == nil {
 		return
 	}
-	logMu.Lock()
-	defer logMu.Unlock()
 	errorLogger.Printf(format, args...)
 	rotateOnSize()
 }
