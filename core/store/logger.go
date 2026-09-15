@@ -15,6 +15,24 @@ const (
 	maxLogs    = 10
 )
 
+// sanitizingWriter 把日志内容里的换行/回车替换为空格（保留结尾换行），防止伪造日志行
+type sanitizingWriter struct{ w io.Writer }
+
+func (s sanitizingWriter) Write(p []byte) (int, error) {
+	b := make([]byte, len(p))
+	for i, c := range p {
+		if (c == '\n' || c == '\r') && !(c == '\n' && i == len(p)-1) {
+			b[i] = ' '
+		} else {
+			b[i] = c
+		}
+	}
+	if _, err := s.w.Write(b); err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
 var (
 	logMu       sync.Mutex
 	logDir      string
@@ -47,7 +65,7 @@ func InitLogger(home string) error {
 		return err
 	}
 
-	multi := io.MultiWriter(os.Stdout, f)
+	multi := sanitizingWriter{io.MultiWriter(os.Stdout, f)}
 	infoLogger = log.New(multi, "[INFO]  ", log.LstdFlags)
 	warnLogger = log.New(multi, "[WARN]  ", log.LstdFlags)
 	errorLogger = log.New(multi, "[ERROR] ", log.LstdFlags)
@@ -86,7 +104,7 @@ func rotateOnSize() {
 	logFile = f
 	rotateIfNeeded()
 
-	multi := io.MultiWriter(os.Stdout, f)
+	multi := sanitizingWriter{io.MultiWriter(os.Stdout, f)}
 	infoLogger.SetOutput(multi)
 	warnLogger.SetOutput(multi)
 	errorLogger.SetOutput(multi)
