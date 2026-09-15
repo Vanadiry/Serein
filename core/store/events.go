@@ -18,7 +18,11 @@ type Event struct {
 type eventBus struct {
 	mu          sync.Mutex
 	subscribers map[chan []byte]struct{}
+	history     [][]byte
 }
+
+// historyLimit 回放给新订阅者的历史事件条数上限
+const historyLimit = 50
 
 var globalBus = &eventBus{
 	subscribers: map[chan []byte]struct{}{},
@@ -27,14 +31,22 @@ var globalBus = &eventBus{
 func Subscribe() chan []byte {
 	ch := make(chan []byte, 64)
 	globalBus.mu.Lock()
+	defer globalBus.mu.Unlock()
+	// 回放订阅前的事件（如启动期的错误/警告）
+	for _, data := range globalBus.history {
+		select {
+		case ch <- data:
+		default:
+		}
+	}
 	globalBus.subscribers[ch] = struct{}{}
-	globalBus.mu.Unlock()
 	return ch
 }
 
 func Unsubscribe(ch chan []byte) {
 	globalBus.mu.Lock()
 	delete(globalBus.subscribers, ch)
+	close(ch)
 	globalBus.mu.Unlock()
 }
 
@@ -52,6 +64,10 @@ func Emit(level, context, message string) {
 	}
 	globalBus.mu.Lock()
 	defer globalBus.mu.Unlock()
+	globalBus.history = append(globalBus.history, data)
+	if len(globalBus.history) > historyLimit {
+		globalBus.history = globalBus.history[len(globalBus.history)-historyLimit:]
+	}
 	for ch := range globalBus.subscribers {
 		select {
 		case ch <- data:
