@@ -171,6 +171,9 @@ func New(home string, webFS fs.FS) (*Server, error) {
 	if err := store.InitLogger(home); err != nil {
 		return nil, err
 	}
+	proxy := cfg.ProxyURL()
+	store.SetProxy(proxy)
+	checker.SetProxy(proxy)
 	if p, err := store.LoadProfile(home); err == nil {
 		checker.SetVersionPrefixes(p.VersionPrefixes)
 		checker.SetVersionSuffixes(p.VersionSuffixes)

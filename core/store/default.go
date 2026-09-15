@@ -16,6 +16,10 @@ concurrency = 8                   # 检查更新时的并发数
 [access]
 # github_token = "github_xxx"     # GitHub 令牌，用于提升请求限制
 
+[proxy]
+host = ""                         # HTTP 代理，留空则不启用
+port = 0
+
 [[rule_sources]]                  # 规则源，默认为 Vanadiry 维护的规则源。你可以添加新的 url 来指定更多
 url = "https://raw.githubusercontent.com/Vanadiry/SereinRulesList/refs/heads/main/_source.json"
 # [[rule_sources]]                # 规则源 2

@@ -2,8 +2,11 @@ package store
 
 import (
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -18,8 +21,26 @@ type Config struct {
 	Tracker     TrackerConfig  `toml:"tracker"`
 	Download    DownloadConfig `toml:"download"`
 	Access      AccessConfig   `toml:"access"`
+	Proxy       ProxyConfig    `toml:"proxy"`
 	Profile     ProfileConfig  `toml:"profile"`
 	RuleSources []RuleSource   `toml:"rule_sources"`
+}
+
+// ProxyConfig 上游拉取使用的 HTTP 代理，host 为空则不启用
+type ProxyConfig struct {
+	Host string `toml:"host"`
+	Port int    `toml:"port"`
+}
+
+// ProxyURL 返回配置的代理地址；未配置或非法则返回 nil
+func (c Config) ProxyURL() *url.URL {
+	if c.Proxy.Host == "" || c.Proxy.Port < 1 || c.Proxy.Port > 65535 {
+		return nil
+	}
+	return &url.URL{
+		Scheme: "http",
+		Host:   net.JoinHostPort(c.Proxy.Host, strconv.Itoa(c.Proxy.Port)),
+	}
 }
 
 type ProfileConfig struct {

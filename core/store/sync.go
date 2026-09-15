@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -20,6 +21,16 @@ const (
 
 // httpClient 供规则源/动态配置拉取使用，带超时
 var httpClient = &http.Client{Timeout: fetchTimeout}
+
+// SetProxy 配置规则源/动态配置拉取使用的代理。传 nil 则不改动
+func SetProxy(proxy *url.URL) {
+	if proxy == nil {
+		return
+	}
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.Proxy = http.ProxyURL(proxy)
+	httpClient.Transport = tr
+}
 
 // SourceJSON 规则源的元信息（完整 _source.json 内容）
 type SourceJSON struct {

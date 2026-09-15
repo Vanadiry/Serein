@@ -259,6 +259,12 @@ func blockPrivate(rawURL string) error {
 
 // safeDialContext 拨号前校验目标 IP，并直接用已校验的 IP 连接，消除 DNS rebinding 的 TOCTOU
 func safeDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	d := net.Dialer{Timeout: 15 * time.Second}
+	if proxyURL != nil {
+		// 走代理时拨号目标是代理本身（常为 127.0.0.1），跳过私网校验；
+		// 目标地址的 SSRF 校验由 doRequest 里的 blockPrivate 负责
+		return d.DialContext(ctx, network, addr)
+	}
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, err
@@ -267,7 +273,6 @@ func safeDialContext(ctx context.Context, network, addr string) (net.Conn, error
 	if err != nil {
 		return nil, err
 	}
-	d := net.Dialer{Timeout: 15 * time.Second}
 	var lastErr error
 	for _, ip := range ips {
 		conn, err := d.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))

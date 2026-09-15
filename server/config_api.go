@@ -64,6 +64,12 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		kv["动态配置源"] = "未配置"
 	}
 
+	if cfg.Proxy.Host != "" && cfg.Proxy.Port > 0 {
+		kv["代理"] = fmt.Sprintf("%s:%d", cfg.Proxy.Host, cfg.Proxy.Port)
+	} else {
+		kv["代理"] = "未配置"
+	}
+
 	if cfg.Serein.FirstRun {
 		kv["起始页"] = "由前端控制"
 	} else {
