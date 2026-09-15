@@ -285,7 +285,7 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
         "</div>" +
         '<div class="' +
         bodyBg +
-        ' text-white px-4 py-2 rounded-b-lg">' +
+        ' text-white px-4 py-2 rounded-b-lg select-text">' +
         (body || "") +
         "</div>";
     document.body.appendChild(el);
@@ -347,7 +347,7 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
                 " text-white font-semibold px-4 py-2 rounded-t-lg flex items-center justify-between";
             el.querySelector("span:first-child").textContent = tt;
             el.querySelector("div:last-child").className =
-                bb + " text-white px-4 py-2 rounded-b-lg";
+                bb + " text-white px-4 py-2 rounded-b-lg select-text";
             el.querySelector("div:last-child").innerHTML = okBody || "";
             if (isError) {
                 if (timer) clearTimeout(timer);
