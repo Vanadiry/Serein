@@ -3,6 +3,7 @@
 package checker
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -10,10 +11,16 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 )
 
 // defaultUA 程序默认 User-Agent
 const defaultUA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+
+const (
+	maxRespBytes    = 8 << 20 // 响应体上限 8MB
+	maxErrBodyBytes = 8 << 10 // 错误响应体上限 8KB
+)
 
 var (
 	urlCache = make(map[string][]byte)
@@ -114,11 +121,11 @@ func doRequest(client *http.Client, rawURL, ua string, headers map[string]string
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrBodyBytes))
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxRespBytes))
 	if err != nil {
 		return nil, err
 	}
@@ -154,11 +161,11 @@ func doPostRequest(client *http.Client, rawURL, ua string, headers map[string]st
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrBodyBytes))
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxRespBytes))
 	if err != nil {
 		return nil, err
 	}
@@ -166,12 +173,76 @@ func doPostRequest(client *http.Client, rawURL, ua string, headers map[string]st
 }
 
 var privateCIDRs = []string{
-	"127.0.0.0/8",
-	"10.0.0.0/8",
-	"172.16.0.0/12",
-	"192.168.0.0/16",
+	// IPv4
 	"0.0.0.0/8",
+	"10.0.0.0/8",
+	"100.64.0.0/10",
+	"127.0.0.0/8",
 	"169.254.0.0/16",
+	"172.16.0.0/12",
+	"192.0.0.0/24",
+	"192.0.2.0/24",
+	"192.168.0.0/16",
+	"198.18.0.0/15",
+	"198.51.100.0/24",
+	"203.0.113.0/24",
+	"224.0.0.0/4",
+	"240.0.0.0/4",
+	// IPv6
+	"::/128",
+	"::1/128",
+	"fc00::/7",
+	"fe80::/10",
+	"ff00::/8",
+	"2001:db8::/32",
+}
+
+var privateNets []*net.IPNet
+
+func init() {
+	for _, c := range privateCIDRs {
+		if _, n, err := net.ParseCIDR(c); err == nil {
+			privateNets = append(privateNets, n)
+		}
+	}
+}
+
+func isBlockedIP(ip net.IP) bool {
+	if ip == nil {
+		return true
+	}
+	if v4 := ip.To4(); v4 != nil {
+		ip = v4
+	}
+	for _, n := range privateNets {
+		if n.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// resolveAndCheck 解析 host，并确保其所有 IP 都不是内网/回环地址
+func resolveAndCheck(host string) ([]net.IP, error) {
+	if ip := net.ParseIP(host); ip != nil {
+		if isBlockedIP(ip) {
+			return nil, fmt.Errorf("blocked: %s is a private address", host)
+		}
+		return []net.IP{ip}, nil
+	}
+	ips, err := net.DefaultResolver.LookupIP(context.Background(), "ip", host)
+	if err != nil {
+		return nil, err
+	}
+	if len(ips) == 0 {
+		return nil, fmt.Errorf("no IP for %s", host)
+	}
+	for _, ip := range ips {
+		if isBlockedIP(ip) {
+			return nil, fmt.Errorf("blocked: %s resolves to private address %s", host, ip)
+		}
+	}
+	return ips, nil
 }
 
 func blockPrivate(rawURL string) error {
@@ -182,22 +253,33 @@ func blockPrivate(rawURL string) error {
 	if u.Scheme != "http" && u.Scheme != "https" {
 		return nil
 	}
-	host := u.Hostname()
-	ip := net.ParseIP(host)
-	if ip == nil {
-		ips, err := net.LookupIP(host)
-		if err != nil || len(ips) == 0 {
-			return nil
-		}
-		ip = ips[0]
+	_, err = resolveAndCheck(u.Hostname())
+	return err
+}
+
+// safeDialContext 拨号前校验目标 IP，并直接用已校验的 IP 连接，消除 DNS rebinding 的 TOCTOU
+func safeDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, err
 	}
-	for _, cidr := range privateCIDRs {
-		_, n, _ := net.ParseCIDR(cidr)
-		if n.Contains(ip) {
-			return fmt.Errorf("blocked: %s is a private address", host)
-		}
+	ips, err := resolveAndCheck(host)
+	if err != nil {
+		return nil, err
 	}
-	return nil
+	d := net.Dialer{Timeout: 15 * time.Second}
+	var lastErr error
+	for _, ip := range ips {
+		conn, err := d.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
+		if err == nil {
+			return conn, nil
+		}
+		lastErr = err
+	}
+	if lastErr == nil {
+		lastErr = fmt.Errorf("no address for %s", host)
+	}
+	return nil, lastErr
 }
 
 // JSON

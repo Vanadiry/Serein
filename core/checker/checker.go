@@ -44,6 +44,14 @@ func NewClient() *http.Client {
 		Timeout: 30 * time.Second,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{InsecureSkipVerify: false},
+			// 拨号前校验目标 IP，并用已校验 IP 连接（防 SSRF / DNS rebinding）
+			DialContext: safeDialContext,
+		},
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 10 {
+				return fmt.Errorf("stopped after 10 redirects")
+			}
+			return blockPrivate(req.URL.String())
 		},
 	}
 }
