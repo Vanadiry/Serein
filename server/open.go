@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"os/exec"
 	"runtime"
 )
@@ -29,6 +30,11 @@ func (s *Server) handleOpenURL(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "missing url")
 		return
 	}
-	OpenBrowser(body.URL)
+	u, err := url.Parse(body.URL)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		writeError(w, http.StatusBadRequest, "only http/https URLs are allowed")
+		return
+	}
+	OpenBrowser(u.String())
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }

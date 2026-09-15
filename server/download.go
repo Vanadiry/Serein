@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os/exec"
 	"strings"
 
@@ -18,6 +19,11 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.URL == "" {
 		writeError(w, http.StatusBadRequest, "missing url")
+		return
+	}
+	u, err := url.Parse(body.URL)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		writeError(w, http.StatusBadRequest, "only http/https URLs are allowed")
 		return
 	}
 	dl := strings.TrimSpace(s.config.Download.Downloader)
@@ -39,16 +45,23 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "message": "已发送到 Neat Download Manager"})
 
 	case strings.Contains(dl, "{url}"):
-		cmd := strings.ReplaceAll(dl, "{url}", body.URL)
-		parts := strings.Fields(cmd)
-		if _, err := exec.LookPath(parts[0]); err != nil {
-			store.LogfWarn("[download] %s not found, fallback to browser", parts[0])
-			OpenBrowser(body.URL)
-			writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "message": fmt.Sprintf("%s 未找到，已在浏览器中打开", parts[0])})
+		// 先按空白切分模板，再逐参数替换 {url}，避免 URL 中的空格被拆成额外参数
+		args := strings.Fields(dl)
+		if len(args) == 0 {
+			writeError(w, http.StatusBadRequest, "下载器命令为空")
 			return
 		}
-		go exec.Command(parts[0], parts[1:]...).Start()
-		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "message": "已调用 " + parts[0]})
+		for i := range args {
+			args[i] = strings.ReplaceAll(args[i], "{url}", body.URL)
+		}
+		if _, err := exec.LookPath(args[0]); err != nil {
+			store.LogfWarn("[download] %s not found, fallback to browser", args[0])
+			OpenBrowser(body.URL)
+			writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "message": fmt.Sprintf("%s 未找到，已在浏览器中打开", args[0])})
+			return
+		}
+		go exec.Command(args[0], args[1:]...).Start()
+		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "message": "已调用 " + args[0]})
 
 	default:
 		store.LogfWarn("[download] unknown downloader %q, fallback to browser", dl)
