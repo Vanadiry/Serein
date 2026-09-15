@@ -10,7 +10,16 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 )
+
+const (
+	fetchTimeout  = 30 * time.Second
+	maxFetchBytes = 8 << 20 // 8MB
+)
+
+// httpClient 供规则源/动态配置拉取使用，带超时
+var httpClient = &http.Client{Timeout: fetchTimeout}
 
 // SourceJSON 规则源的元信息（完整 _source.json 内容）
 type SourceJSON struct {
@@ -28,12 +37,12 @@ func fetchSourceJSON(url string) (*SourceJSON, []byte, error) {
 	var err error
 
 	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
-		resp, reqErr := http.Get(url)
+		resp, reqErr := httpClient.Get(url)
 		if reqErr != nil {
 			return nil, nil, reqErr
 		}
 		defer resp.Body.Close()
-		body, err = io.ReadAll(resp.Body)
+		body, err = io.ReadAll(io.LimitReader(resp.Body, maxFetchBytes))
 	} else {
 		body, err = os.ReadFile(url)
 	}
@@ -101,12 +110,12 @@ func copyFile(src, dst string) error {
 }
 
 func downloadFile(url, dest string) error {
-	resp, err := http.Get(url)
+	resp, err := httpClient.Get(url)
 	if err != nil {
 		return fmt.Errorf("下载 %s: %w", url, err)
 	}
 	defer resp.Body.Close()
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxFetchBytes))
 	if err != nil {
 		return err
 	}

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 )
@@ -31,13 +30,13 @@ func LoadProfile(home string) (Profile, error) {
 }
 
 func SyncProfile(home, url string) (Profile, bool, error) {
-	resp, err := http.Get(url)
+	resp, err := httpClient.Get(url)
 	if err != nil {
 		return Profile{}, false, fmt.Errorf("获取 profile.json: %w", err)
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxFetchBytes))
 	if err != nil {
 		return Profile{}, false, err
 	}

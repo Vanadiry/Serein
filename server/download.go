@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/vanadiry/serein/core/store"
@@ -71,7 +72,10 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 }
 
 func sendToNDM(url string) error {
-	dialer := websocket.Dialer{Subprotocols: []string{"neatextension.v1"}}
+	dialer := websocket.Dialer{
+		Subprotocols:     []string{"neatextension.v1"},
+		HandshakeTimeout: 5 * time.Second,
+	}
 	conn, _, err := dialer.Dial("ws://127.0.0.1:10007/download", nil)
 	if err != nil {
 		return err
