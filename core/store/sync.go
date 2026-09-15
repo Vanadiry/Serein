@@ -66,6 +66,23 @@ func loadLocalSourceVersion(dir string) int {
 	return s.Version
 }
 
+// safeRelPath 校验源内相对路径
+func safeRelPath(base, rel string) (string, bool) {
+	if rel == "" || filepath.IsAbs(rel) {
+		return "", false
+	}
+	cleaned := filepath.Clean(rel)
+	if cleaned == "." {
+		return "", false
+	}
+	target := filepath.Join(base, cleaned)
+	r, err := filepath.Rel(base, target)
+	if err != nil || r == ".." || strings.HasPrefix(r, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return cleaned, true
+}
+
 func copyFile(src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {
@@ -173,6 +190,11 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 				Emit("error", "[sync]", fmt.Sprintf("清理目录失败 %s: %v", dest, err))
 			}
 			for _, f := range l.files {
+				rel, ok := safeRelPath(dest, f)
+				if !ok {
+					Emit("warn", "[sync]", fmt.Sprintf("跳过非法文件路径 %q（源 %s）", f, l.id))
+					continue
+				}
 				wg.Add(1)
 				go func(l leafSrc, f string) {
 					defer wg.Done()
@@ -185,7 +207,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 					}
 					var err error
 					if l.isWeb {
-						err = downloadFile(strings.TrimSuffix(l.baseURL, "/")+"/"+f, target)
+						err = downloadFile(strings.TrimSuffix(l.baseURL, "/")+"/"+filepath.ToSlash(f), target)
 					} else {
 						err = copyFile(filepath.Join(l.baseURL, f), target)
 					}
@@ -198,7 +220,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 					}
 					p.Send("file", name, done, totalFiles)
 					mu.Unlock()
-				}(l, f)
+				}(l, rel)
 			}
 		}
 		wg.Wait()
