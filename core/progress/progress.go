@@ -16,6 +16,7 @@ type Progress struct {
 	Done    int
 	Name    string // 当前正在处理的名称
 	mu      sync.Mutex
+	closed  bool
 }
 
 var (
@@ -42,9 +43,13 @@ func NewProgress(total int) *Progress {
 // Send 发送进度事件。step: "app" / "list" / "file" 等
 func (p *Progress) Send(step, name string, done, total int) {
 	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.closed {
+		return
+	}
 	p.Done = done
 	p.Name = name
-	p.mu.Unlock()
+	// select 带 default，不会阻塞，持锁发送安全
 	select {
 	case p.Channel <- progressEvent(step, name, done, total):
 	default:
@@ -53,6 +58,11 @@ func (p *Progress) Send(step, name string, done, total int) {
 
 // SendMap 发送任意 JSON 事件
 func (p *Progress) SendMap(m map[string]any) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.closed {
+		return
+	}
 	data, _ := json.Marshal(m)
 	select {
 	case p.Channel <- string(data):
@@ -60,13 +70,22 @@ func (p *Progress) SendMap(m map[string]any) {
 	}
 }
 
-// Close 结束进度追踪
+// Close 结束进度追踪，可重复调用
+// 关闭后 Send/SendMap 变为 no-op，避免与并发 Send 撞上 send-on-closed-channel
 func (p *Progress) Close() {
+	p.mu.Lock()
+	if p.closed {
+		p.mu.Unlock()
+		return
+	}
+	p.closed = true
 	select {
 	case p.Channel <- `{"step":"done"}`:
 	default:
 	}
 	close(p.Channel)
+	p.mu.Unlock()
+
 	progressMu.Lock()
 	delete(progressMap, p.ID)
 	progressMu.Unlock()

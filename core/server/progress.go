@@ -35,8 +35,18 @@ func handleProgressSSE(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	for event := range p.Channel {
-		fmt.Fprintf(w, "data: %s\n\n", event)
-		flusher.Flush()
+	ctx := r.Context()
+	for {
+		select {
+		case <-ctx.Done():
+			// 客户端断开，退出协程
+			return
+		case event, ok := <-p.Channel:
+			if !ok {
+				return
+			}
+			fmt.Fprintf(w, "data: %s\n\n", event)
+			flusher.Flush()
+		}
 	}
 }
