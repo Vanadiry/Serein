@@ -377,12 +377,29 @@ func extractFromHTMLSelector(body []byte, pos any, baseURL string) (string, erro
 
 // 辅助
 
+// joinURL 将相对链接拼接到 base 上，兼容两端斜杠的有无
+func joinURL(base, ref string) string {
+	if ref == "" {
+		return base
+	}
+	if base == "" {
+		return ref
+	}
+	if isAbsoluteURL(ref) {
+		return ref
+	}
+	return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(ref, "/")
+}
+
+// isAbsoluteURL 判断是否为绝对地址（含 scheme，或协议相对 //host）。
+func isAbsoluteURL(s string) bool {
+	if strings.HasPrefix(s, "//") {
+		return true
+	}
+	u, err := url.Parse(s)
+	return err == nil && u.IsAbs()
+}
+
 func applyBaseURL(val, baseURL string) string {
-	if baseURL == "" || !strings.HasPrefix(val, "/") {
-		return val
-	}
-	if strings.HasPrefix(val, "http://") || strings.HasPrefix(val, "https://") {
-		return val
-	}
-	return strings.TrimSuffix(baseURL, "/") + val
+	return joinURL(baseURL, val)
 }

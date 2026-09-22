@@ -153,12 +153,7 @@ func RunPlatformCheck(cfg CheckConfig, client *http.Client) (PlatformResult, err
 		if err != nil {
 			return vr, err
 		}
-		if cfg.BaseURL != "" {
-			dl = cfg.BaseURL + toString(dl)
-		} else {
-			dl = toString(dl)
-		}
-		vr.URL = dl
+		vr.URL = joinURL(cfg.BaseURL, toString(dl))
 	}
 
 	return vr, nil
