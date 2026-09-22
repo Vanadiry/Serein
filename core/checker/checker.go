@@ -20,14 +20,18 @@ type PlatformResult struct {
 var versionPrefixes []string
 var versionSuffixes []string
 
+// SetVersionPrefixes 设置版本前缀。内部拷贝后再排序，不修改调用方切片
 func SetVersionPrefixes(prefixes []string) {
-	sort.Slice(prefixes, func(i, j int) bool { return len(prefixes[i]) > len(prefixes[j]) })
-	versionPrefixes = prefixes
+	cp := append([]string(nil), prefixes...)
+	sort.Slice(cp, func(i, j int) bool { return len(cp[i]) > len(cp[j]) })
+	versionPrefixes = cp
 }
 
+// SetVersionSuffixes 设置版本后缀。内部拷贝后再排序，不修改调用方切片
 func SetVersionSuffixes(suffixes []string) {
-	sort.Slice(suffixes, func(i, j int) bool { return len(suffixes[i]) > len(suffixes[j]) })
-	versionSuffixes = suffixes
+	cp := append([]string(nil), suffixes...)
+	sort.Slice(cp, func(i, j int) bool { return len(cp[i]) > len(cp[j]) })
+	versionSuffixes = cp
 }
 
 func stripVersionAffixes(ver string) string {
