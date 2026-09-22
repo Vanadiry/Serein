@@ -1,19 +1,15 @@
 package main
 
 import (
-	"embed"
 	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 
+	"github.com/vanadiry/serein/core/server"
 	"github.com/vanadiry/serein/core/store"
-	"github.com/vanadiry/serein/server"
 )
-
-//go:embed web
-var webFiles embed.FS
 
 func main() {
 	home := sereinHome()
