@@ -10,12 +10,20 @@ import (
 	"github.com/vanadiry/serein/core/store"
 )
 
-const githubAPI = "https://api.github.com/repos"
+const (
+	githubAPI = "https://api.github.com/repos"
+	// repos API 默认返回 30 条数据，可能触发相应上限
+	// 以 defaultPerPage 限制返回 3 条，可以覆盖大多数仓库，规则可用 per_page 覆盖
+	defaultPerPage = 3
+)
 
-// CheckGitHubAll 请求 /releases，返回最新版本和所有历史版本。
-// 一次 HTTP 请求，两种结果：latest 来自 [0, ...]，versions 来自全部。
+// CheckGitHubAll 请求 /releases，返回最新版本和所有历史版本
 func CheckGitHubAll(cfg CheckConfig, client *http.Client) (PlatformResult, []PlatformResult, error) {
-	url := fmt.Sprintf("%s/%s/%s/releases", githubAPI, cfg.Owner, cfg.Repo)
+	perPage := cfg.PerPage
+	if perPage <= 0 {
+		perPage = defaultPerPage
+	}
+	url := fmt.Sprintf("%s/%s/%s/releases?per_page=%d", githubAPI, cfg.Owner, cfg.Repo, perPage)
 	headers := mergeHeaders(cfg.Headers, "application/vnd.github+json")
 	if cfg.GithubToken != "" {
 		headers["Authorization"] = "Bearer " + cfg.GithubToken
@@ -62,6 +70,10 @@ func CheckGitHubAll(cfg CheckConfig, client *http.Client) (PlatformResult, []Pla
 			latest = pr
 			latestFound = true
 		}
+	}
+
+	if !latestFound && len(arr) > 0 {
+		store.Emit("warn", "[github]", fmt.Sprintf("未在前 %d 个 release 中找到非预发布版本，可增大 per_page", perPage))
 	}
 
 	return latest, versions, nil

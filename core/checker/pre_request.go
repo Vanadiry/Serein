@@ -125,9 +125,12 @@ func doRequest(client *http.Client, rawURL, ua string, headers map[string]string
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
 	}
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxRespBytes))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxRespBytes+1))
 	if err != nil {
 		return nil, err
+	}
+	if len(body) > maxRespBytes {
+		return nil, fmt.Errorf("response exceeds limit of %d bytes", maxRespBytes)
 	}
 
 	cacheMu.Lock()
@@ -165,9 +168,12 @@ func doPostRequest(client *http.Client, rawURL, ua string, headers map[string]st
 		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
 	}
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxRespBytes))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxRespBytes+1))
 	if err != nil {
 		return nil, err
+	}
+	if len(body) > maxRespBytes {
+		return nil, fmt.Errorf("response exceeds limit of %d bytes", maxRespBytes)
 	}
 	return body, nil
 }

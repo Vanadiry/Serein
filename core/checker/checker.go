@@ -22,6 +22,7 @@ type CheckConfig struct {
 	BaseURL     string
 	Owner       string // GitHub
 	Repo        string // GitHub
+	PerPage     int    // GitHub: /releases 每页条数，0 表示默认
 	GithubToken string
 	VURL        string
 	VType       string

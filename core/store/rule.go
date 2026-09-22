@@ -37,6 +37,7 @@ type PlatConfig struct {
 	BaseURL         string            `toml:"baseurl,omitempty"`
 	Owner           string            `toml:"owner,omitempty"`
 	Repo            string            `toml:"repo,omitempty"`
+	PerPage         int               `toml:"per_page,omitempty"`
 	VURL            string            `toml:"v_url,omitempty"`
 	VType           string            `toml:"v_type,omitempty"`
 	DURL            string            `toml:"d_url,omitempty"`

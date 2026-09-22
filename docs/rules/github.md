@@ -12,6 +12,7 @@ GitHub 规则是一个预设的 JSON 规则，复用 JSON 步进引擎。
 type = "github"
 owner = "Vanadiry"
 repo = "Seshat"
+per_page = 10 # 不写此项，默认为 3
 
 [config.macos]
 d_position = "darwin-arm64"
@@ -32,7 +33,7 @@ seshat-v0.2.5-windows-amd64.exe
 ```toml
 [config]
 type = "json"
-url = "https://api.github.com/repos/Vanadiry/Seshat/releases"
+url = "https://api.github.com/repos/Vanadiry/Seshat/releases?per_page=10"
 v_position = [0, "tag_name"]
 
 [config.macos]
@@ -48,3 +49,4 @@ d_position = [0, "assets", "name~exe", "browser_download_url"]
 - `d_position` 是为正则，匹配 asset 文件名
 - 同平台匹配多个 asset 时全部返回
 - 不需要 `url`，由 `owner/repo` 自动拼接
+- `per_page` 可选，拼接为 `/releases?per_page=N`
