@@ -92,7 +92,7 @@ window.confirmDialog = confirmDialog;
 // API
 async function api(path) {
     const r = await fetch(API + path);
-    return r.json();
+    return _handleResponse(r);
 }
 async function apiPost(path, body) {
     const r = await fetch(API + path, {
@@ -100,7 +100,21 @@ async function apiPost(path, body) {
         headers: { "Content-Type": "application/json" },
         body: body ? JSON.stringify(body) : undefined
     });
-    return r.json();
+    return _handleResponse(r);
+}
+// 统一处理响应：非 2xx 弹一次错误提示
+async function _handleResponse(r) {
+    var data = null;
+    try {
+        data = await r.json();
+    } catch (e) {
+        data = null;
+    }
+    if (!r.ok) {
+        var msg = (data && data.error) || "请求失败 (" + r.status + ")";
+        _makeToast("错误", escapeHtml(msg), "bg-err", "bg-err/80", 0);
+    }
+    return data;
 }
 
 // 顶栏
@@ -218,12 +232,8 @@ async function syncProfile() {
     var ld = showLoading("动态配置", "正在拉取...");
     try {
         var res = await apiPost("/api/sync", { type: "profile" });
-        if (!res) {
-            ld.done("请求失败", true);
-            return;
-        }
-        if (res.error) {
-            ld.done(res.error, true);
+        if (!res || res.error) {
+            ld.close();
             return;
         }
         if (res.known_extensions && res.known_extensions.length) {
