@@ -180,6 +180,12 @@ func New(home string, webFS fs.FS) (*Server, error) {
 	proxy := cfg.ProxyURL()
 	store.SetProxy(proxy)
 	checker.SetProxy(proxy)
+	// 所有发往 api.github.com 的请求自动带 GithubToken
+	var authTargets []checker.AuthTarget
+	if cfg.Access.GithubToken != "" {
+		authTargets = append(authTargets, checker.AuthTarget{Host: "api.github.com", Token: cfg.Access.GithubToken})
+	}
+	checker.SetAuthTargets(authTargets)
 	if p, err := store.LoadProfile(home); err == nil {
 		checker.SetVersionPrefixes(p.VersionPrefixes)
 		checker.SetVersionSuffixes(p.VersionSuffixes)

@@ -266,7 +266,6 @@ func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) 
 				Owner:           rule.Config.Owner,
 				Repo:            rule.Config.Repo,
 				PerPage:         rule.Config.PerPage,
-				GithubToken:     s.config.Access.GithubToken,
 				Platforms:       group,
 			}, name: jobName})
 		}

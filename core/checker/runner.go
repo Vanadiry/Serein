@@ -15,7 +15,6 @@ type CheckRequest struct {
 	Owner           string
 	Repo            string
 	PerPage         int
-	GithubToken     string
 	Platforms       []PlatformCheckConfig
 }
 
@@ -120,10 +119,9 @@ func runGitHubCheck(req CheckRequest, client *http.Client) (CheckResponse, error
 	}
 
 	cfg := CheckConfig{
-		Owner:       req.Owner,
-		Repo:        req.Repo,
-		PerPage:     req.PerPage,
-		GithubToken: req.GithubToken,
+		Owner:   req.Owner,
+		Repo:    req.Repo,
+		PerPage: req.PerPage,
 	}
 	if len(req.Platforms) > 0 {
 		cfg.UA = req.Platforms[0].UA

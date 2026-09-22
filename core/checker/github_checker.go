@@ -25,9 +25,6 @@ func CheckGitHub(cfg CheckConfig, client *http.Client) (PlatformResult, error) {
 	}
 	url := fmt.Sprintf("%s/%s/%s/releases?per_page=%d", githubAPI, cfg.Owner, cfg.Repo, perPage)
 	headers := mergeHeaders(cfg.Headers, "application/vnd.github+json")
-	if cfg.GithubToken != "" {
-		headers["Authorization"] = "Bearer " + cfg.GithubToken
-	}
 	body, err := doRequest(client, url, cfg.UA, headers)
 	if err != nil {
 		return PlatformResult{}, fmt.Errorf("github: %w", err)

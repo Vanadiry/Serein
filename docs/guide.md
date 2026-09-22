@@ -31,7 +31,7 @@ concurrency = 8        # 检查更新时的并发数
 # downloader = "browser"   # 下载器：browser（默认/空）| ndm | 自定义命令（{url}替换为链接）
 
 [access]
-# github_token = "github_xxx" # GitHub 令牌，用于提升请求限制
+# github_token = "github_xxx" # GitHub 令牌，用于提升请求限制，对所有发往 api.github.com 的请求生效
 
 [proxy]
 host = ""              # HTTP 代理，留空则不启用

@@ -15,23 +15,22 @@ import (
 
 // CheckConfig 一次检查的配置
 type CheckConfig struct {
-	URL         string
-	Type        string
-	UA          string
-	Headers     map[string]string
-	BaseURL     string
-	Owner       string // GitHub
-	Repo        string // GitHub
-	PerPage     int    // GitHub: /releases 每页条数，0 表示默认
-	GithubToken string
-	VURL        string
-	VType       string
-	DURL        string
-	DType       string
-	VPosition   any
-	DPosition   any
-	VJoin       string
-	DJoin       string
+	URL       string
+	Type      string
+	UA        string
+	Headers   map[string]string
+	BaseURL   string
+	Owner     string // GitHub
+	Repo      string // GitHub
+	PerPage   int    // GitHub: /releases 每页条数，0 表示默认
+	VURL      string
+	VType     string
+	DURL      string
+	DType     string
+	VPosition any
+	DPosition any
+	VJoin     string
+	DJoin     string
 }
 
 // PlatformResult 单个平台的检查结果
@@ -58,7 +57,7 @@ func NewClient() *http.Client {
 	}
 	return &http.Client{
 		Timeout:   30 * time.Second,
-		Transport: tr,
+		Transport: &authTransport{base: tr, targets: authTargets},
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 10 {
 				return fmt.Errorf("stopped after 10 redirects")
