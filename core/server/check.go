@@ -20,8 +20,9 @@ import (
 func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
 	limitBody(w, r)
 	var body struct {
-		Type string   `json:"type"`
-		IDs  []string `json:"ids"`
+		Type      string   `json:"type"`
+		TrackerID string   `json:"tracker_id"`
+		IDs       []string `json:"ids"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid body")
@@ -37,11 +38,28 @@ func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	allEntries, err := store.LoadTracker(s.home)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
+	// 指定 tracker_id 时只在该 Tracker 记录内检查，平台以 Tracker 为准，否则回退到全量
+	var allEntries []store.TrackerEntry
+	if body.TrackerID != "" {
+		if !store.ValidTrackerName(body.TrackerID) {
+			writeError(w, http.StatusBadRequest, "invalid tracker_id")
+			return
+		}
+		entries, err := store.LoadTrackerFile(s.home, body.TrackerID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		allEntries = entries
+	} else {
+		entries, err := store.LoadTracker(s.home)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		allEntries = entries
 	}
+
 	var entries []store.TrackerEntry
 	for _, e := range allEntries {
 		for _, id := range ids {

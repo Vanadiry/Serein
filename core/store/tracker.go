@@ -204,17 +204,6 @@ func AddToTracker(home, name string, entry TrackerEntry) error {
 	return encodeTOML(path, tf)
 }
 
-// FindTrackerEntry 在所有 tracker 文件中查找 app_id。
-func FindTrackerEntry(home, ruleID string) *TrackerEntry {
-	list, _ := LoadTracker(home)
-	for i := range list {
-		if list[i].AppID == ruleID {
-			return &list[i]
-		}
-	}
-	return nil
-}
-
 // PlatformsFor 返回 tracker 条目实际生效的平台列表。
 func PlatformsFor(entry TrackerEntry, cfgPlatforms []string) []string {
 	if len(entry.Platforms) > 0 {

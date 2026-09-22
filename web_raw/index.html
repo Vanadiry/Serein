@@ -98,6 +98,7 @@
             var currentTracker = null;
             var currentTrackerType = "app";
             var checkResults = {};
+            var _resultsByTracker = {};
             var _trackerTypes = {};
 
             renderTopbar("应用");
@@ -290,8 +291,12 @@
             }
 
             async function selectTracker(id) {
+                if (currentTracker && currentTracker !== id) {
+                    _resultsByTracker[currentTracker] = checkResults;
+                }
                 currentTracker = id;
                 currentTrackerType = _trackerTypes[id] || "app";
+                checkResults = _resultsByTracker[id] || {};
                 loadTrackers();
                 hideView(document.getElementById("placeholder"));
                 await loadTrackerDetail(id);
@@ -572,9 +577,12 @@
                 if (
                     currentTrackerType === "msvsix" ||
                     currentTrackerType === "openvsx"
-                )
+                ) {
                     body.type = currentTrackerType;
-                else body.type = "app";
+                } else {
+                    body.type = "app";
+                    if (currentTracker) body.tracker_id = currentTracker;
+                }
                 const data = await apiPost("/api/check/ids", body);
                 mergeCheckResults(data || []);
                 const detail =
@@ -801,15 +809,7 @@
 
             function mergeCheckResults(data) {
                 if (!Array.isArray(data)) return;
-                for (const r of data) {
-                    if (!checkResults[r.app_id]) {
-                        checkResults[r.app_id] = r;
-                        continue;
-                    }
-                    for (const [os, p] of Object.entries(r.platforms || {})) {
-                        checkResults[r.app_id].platforms[os] = p;
-                    }
-                }
+                for (const r of data) checkResults[r.app_id] = r;
             }
         </script>
     </body>

@@ -101,6 +101,9 @@ paths:
                 ids:
                   type: array
                   items: { type: string }
+                tracker_id:
+                  type: string
+                  description: "限定在该 Tracker 记录内检查，平台以 Tracker 为准，不填则跨所有 Tracker"
       responses:
         "200":
           description: OK
