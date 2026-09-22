@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -111,10 +112,25 @@ func LoadRules(home string) (map[string]Rule, error) {
 	return rules, nil
 }
 
+// ruleSections 规则文件的合法顶层段
+var ruleSections = map[string]bool{"info": true, "config": true, "pre_request": true}
+
 func ParseRuleFile(path string) (Rule, error) {
 	var raw map[string]any
 	if _, err := toml.DecodeFile(path, &raw); err != nil {
 		return Rule{}, err
+	}
+
+	label := filepath.Base(path)
+	var unknownTop []string
+	for k := range raw {
+		if !ruleSections[k] {
+			unknownTop = append(unknownTop, k)
+		}
+	}
+	if len(unknownTop) > 0 {
+		sort.Strings(unknownTop)
+		Emit("warn", "[rules]", fmt.Sprintf("%s: 未知段 %s", label, strings.Join(unknownTop, ", ")))
 	}
 
 	rule := Rule{
@@ -124,69 +140,153 @@ func ParseRuleFile(path string) (Rule, error) {
 
 	// info
 	if infoRaw, ok := raw["info"]; ok {
-		info := parseInto[RuleInfo](infoRaw)
-		if info != nil {
-			rule.Info = *info
+		infoMap, ok := infoRaw.(map[string]any)
+		if !ok {
+			return Rule{}, fmt.Errorf("%s: info: 期望表结构", label)
 		}
+		info, err := decodeSection[RuleInfo](infoMap, label+": info", nil)
+		if err != nil {
+			return Rule{}, err
+		}
+		rule.Info = info
 	}
 
 	// config + config.{os}
 	if cfgRaw, ok := raw["config"]; ok {
-		rule.Config = *parseInto[PlatConfig](cfgRaw)
-		if cfgMap, ok := cfgRaw.(map[string]any); ok {
-			for key, val := range cfgMap {
-				if isPlatformKey(key, rule.Info.Platforms) {
-					rule.Platforms[key] = *parseInto[PlatConfig](val)
-				}
+		cfgMap, ok := cfgRaw.(map[string]any)
+		if !ok {
+			return Rule{}, fmt.Errorf("%s: config: 期望表结构", label)
+		}
+		// [config] 允许基字段 + 各平台子表
+		cfg, err := decodeSection[PlatConfig](cfgMap, label+": config", rule.Info.Platforms)
+		if err != nil {
+			return Rule{}, err
+		}
+		rule.Config = cfg
+		for key, val := range cfgMap {
+			if !isPlatformKey(key, rule.Info.Platforms) {
+				continue
 			}
+			vm, ok := val.(map[string]any)
+			if !ok {
+				return Rule{}, fmt.Errorf("%s: config.%s: 期望表结构", label, key)
+			}
+			pc, err := decodeSection[PlatConfig](vm, label+": config."+key, nil)
+			if err != nil {
+				return Rule{}, err
+			}
+			rule.Platforms[key] = pc
 		}
 	}
 
 	// pre_request.{id} + pre_request.{id}.{os}
 	if prRaw, ok := raw["pre_request"]; ok {
-		if prMap, ok := prRaw.(map[string]any); ok {
-			for id, val := range prMap {
-				steps := make(map[string]PreRequestStep)
-				if stepMap, ok := val.(map[string]any); ok {
-					hasPlatform := false
-					for k, v := range stepMap {
-						if isPlatformKey(k, rule.Info.Platforms) {
-							hasPlatform = true
-							rs := parseInto[rawPreStep](v)
-							steps[k] = rawToStep(rs)
-						}
-					}
-					if !hasPlatform {
-						rs := parseInto[rawPreStep](val)
-						steps[""] = rawToStep(rs)
-					}
-				}
-				rule.PreRequests[id] = steps
+		prMap, ok := prRaw.(map[string]any)
+		if !ok {
+			return Rule{}, fmt.Errorf("%s: pre_request: 期望表结构", label)
+		}
+		for id, val := range prMap {
+			steps := make(map[string]PreRequestStep)
+			stepMap, ok := val.(map[string]any)
+			if !ok {
+				return Rule{}, fmt.Errorf("%s: pre_request.%s: 期望表结构", label, id)
 			}
+			hasPlatform := false
+			for k := range stepMap {
+				if isPlatformKey(k, rule.Info.Platforms) {
+					hasPlatform = true
+					break
+				}
+			}
+			if hasPlatform {
+				var stray []string
+				for k, v := range stepMap {
+					if !isPlatformKey(k, rule.Info.Platforms) {
+						stray = append(stray, k)
+						continue
+					}
+					vm, ok := v.(map[string]any)
+					if !ok {
+						return Rule{}, fmt.Errorf("%s: pre_request.%s.%s: 期望表结构", label, id, k)
+					}
+					rs, err := decodeSection[rawPreStep](vm, label+": pre_request."+id+"."+k, nil)
+					if err != nil {
+						return Rule{}, err
+					}
+					steps[k] = rawToStep(rs)
+				}
+				if len(stray) > 0 {
+					sort.Strings(stray)
+					Emit("warn", "[rules]", fmt.Sprintf("%s: pre_request.%s: 未知字段 %s", label, id, strings.Join(stray, ", ")))
+				}
+			} else {
+				rs, err := decodeSection[rawPreStep](stepMap, label+": pre_request."+id, nil)
+				if err != nil {
+					return Rule{}, err
+				}
+				steps[""] = rawToStep(rs)
+			}
+			rule.PreRequests[id] = steps
 		}
 	}
 
 	return rule, nil
 }
 
-// parseInto 将 any 编解码为指定类型
-func parseInto[T any](v any) *T {
-	var buf bytes.Buffer
-	if err := toml.NewEncoder(&buf).Encode(v); err != nil {
-		return nil
-	}
+// decodeSection 先校验未知字段，再将 map 解码为强类型
+// 未知字段只告警不致命；类型错误返回 error，extra 为额外允许的字段名
+func decodeSection[T any](raw map[string]any, section string, extra []string) (T, error) {
 	var result T
-	if _, err := toml.NewDecoder(&buf).Decode(&result); err != nil {
-		return nil
+	if unknown := unknownKeys(raw, reflect.TypeOf((*T)(nil)).Elem(), extra); len(unknown) > 0 {
+		Emit("warn", "[rules]", fmt.Sprintf("%s: 未知字段 %s", section, strings.Join(unknown, ", ")))
 	}
-	return &result
+	var buf bytes.Buffer
+	if err := toml.NewEncoder(&buf).Encode(raw); err != nil {
+		return result, fmt.Errorf("%s: %w", section, err)
+	}
+	if _, err := toml.NewDecoder(&buf).Decode(&result); err != nil {
+		return result, fmt.Errorf("%s: %w", section, err)
+	}
+	return result, nil
+}
+
+// unknownKeys 返回 raw 中不在结构体 toml tag 内的字段名（含 extra）。
+func unknownKeys(raw map[string]any, typ reflect.Type, extra []string) []string {
+	known := knownTOMLFields(typ)
+	for _, e := range extra {
+		known[e] = true
+	}
+	var unknown []string
+	for k := range raw {
+		if !known[k] {
+			unknown = append(unknown, k)
+		}
+	}
+	sort.Strings(unknown)
+	return unknown
+}
+
+// knownTOMLFields 收集结构体各字段的 toml tag 名。
+func knownTOMLFields(typ reflect.Type) map[string]bool {
+	fields := make(map[string]bool)
+	for typ.Kind() == reflect.Ptr {
+		typ = typ.Elem()
+	}
+	if typ.Kind() != reflect.Struct {
+		return fields
+	}
+	for i := 0; i < typ.NumField(); i++ {
+		name := strings.Split(typ.Field(i).Tag.Get("toml"), ",")[0]
+		if name == "" || name == "-" {
+			continue
+		}
+		fields[name] = true
+	}
+	return fields
 }
 
 // rawToStep 将原始前置请求转为 PreRequestStep
-func rawToStep(raw *rawPreStep) PreRequestStep {
-	if raw == nil {
-		return PreRequestStep{}
-	}
+func rawToStep(raw rawPreStep) PreRequestStep {
 	return PreRequestStep{
 		URL:      raw.URL,
 		Type:     raw.Type,
