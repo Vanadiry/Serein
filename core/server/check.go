@@ -161,10 +161,7 @@ type checkJob struct {
 }
 
 func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) {
-	rules, rulesErr := store.LoadRules(s.home)
-	if rulesErr != nil {
-		store.Emit("error", "[check]", fmt.Sprintf("加载规则失败: %v", rulesErr))
-	}
+	rules := s.getRules()
 	userData, udErr := store.LoadUserData(s.home)
 	if udErr != nil {
 		store.Emit("error", "[check]", fmt.Sprintf("加载用户数据失败: %v", udErr))

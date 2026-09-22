@@ -13,7 +13,7 @@ func (s *Server) handleRules(w http.ResponseWriter, r *http.Request) {
 	source := r.URL.Query().Get("source")
 
 	if q != "" {
-		rules, _ := store.LoadRules(s.home)
+		rules := s.getRules()
 		var filtered []store.Rule
 		ql := strings.ToLower(q)
 		for _, rule := range rules {
@@ -26,7 +26,7 @@ func (s *Server) handleRules(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if source != "" {
-		rules, _ := store.LoadRules(s.home)
+		rules := s.getRules()
 		var filtered []store.Rule
 		for _, rule := range rules {
 			if rule.SourceID == source {
@@ -46,6 +46,16 @@ func (s *Server) handleRules(w http.ResponseWriter, r *http.Request) {
 		list = []store.SourceWithID{}
 	}
 	writeJSON(w, http.StatusOK, list)
+}
+
+// POST /api/rules/check 手动触发一次规则错误检查
+func (s *Server) handleRulesCheck(w http.ResponseWriter, r *http.Request) {
+	limitBody(w, r)
+	issues := s.loadRules(false)
+	if issues == nil {
+		issues = []store.RuleIssue{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"issues": issues})
 }
 
 type ruleListItem struct {

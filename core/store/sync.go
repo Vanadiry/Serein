@@ -148,7 +148,11 @@ type leafSrc struct {
 // SyncAllSourcesAsync 两阶段同步：
 // 1. 遍历源树，收集所有叶子源 → 发 list 事件
 // 2. 并发下载所有规则文件 → 发 file 事件（done/total）
-func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *Progress) {
+// onDone 在同步完成后（进度关闭后）调用，可用于重载规则缓存
+func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *Progress, onDone func()) {
+	if onDone != nil {
+		defer onDone()
+	}
 	defer p.Close()
 
 	rulesDir := filepath.Join(home, "rules")

@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -81,8 +83,15 @@ type Rule struct {
 
 // 解析
 
-func LoadRules(home string) (map[string]Rule, error) {
+// RuleIssue 解析规则时发现的问题（不直接上报，由调用方决定如何展示）
+type RuleIssue struct {
+	Level   string `json:"level"` // "warn" / "error"
+	Message string `json:"message"`
+}
+
+func LoadRules(home string) (map[string]Rule, []RuleIssue, error) {
 	rules := make(map[string]Rule)
+	var issues []RuleIssue
 	ruleDir := filepath.Join(home, "rules")
 
 	err := filepath.WalkDir(ruleDir, func(path string, d os.DirEntry, err error) error {
@@ -95,9 +104,10 @@ func LoadRules(home string) (map[string]Rule, error) {
 		// 提取 source_id：从 .toml 文件向上查找最近的 _source.json 所在目录
 		sourceID := findNearestSourceID(ruleDir, path)
 
-		rule, parseErr := ParseRuleFile(path)
+		rule, ruleIssues, parseErr := ParseRuleFile(path)
+		issues = append(issues, ruleIssues...)
 		if parseErr != nil {
-			Emit("error", "[rules]", fmt.Sprintf("解析规则文件失败 %s: %v", path, parseErr))
+			issues = append(issues, RuleIssue{Level: "error", Message: fmt.Sprintf("解析规则文件失败 %s: %v", path, parseErr)})
 			return nil
 		}
 		rule.SourceID = sourceID
@@ -107,21 +117,42 @@ func LoadRules(home string) (map[string]Rule, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("walk rule dir: %w", err)
+		return nil, issues, fmt.Errorf("walk rule dir: %w", err)
 	}
-	return rules, nil
+	return rules, issues, nil
+}
+
+// RulesFingerprint 计算 rules/ 目录的轻量指纹（路径+大小+mtime）
+// 用于判断是否需要重新解析规则，避免每次访问都全量读盘。
+func RulesFingerprint(home string) string {
+	ruleDir := filepath.Join(home, "rules")
+	h := fnv.New64a()
+	filepath.WalkDir(ruleDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		fmt.Fprintf(h, "%s|%d|%d;", path, info.Size(), info.ModTime().UnixNano())
+		return nil
+	})
+	return strconv.FormatUint(h.Sum64(), 16)
 }
 
 // ruleSections 规则文件的合法顶层段
 var ruleSections = map[string]bool{"info": true, "config": true, "pre_request": true}
 
-func ParseRuleFile(path string) (Rule, error) {
+func ParseRuleFile(path string) (Rule, []RuleIssue, error) {
 	var raw map[string]any
 	if _, err := toml.DecodeFile(path, &raw); err != nil {
-		return Rule{}, err
+		return Rule{}, nil, err
 	}
 
 	label := filepath.Base(path)
+	var issues []RuleIssue
+
 	var unknownTop []string
 	for k := range raw {
 		if !ruleSections[k] {
@@ -130,7 +161,7 @@ func ParseRuleFile(path string) (Rule, error) {
 	}
 	if len(unknownTop) > 0 {
 		sort.Strings(unknownTop)
-		Emit("warn", "[rules]", fmt.Sprintf("%s: 未知段 %s", label, strings.Join(unknownTop, ", ")))
+		issues = append(issues, RuleIssue{Level: "warn", Message: fmt.Sprintf("%s: 未知段 %s", label, strings.Join(unknownTop, ", "))})
 	}
 
 	rule := Rule{
@@ -142,11 +173,12 @@ func ParseRuleFile(path string) (Rule, error) {
 	if infoRaw, ok := raw["info"]; ok {
 		infoMap, ok := infoRaw.(map[string]any)
 		if !ok {
-			return Rule{}, fmt.Errorf("%s: info: 期望表结构", label)
+			return Rule{}, issues, fmt.Errorf("%s: info: 期望表结构", label)
 		}
-		info, err := decodeSection[RuleInfo](infoMap, label+": info", nil)
+		info, unknown, err := decodeSection[RuleInfo](infoMap, label+": info", nil)
+		issues = appendUnknown(issues, label+": info", unknown)
 		if err != nil {
-			return Rule{}, err
+			return Rule{}, issues, err
 		}
 		rule.Info = info
 	}
@@ -155,12 +187,13 @@ func ParseRuleFile(path string) (Rule, error) {
 	if cfgRaw, ok := raw["config"]; ok {
 		cfgMap, ok := cfgRaw.(map[string]any)
 		if !ok {
-			return Rule{}, fmt.Errorf("%s: config: 期望表结构", label)
+			return Rule{}, issues, fmt.Errorf("%s: config: 期望表结构", label)
 		}
 		// [config] 允许基字段 + 各平台子表
-		cfg, err := decodeSection[PlatConfig](cfgMap, label+": config", rule.Info.Platforms)
+		cfg, unknown, err := decodeSection[PlatConfig](cfgMap, label+": config", rule.Info.Platforms)
+		issues = appendUnknown(issues, label+": config", unknown)
 		if err != nil {
-			return Rule{}, err
+			return Rule{}, issues, err
 		}
 		rule.Config = cfg
 		for key, val := range cfgMap {
@@ -169,11 +202,12 @@ func ParseRuleFile(path string) (Rule, error) {
 			}
 			vm, ok := val.(map[string]any)
 			if !ok {
-				return Rule{}, fmt.Errorf("%s: config.%s: 期望表结构", label, key)
+				return Rule{}, issues, fmt.Errorf("%s: config.%s: 期望表结构", label, key)
 			}
-			pc, err := decodeSection[PlatConfig](vm, label+": config."+key, nil)
+			pc, unknown, err := decodeSection[PlatConfig](vm, label+": config."+key, nil)
+			issues = appendUnknown(issues, label+": config."+key, unknown)
 			if err != nil {
-				return Rule{}, err
+				return Rule{}, issues, err
 			}
 			rule.Platforms[key] = pc
 		}
@@ -183,13 +217,13 @@ func ParseRuleFile(path string) (Rule, error) {
 	if prRaw, ok := raw["pre_request"]; ok {
 		prMap, ok := prRaw.(map[string]any)
 		if !ok {
-			return Rule{}, fmt.Errorf("%s: pre_request: 期望表结构", label)
+			return Rule{}, issues, fmt.Errorf("%s: pre_request: 期望表结构", label)
 		}
 		for id, val := range prMap {
 			steps := make(map[string]PreRequestStep)
 			stepMap, ok := val.(map[string]any)
 			if !ok {
-				return Rule{}, fmt.Errorf("%s: pre_request.%s: 期望表结构", label, id)
+				return Rule{}, issues, fmt.Errorf("%s: pre_request.%s: 期望表结构", label, id)
 			}
 			hasPlatform := false
 			for k := range stepMap {
@@ -207,22 +241,24 @@ func ParseRuleFile(path string) (Rule, error) {
 					}
 					vm, ok := v.(map[string]any)
 					if !ok {
-						return Rule{}, fmt.Errorf("%s: pre_request.%s.%s: 期望表结构", label, id, k)
+						return Rule{}, issues, fmt.Errorf("%s: pre_request.%s.%s: 期望表结构", label, id, k)
 					}
-					rs, err := decodeSection[rawPreStep](vm, label+": pre_request."+id+"."+k, nil)
+					rs, unknown, err := decodeSection[rawPreStep](vm, label+": pre_request."+id+"."+k, nil)
+					issues = appendUnknown(issues, label+": pre_request."+id+"."+k, unknown)
 					if err != nil {
-						return Rule{}, err
+						return Rule{}, issues, err
 					}
 					steps[k] = rawToStep(rs)
 				}
 				if len(stray) > 0 {
 					sort.Strings(stray)
-					Emit("warn", "[rules]", fmt.Sprintf("%s: pre_request.%s: 未知字段 %s", label, id, strings.Join(stray, ", ")))
+					issues = append(issues, RuleIssue{Level: "warn", Message: fmt.Sprintf("%s: pre_request.%s: 未知字段 %s", label, id, strings.Join(stray, ", "))})
 				}
 			} else {
-				rs, err := decodeSection[rawPreStep](stepMap, label+": pre_request."+id, nil)
+				rs, unknown, err := decodeSection[rawPreStep](stepMap, label+": pre_request."+id, nil)
+				issues = appendUnknown(issues, label+": pre_request."+id, unknown)
 				if err != nil {
-					return Rule{}, err
+					return Rule{}, issues, err
 				}
 				steps[""] = rawToStep(rs)
 			}
@@ -230,24 +266,30 @@ func ParseRuleFile(path string) (Rule, error) {
 		}
 	}
 
-	return rule, nil
+	return rule, issues, nil
 }
 
-// decodeSection 先校验未知字段，再将 map 解码为强类型
-// 未知字段只告警不致命；类型错误返回 error，extra 为额外允许的字段名
-func decodeSection[T any](raw map[string]any, section string, extra []string) (T, error) {
-	var result T
-	if unknown := unknownKeys(raw, reflect.TypeOf((*T)(nil)).Elem(), extra); len(unknown) > 0 {
-		Emit("warn", "[rules]", fmt.Sprintf("%s: 未知字段 %s", section, strings.Join(unknown, ", ")))
+// appendUnknown 把未知字段名转成告警 issue
+func appendUnknown(issues []RuleIssue, section string, unknown []string) []RuleIssue {
+	if len(unknown) == 0 {
+		return issues
 	}
+	return append(issues, RuleIssue{Level: "warn", Message: fmt.Sprintf("%s: 未知字段 %s", section, strings.Join(unknown, ", "))})
+}
+
+// decodeSection 校验未知字段并解码为强类型。未知字段随返回值交给调用方决定如何处理；
+// 类型错误返回 error。extra 为额外允许的字段名。
+func decodeSection[T any](raw map[string]any, section string, extra []string) (T, []string, error) {
+	var result T
+	unknown := unknownKeys(raw, reflect.TypeOf((*T)(nil)).Elem(), extra)
 	var buf bytes.Buffer
 	if err := toml.NewEncoder(&buf).Encode(raw); err != nil {
-		return result, fmt.Errorf("%s: %w", section, err)
+		return result, unknown, fmt.Errorf("%s: %w", section, err)
 	}
 	if _, err := toml.NewDecoder(&buf).Decode(&result); err != nil {
-		return result, fmt.Errorf("%s: %w", section, err)
+		return result, unknown, fmt.Errorf("%s: %w", section, err)
 	}
-	return result, nil
+	return result, unknown, nil
 }
 
 // unknownKeys 返回 raw 中不在结构体 toml tag 内的字段名（含 extra）。

@@ -118,6 +118,7 @@ function renderTopbar(current) {
 
     const isIndex = path === "/" || path === "/index.html" || path === "";
     const isSettings = path === "/settings" || path === "/settings.html";
+    const isRules = path.startsWith("/rules");
 
     tb.innerHTML = `
     <div class="bg-bg border-b border-bord-light">
@@ -139,6 +140,11 @@ function renderTopbar(current) {
                   : isSettings
                     ? ""
                     : `
+          ${
+              isRules
+                  ? `<button id="btn-rule-check" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">检查错误</button>`
+                  : ""
+          }
           <button id="btn-sync-profile" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">拉取动态配置</button>
           <button id="btn-sync" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">拉取规则</button>
           `
@@ -157,6 +163,11 @@ function renderTopbar(current) {
             .addEventListener("click", function () {
                 confirmDialog("将从远端拉取最新的动态配置", syncProfile);
             });
+        if (isRules) {
+            document
+                .getElementById("btn-rule-check")
+                .addEventListener("click", checkRuleErrors);
+        }
     }
 }
 
@@ -168,6 +179,38 @@ async function syncRules() {
         return;
     }
     startSyncProgress(res.task_id);
+}
+
+// 手动检查规则错误（结果直接展示，不经事件总线）
+async function checkRuleErrors() {
+    var ld = showLoading("规则检查", "正在检查...");
+    try {
+        var res = await apiPost("/api/rules/check", {});
+        var issues = (res && res.issues) || [];
+        if (!issues.length) {
+            ld.done("未发现规则错误");
+            return;
+        }
+        var errs = issues.filter(function (i) {
+            return i.level === "error";
+        }).length;
+        var warns = issues.length - errs;
+        var html = issues
+            .map(function (i) {
+                return (
+                    '<span class="text-' +
+                    (i.level === "error" ? "err" : "warn") +
+                    '">' +
+                    escapeHtml(i.level) +
+                    "</span>: " +
+                    escapeHtml(i.message)
+                );
+            })
+            .join("<br>");
+        ld.done(html, true, errs + " 个错误 / " + warns + " 个警告");
+    } catch (e) {
+        ld.done(e.message || "请求失败", true);
+    }
 }
 
 // 拉取动态配置

@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -27,6 +28,10 @@ type Server struct {
 	webFS      fs.FS
 	ln         net.Listener
 	actualAddr string
+
+	rulesMu sync.RWMutex
+	rules   map[string]store.Rule
+	rulesFP string
 }
 
 func loggingMiddleware(next http.Handler) http.Handler {
@@ -93,6 +98,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/sync", s.handleSync)
 
 	s.mux.HandleFunc("GET /api/rules", s.handleRules)
+	s.mux.HandleFunc("POST /api/rules/check", s.handleRulesCheck)
 
 	dlDesc := parseDownloaderDesc(s.config.Download.Downloader)
 	dlType := parseDownloaderType(s.config.Download.Downloader)
@@ -178,9 +184,53 @@ func New(home string, webFS fs.FS) (*Server, error) {
 		checker.SetVersionPrefixes(p.VersionPrefixes)
 		checker.SetVersionSuffixes(p.VersionSuffixes)
 	}
-	s := &Server{home: home, config: cfg, mux: http.NewServeMux(), webFS: webFS}
+	s := &Server{home: home, config: cfg, mux: http.NewServeMux(), webFS: webFS, rules: make(map[string]store.Rule)}
+	s.reloadRules()
 	s.registerRoutes()
 	return s, nil
+}
+
+// loadRules 重新解析并缓存全部规则。report 为真时把解析发现的问题上报到事件总线
+func (s *Server) loadRules(report bool) []store.RuleIssue {
+	rules, issues, err := store.LoadRules(s.home)
+	if err != nil {
+		store.Emit("error", "[rules]", fmt.Sprintf("加载规则失败: %v", err))
+		return issues
+	}
+	s.rulesMu.Lock()
+	s.rules = rules
+	s.rulesFP = store.RulesFingerprint(s.home)
+	s.rulesMu.Unlock()
+	if report {
+		for _, is := range issues {
+			store.Emit(is.Level, "[rules]", is.Message)
+		}
+	}
+	return issues
+}
+
+// reloadRules 启动/拉取规则后调用：重新解析并上报问题
+func (s *Server) reloadRules() {
+	s.loadRules(true)
+}
+
+// getRules 返回规则表。rules/ 目录有变化时自动重新解析，否则用缓存
+func (s *Server) getRules() map[string]store.Rule {
+	fp := store.RulesFingerprint(s.home)
+	s.rulesMu.RLock()
+	if s.rules != nil && fp == s.rulesFP {
+		rules := s.rules
+		s.rulesMu.RUnlock()
+		return rules
+	}
+	s.rulesMu.RUnlock()
+
+	// 变化则重新解析，但不在读路径上报问题
+	s.loadRules(false)
+	s.rulesMu.RLock()
+	rules := s.rules
+	s.rulesMu.RUnlock()
+	return rules
 }
 
 func (s *Server) Addr() string {

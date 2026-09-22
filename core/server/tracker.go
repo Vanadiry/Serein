@@ -44,7 +44,7 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 	var rules map[string]store.Rule
 	var userData store.UserData
 	if !isVsixType {
-		rules, _ = store.LoadRules(s.home)
+		rules = s.getRules()
 	}
 	userData, _ = store.LoadUserData(s.home)
 
