@@ -18,8 +18,18 @@ const (
 	defaultPerPage = 3
 )
 
+// GitHubConfig GitHub Release 检查参数
+type GitHubConfig struct {
+	Owner     string
+	Repo      string
+	PerPage   int
+	UA        string
+	Headers   map[string]string
+	DPosition any
+}
+
 // CheckGitHub 请求 /releases，返回最新非预发布版本及其下载链接。
-func CheckGitHub(cfg CheckConfig, client *http.Client) (PlatformResult, error) {
+func CheckGitHub(cfg GitHubConfig, client *http.Client) (PlatformResult, error) {
 	perPage := cfg.PerPage
 	if perPage <= 0 {
 		perPage = defaultPerPage

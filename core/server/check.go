@@ -203,18 +203,7 @@ func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) 
 
 			preSteps := rule.PreRequestChain(os)
 			if len(preSteps) > 0 {
-				var checkerSteps []checker.PreStep
-				for _, ps := range preSteps {
-					checkerSteps = append(checkerSteps, checker.PreStep{
-						URL:      ps.URL,
-						Type:     ps.Type,
-						UA:       ps.UA,
-						Headers:  ps.Headers,
-						BaseURL:  ps.BaseURL,
-						Position: ps.Position,
-					})
-				}
-				preURL, err := checker.RunPreRequests(checkerSteps, httpx.NewClient())
+				preURL, err := checker.RunPreRequests(preSteps, httpx.NewClient())
 				if err != nil {
 					store.Emit("error", "[check]", fmt.Sprintf("%s 前置请求失败: %v", jobName, err))
 				} else if preURL != "" {

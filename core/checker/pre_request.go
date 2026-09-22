@@ -8,20 +8,11 @@ import (
 	"strings"
 
 	"github.com/vanadiry/serein/core/httpx"
+	"github.com/vanadiry/serein/core/store"
 )
 
-// PreStep 前置请求的一个步骤（checker 内部类型）
-type PreStep struct {
-	URL      string
-	Type     string
-	UA       string
-	Headers  map[string]string
-	BaseURL  string
-	Position any
-}
-
-// RunPreRequests 执行前置请求链，返回最终 URL（作为 config 的请求地址）。
-func RunPreRequests(steps []PreStep, client *http.Client) (string, error) {
+// RunPreRequests 执行前置请求链，返回最终 URL（作为 config 的请求地址）
+func RunPreRequests(steps []store.PreRequestStep, client *http.Client) (string, error) {
 	if len(steps) == 0 {
 		return "", nil
 	}

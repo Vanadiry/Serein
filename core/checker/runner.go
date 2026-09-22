@@ -73,23 +73,7 @@ func RunCheck(req CheckRequest) (CheckResponse, error) {
 	}
 
 	for _, pc := range req.Platforms {
-		cfg := CheckConfig{
-			URL:       pc.URL,
-			Type:      pc.Type,
-			UA:        pc.UA,
-			Headers:   pc.Headers,
-			BaseURL:   pc.BaseURL,
-			VURL:      pc.VURL,
-			VType:     pc.VType,
-			DURL:      pc.DURL,
-			DType:     pc.DType,
-			VPosition: pc.VPosition,
-			DPosition: pc.DPosition,
-			VJoin:     pc.VJoin,
-			DJoin:     pc.DJoin,
-		}
-
-		pr, err := RunPlatformCheck(cfg, client)
+		pr, err := RunPlatformCheck(pc, client)
 		if err != nil {
 			resp.Platforms[pc.OS] = CheckPlatform{
 				CurrentVersion:  pc.CurrentVersion,
@@ -120,7 +104,7 @@ func runGitHubCheck(req CheckRequest, client *http.Client) (CheckResponse, error
 		return resp, nil
 	}
 
-	cfg := CheckConfig{
+	cfg := GitHubConfig{
 		Owner:   req.Owner,
 		Repo:    req.Repo,
 		PerPage: req.PerPage,

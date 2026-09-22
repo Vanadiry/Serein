@@ -52,24 +52,14 @@ type PlatConfig struct {
 	ForceDownloader bool              `toml:"force_downloader,omitempty"`
 }
 
-// rawPreStep 前置请求的原始 TOML 结构（position 字段名不同）
-type rawPreStep struct {
+// PreRequestStep 一个前置请求步骤（TOML 解析与运行时共用）
+type PreRequestStep struct {
 	URL      string            `toml:"url"`
 	Type     string            `toml:"type"`
 	UA       string            `toml:"ua,omitempty"`
 	Headers  map[string]string `toml:"headers,omitempty"`
 	BaseURL  string            `toml:"baseurl,omitempty"`
 	Position Position          `toml:"position"`
-}
-
-// PreRequestStep 运行时的一个前置请求步骤
-type PreRequestStep struct {
-	URL      string
-	Type     string
-	UA       string
-	Headers  map[string]string
-	BaseURL  string
-	Position Position
 }
 
 // Rule 解析后的完整规则
@@ -243,24 +233,24 @@ func ParseRuleFile(path string) (Rule, []RuleIssue, error) {
 					if !ok {
 						return Rule{}, issues, fmt.Errorf("%s: pre_request.%s.%s: 期望表结构", label, id, k)
 					}
-					rs, unknown, err := decodeSection[rawPreStep](vm, label+": pre_request."+id+"."+k, nil)
+					rs, unknown, err := decodeSection[PreRequestStep](vm, label+": pre_request."+id+"."+k, nil)
 					issues = appendUnknown(issues, label+": pre_request."+id+"."+k, unknown)
 					if err != nil {
 						return Rule{}, issues, err
 					}
-					steps[k] = rawToStep(rs)
+					steps[k] = rs
 				}
 				if len(stray) > 0 {
 					sort.Strings(stray)
 					issues = append(issues, RuleIssue{Level: "warn", Message: fmt.Sprintf("%s: pre_request.%s: 未知字段 %s", label, id, strings.Join(stray, ", "))})
 				}
 			} else {
-				rs, unknown, err := decodeSection[rawPreStep](stepMap, label+": pre_request."+id, nil)
+				rs, unknown, err := decodeSection[PreRequestStep](stepMap, label+": pre_request."+id, nil)
 				issues = appendUnknown(issues, label+": pre_request."+id, unknown)
 				if err != nil {
 					return Rule{}, issues, err
 				}
-				steps[""] = rawToStep(rs)
+				steps[""] = rs
 			}
 			rule.PreRequests[id] = steps
 		}
@@ -325,18 +315,6 @@ func knownTOMLFields(typ reflect.Type) map[string]bool {
 		fields[name] = true
 	}
 	return fields
-}
-
-// rawToStep 将原始前置请求转为 PreRequestStep
-func rawToStep(raw rawPreStep) PreRequestStep {
-	return PreRequestStep{
-		URL:      raw.URL,
-		Type:     raw.Type,
-		UA:       raw.UA,
-		Headers:  raw.Headers,
-		BaseURL:  raw.BaseURL,
-		Position: raw.Position,
-	}
 }
 
 // 合并

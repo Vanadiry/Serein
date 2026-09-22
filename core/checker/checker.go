@@ -1,4 +1,4 @@
-// Checker 入口：CheckConfig、PlatformResult、CheckPlatform、HTTP 客户端。
+// Checker 入口：PlatformCheckConfig、PlatformResult、CheckPlatform、HTTP 客户端
 package checker
 
 import (
@@ -10,26 +10,6 @@ import (
 	"github.com/vanadiry/serein/core/httpx"
 	"github.com/vanadiry/serein/core/store"
 )
-
-// CheckConfig 一次检查的配置
-type CheckConfig struct {
-	URL       string
-	Type      string
-	UA        string
-	Headers   map[string]string
-	BaseURL   string
-	Owner     string // GitHub
-	Repo      string // GitHub
-	PerPage   int    // GitHub: /releases 每页条数，0 表示默认
-	VURL      string
-	VType     string
-	DURL      string
-	DType     string
-	VPosition any
-	DPosition any
-	VJoin     string
-	DJoin     string
-}
 
 // PlatformResult 单个平台的检查结果
 type PlatformResult struct {
@@ -67,7 +47,7 @@ func stripVersionAffixes(ver string) string {
 }
 
 // RunPlatformCheck 对单个平台执行检查
-func RunPlatformCheck(cfg CheckConfig, client *http.Client) (PlatformResult, error) {
+func RunPlatformCheck(cfg PlatformCheckConfig, client *http.Client) (PlatformResult, error) {
 	var vr PlatformResult
 
 	// 提取版本号
