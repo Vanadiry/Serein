@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/vanadiry/serein/core/httpx"
 )
 
 type openvsxResp struct {
@@ -21,7 +23,7 @@ func CheckOpenVSX(extID string, client *http.Client) (PlatformResult, error) {
 	}
 
 	apiURL := fmt.Sprintf("https://open-vsx.org/api/%s/%s/latest", parts[0], parts[1])
-	data, err := doRequest(client, apiURL, "", nil)
+	data, err := httpx.Request(client, apiURL, "", nil)
 	if err != nil {
 		return PlatformResult{}, fmt.Errorf("openvsx: %w", err)
 	}

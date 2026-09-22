@@ -1,6 +1,6 @@
 // Auth 注入：按注册的目标（host）给请求自动加上认证头
 // 仅在实际匹配目标、且请求未自带 Authorization 时注入
-package checker
+package httpx
 
 import "net/http"
 

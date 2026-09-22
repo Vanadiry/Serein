@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/vanadiry/serein/core/httpx"
 )
 
 const vsixAPI = "https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery"
@@ -56,7 +58,7 @@ func CheckMSVSIX(extID string, client *http.Client) (PlatformResult, error) {
 		"Accept":             "application/json;api-version=3.0-preview.1",
 		"X-Market-Client-Id": "VSCode",
 	}
-	data, err := doPostRequest(client, vsixAPI, "VSCode", headers, bodyJSON)
+	data, err := httpx.PostRequest(client, vsixAPI, "VSCode", headers, bodyJSON)
 	if err != nil {
 		return PlatformResult{}, fmt.Errorf("msvsix: %w", err)
 	}

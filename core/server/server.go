@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/vanadiry/serein/core/checker"
+	"github.com/vanadiry/serein/core/httpx"
 	"github.com/vanadiry/serein/core/store"
 )
 
@@ -178,14 +179,13 @@ func New(home string, webFS fs.FS) (*Server, error) {
 		return nil, err
 	}
 	proxy := cfg.ProxyURL()
-	store.SetProxy(proxy)
-	checker.SetProxy(proxy)
+	httpx.SetProxy(proxy)
 	// 所有发往 api.github.com 的请求自动带 GithubToken
-	var authTargets []checker.AuthTarget
+	var authTargets []httpx.AuthTarget
 	if cfg.Access.GithubToken != "" {
-		authTargets = append(authTargets, checker.AuthTarget{Host: "api.github.com", Token: cfg.Access.GithubToken})
+		authTargets = append(authTargets, httpx.AuthTarget{Host: "api.github.com", Token: cfg.Access.GithubToken})
 	}
-	checker.SetAuthTargets(authTargets)
+	httpx.SetAuthTargets(authTargets)
 	if p, err := store.LoadProfile(home); err == nil {
 		checker.SetVersionPrefixes(p.VersionPrefixes)
 		checker.SetVersionSuffixes(p.VersionSuffixes)

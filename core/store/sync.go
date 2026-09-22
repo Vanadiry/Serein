@@ -4,33 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
-	"time"
+
+	"github.com/vanadiry/serein/core/httpx"
 )
 
-const (
-	fetchTimeout  = 30 * time.Second
-	maxFetchBytes = 8 << 20 // 8MB
-)
-
-// httpClient 供规则源/动态配置拉取使用，带超时
-var httpClient = &http.Client{Timeout: fetchTimeout}
-
-// SetProxy 配置规则源/动态配置拉取使用的代理。传 nil 则不改动
-func SetProxy(proxy *url.URL) {
-	if proxy == nil {
-		return
-	}
-	tr := http.DefaultTransport.(*http.Transport).Clone()
-	tr.Proxy = http.ProxyURL(proxy)
-	httpClient.Transport = tr
-}
+const maxFetchBytes = 8 << 20 // 8MB
 
 // SourceJSON 规则源的元信息（完整 _source.json 内容）
 type SourceJSON struct {
@@ -48,7 +31,7 @@ func fetchSourceJSON(url string) (*SourceJSON, []byte, error) {
 	var err error
 
 	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
-		resp, reqErr := httpClient.Get(url)
+		resp, reqErr := httpx.DefaultClient().Get(url)
 		if reqErr != nil {
 			return nil, nil, reqErr
 		}
@@ -121,7 +104,7 @@ func copyFile(src, dst string) error {
 }
 
 func downloadFile(url, dest string) error {
-	resp, err := httpClient.Get(url)
+	resp, err := httpx.DefaultClient().Get(url)
 	if err != nil {
 		return fmt.Errorf("下载 %s: %w", url, err)
 	}

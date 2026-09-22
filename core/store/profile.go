@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/vanadiry/serein/core/httpx"
 )
 
 type Profile struct {
@@ -30,7 +32,7 @@ func LoadProfile(home string) (Profile, error) {
 }
 
 func SyncProfile(home, url string) (Profile, bool, error) {
-	resp, err := httpClient.Get(url)
+	resp, err := httpx.DefaultClient().Get(url)
 	if err != nil {
 		return Profile{}, false, fmt.Errorf("获取 profile.json: %w", err)
 	}

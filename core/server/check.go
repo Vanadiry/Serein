@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/vanadiry/serein/core/checker"
+	"github.com/vanadiry/serein/core/httpx"
 	"github.com/vanadiry/serein/core/store"
 )
 
@@ -73,7 +74,7 @@ func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, []checker.CheckResponse{})
 		return
 	}
-	checker.ClearURLCache()
+	httpx.ClearURLCache()
 	jobs, _ := s.buildCheckJobs(entries)
 	var results []checker.CheckResponse
 	for _, job := range jobs {
@@ -123,7 +124,7 @@ func (s *Server) handleCheckTracker(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	store.Logf("[check/tracker] %s", body.TrackerID)
-	checker.ClearURLCache()
+	httpx.ClearURLCache()
 	p := store.NewProgress(len(entries))
 	go s.runTrackerChecksAsync(entries, p, body.TrackerID)
 	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(len(entries))})
@@ -213,7 +214,7 @@ func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) 
 						Position: ps.Position,
 					})
 				}
-				preURL, err := checker.RunPreRequests(checkerSteps, checker.NewClient())
+				preURL, err := checker.RunPreRequests(checkerSteps, httpx.NewClient())
 				if err != nil {
 					store.Emit("error", "[check]", fmt.Sprintf("%s 前置请求失败: %v", jobName, err))
 				} else if preURL != "" {
@@ -394,7 +395,7 @@ func saveCheckTemp(home, trackerID string, results []checker.CheckResponse) {
 
 func (s *Server) handleDirectCheck(w http.ResponseWriter, entries []store.TrackerEntry, typ string) {
 	store.Logf("[check/%s] %d entries", typ, len(entries))
-	checker.ClearURLCache()
+	httpx.ClearURLCache()
 	p := store.NewProgress(len(entries))
 	go s.runDirectChecksAsync(entries, p, typ)
 	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(len(entries))})
@@ -405,7 +406,7 @@ func (s *Server) handleDirectCheckIDs(w http.ResponseWriter, ids []string, typ s
 	if typ == "openvsx" {
 		checkFn = checker.CheckOpenVSX
 	}
-	client := checker.NewClient()
+	client := httpx.NewClient()
 	userData, _ := store.LoadUserData(s.home)
 	var results []checker.CheckResponse
 	for _, id := range ids {
@@ -445,7 +446,7 @@ func (s *Server) runDirectChecksAsync(entries []store.TrackerEntry, p *store.Pro
 		checkFn = checker.CheckOpenVSX
 	}
 
-	client := checker.NewClient()
+	client := httpx.NewClient()
 	userData, _ := store.LoadUserData(s.home)
 	total := len(entries)
 	var results []checker.CheckResponse

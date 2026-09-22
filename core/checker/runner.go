@@ -4,6 +4,8 @@ package checker
 import (
 	"net/http"
 	"strings"
+
+	"github.com/vanadiry/serein/core/httpx"
 )
 
 // CheckRequest 一次检查的请求参数
@@ -64,7 +66,7 @@ func RunCheck(req CheckRequest) (CheckResponse, error) {
 		Platforms:       make(map[string]CheckPlatform),
 	}
 
-	client := NewClient()
+	client := httpx.NewClient()
 
 	if req.RuleType == "github" {
 		return runGitHubCheck(req, client)
