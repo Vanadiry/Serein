@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -34,12 +35,6 @@ func Request(client *http.Client, rawURL, ua string, headers map[string]string) 
 	if err := blockPrivate(rawURL); err != nil {
 		return nil, err
 	}
-	cacheMu.Lock()
-	if body, ok := urlCache[rawURL]; ok {
-		cacheMu.Unlock()
-		return body, nil
-	}
-	cacheMu.Unlock()
 
 	req, err := http.NewRequest("GET", rawURL, nil)
 	if err != nil {
@@ -53,6 +48,15 @@ func Request(client *http.Client, rawURL, ua string, headers map[string]string) 
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
+
+	// 缓存 key 纳入 UA 与 headers，避免同 URL 不同请求头命中错误缓存
+	key := requestKey(req)
+	cacheMu.Lock()
+	if body, ok := urlCache[key]; ok {
+		cacheMu.Unlock()
+		return body, nil
+	}
+	cacheMu.Unlock()
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -74,10 +78,30 @@ func Request(client *http.Client, rawURL, ua string, headers map[string]string) 
 	}
 
 	cacheMu.Lock()
-	urlCache[rawURL] = body
+	urlCache[key] = body
 	cacheMu.Unlock()
 
 	return body, nil
+}
+
+// requestKey 生成请求缓存 key：method + URL + 规范化后的 headers（含 UA）
+func requestKey(req *http.Request) string {
+	keys := make([]string, 0, len(req.Header))
+	for k := range req.Header {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var b strings.Builder
+	b.WriteString(req.Method)
+	b.WriteByte(' ')
+	b.WriteString(req.URL.String())
+	for _, k := range keys {
+		b.WriteByte('\x00')
+		b.WriteString(k)
+		b.WriteByte(':')
+		b.WriteString(strings.Join(req.Header[k], ","))
+	}
+	return b.String()
 }
 
 // PostRequest 发起 POST 请求，带 SSRF 校验与响应大小限制
