@@ -6,12 +6,6 @@ import (
 	"strings"
 )
 
-// CheckGitHub 单平台便捷调用（包装 CheckGitHubAll）。
-func CheckGitHub(cfg CheckConfig, client *http.Client) (PlatformResult, error) {
-	latest, _, err := CheckGitHubAll(cfg, client)
-	return latest, err
-}
-
 // CheckRequest 一次检查的请求参数
 type CheckRequest struct {
 	AppID           string

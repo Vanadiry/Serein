@@ -1,5 +1,5 @@
-// GitHub Release 解析器。一次 /releases 请求，同时返回最新版本和历史版本。
-// 复用 JSON 步进引擎：[0, "tag_name"] 为最新，后续下标为历史。
+// GitHub Release 解析器。一次 /releases 请求，返回最新（非预发布）版本。
+// 复用 JSON 步进引擎：[0, "tag_name"] 为最新。
 package checker
 
 import (
@@ -17,8 +17,8 @@ const (
 	defaultPerPage = 3
 )
 
-// CheckGitHubAll 请求 /releases，返回最新版本和所有历史版本
-func CheckGitHubAll(cfg CheckConfig, client *http.Client) (PlatformResult, []PlatformResult, error) {
+// CheckGitHub 请求 /releases，返回最新非预发布版本及其下载链接。
+func CheckGitHub(cfg CheckConfig, client *http.Client) (PlatformResult, error) {
 	perPage := cfg.PerPage
 	if perPage <= 0 {
 		perPage = defaultPerPage
@@ -30,12 +30,12 @@ func CheckGitHubAll(cfg CheckConfig, client *http.Client) (PlatformResult, []Pla
 	}
 	body, err := doRequest(client, url, cfg.UA, headers)
 	if err != nil {
-		return PlatformResult{}, nil, fmt.Errorf("github: %w", err)
+		return PlatformResult{}, fmt.Errorf("github: %w", err)
 	}
 
 	root, err := parseJSON(body)
 	if err != nil {
-		return PlatformResult{}, nil, fmt.Errorf("github: %w", err)
+		return PlatformResult{}, fmt.Errorf("github: %w", err)
 	}
 
 	arr, ok := root.([]any)
@@ -43,40 +43,36 @@ func CheckGitHubAll(cfg CheckConfig, client *http.Client) (PlatformResult, []Pla
 		// 尝试解析错误消息
 		if errMap, ok := root.(map[string]any); ok {
 			if msg, ok := errMap["message"].(string); ok {
-				return PlatformResult{}, nil, fmt.Errorf("github: %s", msg)
+				return PlatformResult{}, fmt.Errorf("github: %s", msg)
 			}
 		}
-		return PlatformResult{}, nil, fmt.Errorf("github: unexpected response format")
+		return PlatformResult{}, fmt.Errorf("github: unexpected response format")
 	}
 
 	var latest PlatformResult
 	var latestFound bool
-	var versions []PlatformResult
 
 	for i := range arr {
 		tag, err := extractGitHubVersion(root, i)
 		if err != nil {
 			continue
 		}
-		urls := extractGitHubAssets(root, i, cfg.DPosition)
-
-		pr := PlatformResult{
+		if isGitHubPrerelease(root, i) {
+			continue
+		}
+		latest = PlatformResult{
 			LatestVersion: tag,
-			URL:           urls,
+			URL:           extractGitHubAssets(root, i, cfg.DPosition),
 		}
-		versions = append(versions, pr)
-
-		if !latestFound && !isGitHubPrerelease(root, i) {
-			latest = pr
-			latestFound = true
-		}
+		latestFound = true
+		break
 	}
 
 	if !latestFound && len(arr) > 0 {
 		store.Emit("warn", "[github]", fmt.Sprintf("未在前 %d 个 release 中找到非预发布版本，可增大 per_page", perPage))
 	}
 
-	return latest, versions, nil
+	return latest, nil
 }
 
 func extractGitHubVersion(root any, idx int) (string, error) {
