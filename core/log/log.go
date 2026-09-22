@@ -1,8 +1,9 @@
-package store
+// 日志：三级输出 + 按大小/数量轮转
+package log
 
 import (
 	"io"
-	"log"
+	stdlog "log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -36,9 +37,9 @@ func (s sanitizingWriter) Write(p []byte) (int, error) {
 var (
 	logMu       sync.Mutex
 	logDir      string
-	infoLogger  *log.Logger
-	warnLogger  *log.Logger
-	errorLogger *log.Logger
+	infoLogger  *stdlog.Logger
+	warnLogger  *stdlog.Logger
+	errorLogger *stdlog.Logger
 	logFile     *os.File
 	logInited   bool
 )
@@ -66,9 +67,9 @@ func InitLogger(home string) error {
 	}
 
 	multi := sanitizingWriter{io.MultiWriter(os.Stdout, f)}
-	infoLogger = log.New(multi, "[INFO]  ", log.LstdFlags)
-	warnLogger = log.New(multi, "[WARN]  ", log.LstdFlags)
-	errorLogger = log.New(multi, "[ERROR] ", log.LstdFlags)
+	infoLogger = stdlog.New(multi, "[INFO]  ", stdlog.LstdFlags)
+	warnLogger = stdlog.New(multi, "[WARN]  ", stdlog.LstdFlags)
+	errorLogger = stdlog.New(multi, "[ERROR] ", stdlog.LstdFlags)
 	logFile = f
 	logInited = true
 	return nil
@@ -110,7 +111,7 @@ func rotateOnSize() {
 	errorLogger.SetOutput(multi)
 }
 
-// Logf 输出 info 级日志。判空与写入都在锁内，避免与 InitLogger/rotateOnSize 竞争。
+// Logf 输出 info 级日志。判空与写入都在锁内，避免与 InitLogger/rotateOnSize 竞争
 func Logf(format string, args ...any) {
 	logMu.Lock()
 	defer logMu.Unlock()

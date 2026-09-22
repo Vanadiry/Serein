@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/vanadiry/serein/core/store"
+	"github.com/vanadiry/serein/core/log"
 )
 
 func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +28,7 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	dl := strings.TrimSpace(s.config.Download.Downloader)
-	store.Logf("[download] %s (downloader=%q)", body.URL, dl)
+	log.Logf("[download] %s (downloader=%q)", body.URL, dl)
 
 	switch {
 	case dl == "":
@@ -38,7 +38,7 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 	case dl == "ndm":
 		err := sendToNDM(body.URL)
 		if err != nil {
-			store.LogfWarn("[download] ndm: %v, fallback to browser", err)
+			log.LogfWarn("[download] ndm: %v, fallback to browser", err)
 			OpenBrowser(body.URL)
 			writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "message": "Neat Download Manager 未运行，已在浏览器中打开"})
 			return
@@ -56,7 +56,7 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 			args[i] = strings.ReplaceAll(args[i], "{url}", body.URL)
 		}
 		if _, err := exec.LookPath(args[0]); err != nil {
-			store.LogfWarn("[download] %s not found, fallback to browser", args[0])
+			log.LogfWarn("[download] %s not found, fallback to browser", args[0])
 			OpenBrowser(body.URL)
 			writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "message": fmt.Sprintf("%s 未找到，已在浏览器中打开", args[0])})
 			return
@@ -65,7 +65,7 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "message": "已调用 " + args[0]})
 
 	default:
-		store.LogfWarn("[download] unknown downloader %q, fallback to browser", dl)
+		log.LogfWarn("[download] unknown downloader %q, fallback to browser", dl)
 		OpenBrowser(body.URL)
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "message": "下载器配置未知，已在浏览器中打开"})
 	}

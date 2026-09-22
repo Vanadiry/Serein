@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/vanadiry/serein/core/log"
 )
 
 func Init(home string) error {
@@ -28,7 +30,7 @@ func Init(home string) error {
 		return err
 	}
 
-	if err := InitLogger(home); err != nil {
+	if err := log.InitLogger(home); err != nil {
 		return err
 	}
 

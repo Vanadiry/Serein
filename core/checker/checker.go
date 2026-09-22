@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/vanadiry/serein/core/events"
 	"github.com/vanadiry/serein/core/httpx"
-	"github.com/vanadiry/serein/core/store"
 )
 
 // PlatformResult 单个平台的检查结果
@@ -121,7 +121,7 @@ func extractValue(body []byte, typ string, pos any, join, baseURL string) (any, 
 	case "html_selector":
 		return extractSelectorValue(body, pos, baseURL)
 	default:
-		store.Emit("warn", "[checker]", fmt.Sprintf("未知提取类型: %s", typ))
+		events.Emit("warn", "[checker]", fmt.Sprintf("未知提取类型: %s", typ))
 		return nil, nil
 	}
 }

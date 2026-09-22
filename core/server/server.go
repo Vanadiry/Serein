@@ -18,7 +18,9 @@ import (
 	"time"
 
 	"github.com/vanadiry/serein/core/checker"
+	"github.com/vanadiry/serein/core/events"
 	"github.com/vanadiry/serein/core/httpx"
+	"github.com/vanadiry/serein/core/log"
 	"github.com/vanadiry/serein/core/store"
 )
 
@@ -37,7 +39,7 @@ type Server struct {
 
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		store.Logf("[http] %s %s", r.Method, r.URL.Path)
+		log.Logf("[http] %s %s", r.Method, r.URL.Path)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -92,8 +94,8 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/check/tracker", s.handleCheckTracker)
 	s.mux.HandleFunc("POST /api/check/confirm", s.handleCheckConfirm)
 	s.mux.HandleFunc("GET /api/check/temp/{type}", s.handleCheckTemp)
-	s.mux.HandleFunc("GET /api/progress/{task_id}", store.HandleProgressSSE)
-	s.mux.HandleFunc("POST /api/check/cancel/{task_id}", store.HandleProgressCancel)
+	s.mux.HandleFunc("GET /api/progress/{task_id}", handleProgressSSE)
+	s.mux.HandleFunc("POST /api/check/cancel/{task_id}", handleProgressCancel)
 	s.mux.HandleFunc("GET /api/events", handleEvents)
 	s.mux.HandleFunc("GET /api/config", s.handleConfig)
 	s.mux.HandleFunc("POST /api/sync", s.handleSync)
@@ -175,7 +177,7 @@ func New(home string, webFS fs.FS) (*Server, error) {
 	if errs := cfg.Validate(); len(errs) > 0 {
 		return nil, &store.ValidationError{Errors: errs}
 	}
-	if err := store.InitLogger(home); err != nil {
+	if err := log.InitLogger(home); err != nil {
 		return nil, err
 	}
 	proxy := cfg.ProxyURL()
@@ -200,7 +202,7 @@ func New(home string, webFS fs.FS) (*Server, error) {
 func (s *Server) loadRules(report bool) []store.RuleIssue {
 	rules, issues, err := store.LoadRules(s.home)
 	if err != nil {
-		store.Emit("error", "[rules]", fmt.Sprintf("加载规则失败: %v", err))
+		events.Emit("error", "[rules]", fmt.Sprintf("加载规则失败: %v", err))
 		return issues
 	}
 	s.rulesMu.Lock()
@@ -209,7 +211,7 @@ func (s *Server) loadRules(report bool) []store.RuleIssue {
 	s.rulesMu.Unlock()
 	if report {
 		for _, is := range issues {
-			store.Emit(is.Level, "[rules]", is.Message)
+			events.Emit(is.Level, "[rules]", is.Message)
 		}
 	}
 	return issues
@@ -272,9 +274,9 @@ func (s *Server) Serve() error {
 	defer stop()
 
 	go func() {
-		store.Logf("listening on %s", s.actualAddr)
+		log.Logf("listening on %s", s.actualAddr)
 		if err := srv.Serve(s.ln); err != nil && err != http.ErrServerClosed {
-			store.LogfError("server: %v", err)
+			log.LogfError("server: %v", err)
 		}
 	}()
 

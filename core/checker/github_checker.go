@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"regexp"
 
+	"github.com/vanadiry/serein/core/events"
 	"github.com/vanadiry/serein/core/httpx"
-	"github.com/vanadiry/serein/core/store"
 )
 
 const (
@@ -77,7 +77,7 @@ func CheckGitHub(cfg GitHubConfig, client *http.Client) (PlatformResult, error) 
 	}
 
 	if !latestFound && len(arr) > 0 {
-		store.Emit("warn", "[github]", fmt.Sprintf("未在前 %d 个 release 中找到非预发布版本，可增大 per_page", perPage))
+		events.Emit("warn", "[github]", fmt.Sprintf("未在前 %d 个 release 中找到非预发布版本，可增大 per_page", perPage))
 	}
 
 	return latest, nil
@@ -101,13 +101,13 @@ func extractGitHubAssets(root any, idx int, dPosition any) any {
 	}
 	assetRe, err := regexp.Compile(assetReStr)
 	if err != nil {
-		store.Emit("error", "[github]", fmt.Sprintf("规则正则表达式编译失败: %v", err))
+		events.Emit("error", "[github]", fmt.Sprintf("规则正则表达式编译失败: %v", err))
 		return nil
 	}
 
 	assets, err := stepJSON(root, []any{int64(idx), "assets"}, "")
 	if err != nil {
-		store.Emit("error", "[github]", fmt.Sprintf("GitHub assets JSON 解析失败: %v", err))
+		events.Emit("error", "[github]", fmt.Sprintf("GitHub assets JSON 解析失败: %v", err))
 		return nil
 	}
 	assetArr, ok := assets.([]any)
@@ -140,7 +140,7 @@ func extractGitHubAssets(root any, idx int, dPosition any) any {
 func isGitHubPrerelease(root any, idx int) bool {
 	pr, err := stepJSON(root, []any{int64(idx), "prerelease"}, "")
 	if err != nil {
-		store.Emit("warn", "[github]", fmt.Sprintf("无法判断 release #%d 是否为预发布: %v", idx, err))
+		events.Emit("warn", "[github]", fmt.Sprintf("无法判断 release #%d 是否为预发布: %v", idx, err))
 		return false
 	}
 	b, ok := pr.(bool)

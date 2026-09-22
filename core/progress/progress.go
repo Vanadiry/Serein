@@ -1,13 +1,10 @@
-// SSE 进度系统：轻量版 Progress，用于检查更新时推送实时进度。
-package store
+// SSE 进度系统：轻量版 Progress，用于推送实时进度
+package progress
 
 import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
-	"net/http"
-	"os"
 	"sync"
 )
 
@@ -17,7 +14,7 @@ type Progress struct {
 	Channel chan string
 	Total   int
 	Done    int
-	Name    string // 当前正在检查的 app 名称
+	Name    string // 当前正在处理的名称
 	mu      sync.Mutex
 }
 
@@ -26,7 +23,7 @@ var (
 	progressMu  sync.Mutex
 )
 
-// NewProgress 创建一个进度追踪器，total 为待检查的 app 总数。
+// NewProgress 创建一个进度追踪器，total 为总数
 func NewProgress(total int) *Progress {
 	b := make([]byte, 4)
 	rand.Read(b)
@@ -42,7 +39,7 @@ func NewProgress(total int) *Progress {
 	return p
 }
 
-// Send 发送进度事件。step: "app" / "list" / "file" 等。
+// Send 发送进度事件。step: "app" / "list" / "file" 等
 func (p *Progress) Send(step, name string, done, total int) {
 	p.mu.Lock()
 	p.Done = done
@@ -54,7 +51,7 @@ func (p *Progress) Send(step, name string, done, total int) {
 	}
 }
 
-// SendMap 发送任意 JSON 事件。
+// SendMap 发送任意 JSON 事件
 func (p *Progress) SendMap(m map[string]any) {
 	data, _ := json.Marshal(m)
 	select {
@@ -63,7 +60,7 @@ func (p *Progress) SendMap(m map[string]any) {
 	}
 }
 
-// Close 结束进度追踪。
+// Close 结束进度追踪
 func (p *Progress) Close() {
 	select {
 	case p.Channel <- `{"step":"done"}`:
@@ -90,36 +87,4 @@ func GetProgress(id string) *Progress {
 	progressMu.Lock()
 	defer progressMu.Unlock()
 	return progressMap[id]
-}
-
-// HandleProgressCancel 终止端点：POST /api/check/cancel/{task_id}
-// 跨站请求由 server 的 sameOriginGuard 统一拦截
-func HandleProgressCancel(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "cancelled"})
-	os.Exit(0)
-}
-
-// HandleProgressSSE SSE 端点：GET /api/check/progress/{task_id}
-func HandleProgressSSE(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("task_id")
-	p := GetProgress(id)
-	if p == nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "task not found"})
-		return
-	}
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		return
-	}
-	for event := range p.Channel {
-		fmt.Fprintf(w, "data: %s\n\n", event)
-		flusher.Flush()
-	}
 }

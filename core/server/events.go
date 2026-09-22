@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/vanadiry/serein/core/store"
+	"github.com/vanadiry/serein/core/events"
 )
 
 func handleEvents(w http.ResponseWriter, r *http.Request) {
@@ -17,8 +17,8 @@ func handleEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ch := store.Subscribe()
-	defer store.Unsubscribe(ch)
+	ch := events.Subscribe()
+	defer events.Unsubscribe(ch)
 
 	ctx := r.Context()
 	for {

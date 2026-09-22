@@ -10,7 +10,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/vanadiry/serein/core/events"
 	"github.com/vanadiry/serein/core/httpx"
+	"github.com/vanadiry/serein/core/progress"
 )
 
 const maxFetchBytes = 8 << 20 // 8MB
@@ -132,7 +134,7 @@ type leafSrc struct {
 // 1. 遍历源树，收集所有叶子源 → 发 list 事件
 // 2. 并发下载所有规则文件 → 发 file 事件（done/total）
 // onDone 在同步完成后（进度关闭后）调用，可用于重载规则缓存
-func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *Progress, onDone func()) {
+func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *progress.Progress, onDone func()) {
 	if onDone != nil {
 		defer onDone()
 	}
@@ -194,12 +196,12 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 		for _, l := range leaves {
 			dest := filepath.Join(rulesDir, l.destDir)
 			if err := os.RemoveAll(dest); err != nil {
-				Emit("error", "[sync]", fmt.Sprintf("清理目录失败 %s: %v", dest, err))
+				events.Emit("error", "[sync]", fmt.Sprintf("清理目录失败 %s: %v", dest, err))
 			}
 			for _, f := range l.files {
 				rel, ok := safeRelPath(dest, f)
 				if !ok {
-					Emit("warn", "[sync]", fmt.Sprintf("跳过非法文件路径 %q（源 %s）", f, l.id))
+					events.Emit("warn", "[sync]", fmt.Sprintf("跳过非法文件路径 %q（源 %s）", f, l.id))
 					continue
 				}
 				wg.Add(1)
@@ -210,7 +212,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 
 					target := filepath.Join(rulesDir, l.destDir, f)
 					if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
-						Emit("error", "[sync]", fmt.Sprintf("创建目录失败 %s: %v", filepath.Dir(target), err))
+						events.Emit("error", "[sync]", fmt.Sprintf("创建目录失败 %s: %v", filepath.Dir(target), err))
 					}
 					var err error
 					if l.isWeb {
@@ -237,7 +239,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 			dest := filepath.Join(rulesDir, l.destDir)
 			os.MkdirAll(dest, 0755)
 			if err := os.WriteFile(filepath.Join(dest, "_source.json"), l.rawBody, 0644); err != nil {
-				Emit("error", "[sync]", fmt.Sprintf("写入 _source.json 失败 %s: %v", l.destDir, err))
+				events.Emit("error", "[sync]", fmt.Sprintf("写入 _source.json 失败 %s: %v", l.destDir, err))
 			}
 		}
 	}
@@ -272,7 +274,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 				newPath := filepath.Join(targetDir, e.Name())
 				os.Remove(newPath)
 				if err := os.Rename(oldPath, newPath); err != nil {
-					Emit("error", "[sync]", fmt.Sprintf("移动孤立文件失败 %s: %v", e.Name(), err))
+					events.Emit("error", "[sync]", fmt.Sprintf("移动孤立文件失败 %s: %v", e.Name(), err))
 				} else {
 					deletedFiles++
 				}
@@ -291,7 +293,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 	})
 }
 
-func gatherLeaves(sources []RuleSource, concurrency int, p *Progress) []leafSrc {
+func gatherLeaves(sources []RuleSource, concurrency int, p *progress.Progress) []leafSrc {
 	sem := make(chan struct{}, concurrency)
 	var mu sync.Mutex
 	var wg sync.WaitGroup
@@ -328,7 +330,7 @@ func gatherLeaves(sources []RuleSource, concurrency int, p *Progress) []leafSrc 
 	return leaves
 }
 
-func resolveLeaves(s *SourceJSON, rawBody []byte, sourceURL, destRel string, usedIDs map[string]bool, sem chan struct{}, mu *sync.Mutex, p *Progress) []leafSrc {
+func resolveLeaves(s *SourceJSON, rawBody []byte, sourceURL, destRel string, usedIDs map[string]bool, sem chan struct{}, mu *sync.Mutex, p *progress.Progress) []leafSrc {
 	isLocal := !strings.HasPrefix(sourceURL, "http://") && !strings.HasPrefix(sourceURL, "https://")
 	baseURL := s.BaseURL
 	if baseURL == "" {

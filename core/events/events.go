@@ -1,5 +1,5 @@
-// 全局事件总线：后端统一推送错误/警告/信息到前端 SSE。
-package store
+// 全局事件总线：后端统一推送错误/警告/信息到前端 SSE
+package events
 
 import (
 	"encoding/json"
@@ -27,7 +27,7 @@ type eventBus struct {
 // historyLimit 回放给新订阅者的历史事件条数上限
 const historyLimit = 50
 
-// eventSession 每次进程启动唯一，避免重启后 id 与旧客户端已见的重复。
+// eventSession 每次进程启动唯一，避免重启后 id 与旧客户端已见的重复
 var eventSession = strconv.FormatInt(time.Now().UnixNano(), 36)
 
 var globalBus = &eventBus{

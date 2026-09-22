@@ -12,7 +12,10 @@ import (
 	"time"
 
 	"github.com/vanadiry/serein/core/checker"
+	"github.com/vanadiry/serein/core/events"
 	"github.com/vanadiry/serein/core/httpx"
+	"github.com/vanadiry/serein/core/log"
+	"github.com/vanadiry/serein/core/progress"
 	"github.com/vanadiry/serein/core/store"
 )
 
@@ -80,7 +83,7 @@ func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
 	for _, job := range jobs {
 		resp, err := checker.RunCheck(job.req)
 		if err != nil {
-			store.Emit("error", "[check]", fmt.Sprintf("%s: %v", job.name, err))
+			events.Emit("error", "[check]", fmt.Sprintf("%s: %v", job.name, err))
 			continue
 		}
 		results = append(results, resp)
@@ -123,9 +126,9 @@ func (s *Server) handleCheckTracker(w http.ResponseWriter, r *http.Request) {
 		s.handleDirectCheck(w, entries, "openvsx")
 		return
 	}
-	store.Logf("[check/tracker] %s", body.TrackerID)
+	log.Logf("[check/tracker] %s", body.TrackerID)
 	httpx.ClearURLCache()
-	p := store.NewProgress(len(entries))
+	p := progress.NewProgress(len(entries))
 	go s.runTrackerChecksAsync(entries, p, body.TrackerID)
 	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(len(entries))})
 }
@@ -164,7 +167,7 @@ func (s *Server) handleCheckConfirm(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	store.Logf("[confirm] %s: %v", appID, userData[appID])
+	log.Logf("[confirm] %s: %v", appID, userData[appID])
 	writeJSON(w, http.StatusOK, map[string]any{
 		"app_id":    appID,
 		"status":    "ok",
@@ -183,7 +186,7 @@ func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) 
 	rules := s.getRules()
 	userData, udErr := store.LoadUserData(s.home)
 	if udErr != nil {
-		store.Emit("error", "[check]", fmt.Sprintf("加载用户数据失败: %v", udErr))
+		events.Emit("error", "[check]", fmt.Sprintf("加载用户数据失败: %v", udErr))
 	}
 
 	conc := s.config.Download.Concurrency
@@ -205,7 +208,7 @@ func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) 
 			if len(preSteps) > 0 {
 				preURL, err := checker.RunPreRequests(preSteps, httpx.NewClient())
 				if err != nil {
-					store.Emit("error", "[check]", fmt.Sprintf("%s 前置请求失败: %v", jobName, err))
+					events.Emit("error", "[check]", fmt.Sprintf("%s 前置请求失败: %v", jobName, err))
 				} else if preURL != "" {
 					platCfg.URL = preURL
 				}
@@ -263,7 +266,7 @@ func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) 
 	return jobs, conc
 }
 
-func (s *Server) runTrackerChecksAsync(entries []store.TrackerEntry, p *store.Progress, trackerID string) {
+func (s *Server) runTrackerChecksAsync(entries []store.TrackerEntry, p *progress.Progress, trackerID string) {
 	defer p.Close()
 
 	jobs, conc := s.buildCheckJobs(entries)
@@ -288,7 +291,7 @@ func (s *Server) runTrackerChecksAsync(entries []store.TrackerEntry, p *store.Pr
 
 			resp, err := checker.RunCheck(j.req)
 			if err != nil {
-				store.Emit("error", "[check]", fmt.Sprintf("%s: %v", j.name, err))
+				events.Emit("error", "[check]", fmt.Sprintf("%s: %v", j.name, err))
 				return
 			}
 			mu.Lock()
@@ -378,14 +381,14 @@ func saveCheckTemp(home, trackerID string, results []checker.CheckResponse) {
 		})
 	}
 	if err := store.SaveTrackerTemp(home, trackerID, temp); err != nil {
-		store.Emit("error", "[check]", fmt.Sprintf("保存检查结果缓存失败: %v", err))
+		events.Emit("error", "[check]", fmt.Sprintf("保存检查结果缓存失败: %v", err))
 	}
 }
 
 func (s *Server) handleDirectCheck(w http.ResponseWriter, entries []store.TrackerEntry, typ string) {
-	store.Logf("[check/%s] %d entries", typ, len(entries))
+	log.Logf("[check/%s] %d entries", typ, len(entries))
 	httpx.ClearURLCache()
-	p := store.NewProgress(len(entries))
+	p := progress.NewProgress(len(entries))
 	go s.runDirectChecksAsync(entries, p, typ)
 	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(len(entries))})
 }
@@ -401,7 +404,7 @@ func (s *Server) handleDirectCheckIDs(w http.ResponseWriter, ids []string, typ s
 	for _, id := range ids {
 		pr, err := checkFn(id, client)
 		if err != nil {
-			store.Emit("error", "["+typ+"]", fmt.Sprintf("%s: %v", id, err))
+			events.Emit("error", "["+typ+"]", fmt.Sprintf("%s: %v", id, err))
 			continue
 		}
 		currentVer := ""
@@ -427,7 +430,7 @@ func (s *Server) handleDirectCheckIDs(w http.ResponseWriter, ids []string, typ s
 	writeJSON(w, http.StatusOK, results)
 }
 
-func (s *Server) runDirectChecksAsync(entries []store.TrackerEntry, p *store.Progress, typ string) {
+func (s *Server) runDirectChecksAsync(entries []store.TrackerEntry, p *progress.Progress, typ string) {
 	defer p.Close()
 
 	checkFn := checker.CheckMSVSIX
@@ -453,7 +456,7 @@ func (s *Server) runDirectChecksAsync(entries []store.TrackerEntry, p *store.Pro
 
 			pr, err := checkFn(e.AppID, client)
 			if err != nil {
-				store.Emit("error", "["+typ+"]", fmt.Sprintf("%s: %v", e.AppID, err))
+				events.Emit("error", "["+typ+"]", fmt.Sprintf("%s: %v", e.AppID, err))
 				mu.Lock()
 				doneCount++
 				mu.Unlock()

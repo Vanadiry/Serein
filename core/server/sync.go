@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/vanadiry/serein/core/log"
+	"github.com/vanadiry/serein/core/progress"
 	"github.com/vanadiry/serein/core/store"
 )
 
@@ -32,8 +34,8 @@ func (s *Server) syncRules(w http.ResponseWriter) {
 		writeJSON(w, http.StatusOK, map[string]string{"task_id": ""})
 		return
 	}
-	store.Logf("[sync] %d sources", len(s.config.RuleSources))
-	p := store.NewProgress(0)
+	log.Logf("[sync] %d sources", len(s.config.RuleSources))
+	p := progress.NewProgress(0)
 	go store.SyncAllSourcesAsync(s.home, s.config.RuleSources, s.config.Download.Concurrency, p, s.reloadRules)
 	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID})
 }
