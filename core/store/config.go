@@ -17,13 +17,14 @@ type RuleSource struct {
 }
 
 type Config struct {
-	Serein      SereinConfig   `toml:"serein"`
-	Tracker     TrackerConfig  `toml:"tracker"`
-	Download    DownloadConfig `toml:"download"`
-	Access      AccessConfig   `toml:"access"`
-	Proxy       ProxyConfig    `toml:"proxy"`
-	Profile     ProfileConfig  `toml:"profile"`
-	RuleSources []RuleSource   `toml:"rule_sources"`
+	Serein      SereinConfig                 `toml:"serein"`
+	Tracker     TrackerConfig                `toml:"tracker"`
+	Download    DownloadConfig               `toml:"download"`
+	Access      AccessConfig                 `toml:"access"`
+	Proxy       ProxyConfig                  `toml:"proxy"`
+	Profile     ProfileConfig                `toml:"profile"`
+	RuleSources []RuleSource                 `toml:"rule_sources"`
+	RuleValues  map[string]map[string]string `toml:"rule_values,omitempty"`
 }
 
 // ProxyConfig 上游拉取使用的 HTTP 代理，host 为空则不启用

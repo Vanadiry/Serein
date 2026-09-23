@@ -16,6 +16,9 @@ concurrency = 8                   # 检查更新时的并发数
 [access]
 # github_token = "github_xxx"     # GitHub 令牌，用于提升请求限制，对所有发往 api.github.com 的请求生效
 
+# [rule_values]                   # 规则变量，用于替代规则中的自定义变量
+# FreeFileSync_Donation_Private.token = "xxx"
+
 [proxy]
 host = ""                         # HTTP 代理，留空则不启用
 port = 0

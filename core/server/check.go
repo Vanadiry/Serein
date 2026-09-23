@@ -205,15 +205,34 @@ func (s *Server) buildCheckJobs(ctx context.Context, entries []store.TrackerEntr
 			continue
 		}
 		jobName := rule.Info.Name
+		values := s.config.RuleValues[entry.AppID]
 		platforms := store.PlatformsFor(entry, s.config.Tracker.Platforms)
 
 		var platCfgs []checker.PlatformCheckConfig
 		for _, os := range platforms {
-			platCfg := rule.MergedConfig(os)
+			platCfg, err := rule.MergedConfig(os).ApplyRuleValues(values)
+			if err != nil {
+				events.Emit("error", "[check]", fmt.Sprintf("%s: %v", jobName, err))
+				continue
+			}
 
 			preSteps := rule.PreRequestChain(os)
 			if len(preSteps) > 0 {
-				preURL, err := checker.RunPreRequests(ctx, preSteps, httpx.NewClient())
+				applied := make([]store.PreRequestStep, 0, len(preSteps))
+				bad := false
+				for _, st := range preSteps {
+					nst, e := st.ApplyRuleValues(values)
+					if e != nil {
+						events.Emit("error", "[check]", fmt.Sprintf("%s: %v", jobName, e))
+						bad = true
+						break
+					}
+					applied = append(applied, nst)
+				}
+				if bad {
+					continue
+				}
+				preURL, err := checker.RunPreRequests(ctx, applied, httpx.NewClient())
 				if err != nil {
 					if !errors.Is(err, context.Canceled) {
 						events.Emit("error", "[check]", fmt.Sprintf("%s 前置请求失败: %v", jobName, err))
