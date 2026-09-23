@@ -33,6 +33,10 @@ concurrency = 8        # 检查更新时的并发数
 [access]
 # github_token = "github_xxx" # GitHub 令牌，用于提升请求限制，对所有发往 api.github.com 的请求生效
 
+[rule_values]          # 规则变量，用于填充规则中的自定义变量
+app_id.values = "xxx"
+app_id2.values2 = "xxx"
+
 [proxy]
 host = ""              # HTTP 代理，留空则不启用
 port = 0
@@ -76,6 +80,21 @@ Serein 不会收集你的 Token，请勿将 Token 外泄。
 
 Serein 从远端拉取 `profile.json` 来自动更新前端行为，例如何种链接被下载器捕获、版本前后缀去除。  
 你可以在规则页面右上角拉取动态配置。
+
+### 规则变量
+
+部分规则中，声明了自定义的变量。  
+在 `[rule_values]` 中填写之后，Serein 就能自动替换这些内容。  
+
+```toml
+[rule_values]
+FreeFileSync_Donation_Private.token = "abcdefg"
+# 均为 app_id.value_name 这样的键名
+AnotherApp.value = "yyy"
+```
+
+这项功能允许你持久地储存 Token 等数据，而不必每次更新规则都重新修改。  
+若有你未配置的变量，程序会跳过这条检查，并报出提示。
 
 ### 代理
 
