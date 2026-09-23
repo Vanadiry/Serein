@@ -310,7 +310,7 @@
                     placeholder.innerHTML =
                         '<h2 class="text-lg font-semibold text-text mb-2">空的 Tracker</h2><p>这个 Tracker 还没有添加任何软件。前往<a href="/rules" class="text-accent hover:underline">规则页面</a>搜索并添加软件。</p>';
                     swapView(list, placeholder);
-                    return;
+                    return data;
                 }
                 if (list.classList.contains("hidden")) {
                     list.innerHTML = data
@@ -324,6 +324,7 @@
                             .join("");
                     });
                 }
+                return data;
             }
 
             function formatRelativeTime(ts) {
@@ -348,6 +349,7 @@
 
             function renderSoftwareRow(d) {
                 const checked = checkResults[d.app_id];
+                const st = statusInfo(d.status);
                 const hasUpdate =
                     checked &&
                     Object.values(checked.platforms || {}).some(
@@ -563,7 +565,7 @@
 
                 return `<div class="flex items-center bg-surface-alt border border-bord-mid rounded-lg pl-2 pr-4 h-16 hover:border-bord transition-colors mb-2 overflow-hidden">
       <div class="flex-1 min-w-0 pr-4 flex flex-col justify-center">
-        <div class="text-base font-semibold truncate pl-1"><span class="select-text" ${tipAttr(escapeHtml(d.app_id || "") + (d.description ? "<br>" + escapeHtml(d.description) : "") + (d.status && d.status.length && d.status[0] ? "<br>状态：" + escapeHtml(d.status.join(", ")) : ""))}>${escapeHtml(d.name || d.app_id)}</span>${timeHTML}${d.status && d.status.length && d.status[0] ? ' <span class="inline-block w-2 h-2 rounded-full bg-warn align-middle"></span>' : ""}</div>
+        <div class="text-base font-semibold truncate pl-1"><span class="select-text${st && st.nameClass ? " " + st.nameClass : ""}" ${tipAttr(escapeHtml(d.app_id || "") + (d.description ? "<br>" + escapeHtml(d.description) : "") + (st ? "<br>状态：" + escapeHtml(st.message) : ""))}>${escapeHtml(d.name || d.app_id)}</span>${timeHTML}${st ? " " + st.dotHTML : ""}</div>
         <div class="mt-0.5">${versionHTML}</div>
       </div>
       ${rightIcons}
@@ -595,6 +597,7 @@
                 }
                 var errs = collectErrors(data || []);
                 ld.close();
+                showStatusToasts(detail.filter((d) => d.app_id === appId));
                 showCheckDone(errs);
             }
 
@@ -742,16 +745,16 @@
                 return errs;
             }
 
-            function finishCheckTracker(cancelled) {
-                api("/api/check/temp/" + currentTracker).then(function (data) {
-                    var results = (data && data.results) || [];
-                    mergeCheckResults(results);
-                    loadTrackerDetail(currentTracker);
-                    // 取消时已由 asyncCheck 弹出"已终止"，不再弹"检查完成"
-                    if (cancelled) return;
-                    var errs = collectErrors(results);
-                    showCheckDone(errs);
-                });
+            async function finishCheckTracker(cancelled) {
+                var data = await api("/api/check/temp/" + currentTracker);
+                var results = (data && data.results) || [];
+                mergeCheckResults(results);
+                var detail = (await loadTrackerDetail(currentTracker)) || [];
+                // 取消时已由 asyncCheck 弹出"已终止"，不再弹"检查完成"
+                if (cancelled) return;
+                showStatusToasts(detail);
+                var errs = collectErrors(results);
+                showCheckDone(errs);
             }
 
             function checkTracker() {

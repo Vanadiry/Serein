@@ -118,6 +118,46 @@ async function _handleResponse(r) {
     return data;
 }
 
+// 规则状态：{ message, level } → 渲染信息
+// level: ""（无等级）| warn | error | removed
+function statusInfo(status) {
+    if (!status || !status.message) return null;
+    var level = status.level || "";
+    var dot = "bg-warn";
+    var nameClass = "";
+    if (level === "error") {
+        dot = "bg-err";
+    } else if (level === "removed") {
+        dot = "bg-err";
+        nameClass = "line-through";
+    }
+    return {
+        message: status.message,
+        level: level,
+        nameClass: nameClass,
+        dotHTML:
+            '<span class="inline-block w-2 h-2 rounded-full ' +
+            dot +
+            ' align-middle"></span>'
+    };
+}
+
+// 检查完成后，为"带等级"的规则状态弹 toast（无等级不弹）
+function showStatusToasts(detail) {
+    (detail || []).forEach(function (d) {
+        var st = statusInfo(d.status);
+        if (!st || !st.level) return;
+        var bg = st.level === "warn" ? "bg-warn" : "bg-err";
+        _makeToast(
+            d.name || d.app_id,
+            escapeHtml(st.message),
+            bg,
+            bg + "/80",
+            st.level === "warn" ? 5 : 0
+        );
+    });
+}
+
 // 顶栏
 function renderTopbar(current) {
     const tb = document.getElementById("topbar");
