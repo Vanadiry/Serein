@@ -2,6 +2,7 @@
 package progress
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -15,6 +16,8 @@ type Progress struct {
 	Total   int
 	Done    int
 	Name    string // 当前正在处理的名称
+	ctx     context.Context
+	cancel  context.CancelFunc
 	mu      sync.Mutex
 	closed  bool
 }
@@ -28,10 +31,13 @@ var (
 func NewProgress(total int) *Progress {
 	b := make([]byte, 4)
 	rand.Read(b)
+	ctx, cancel := context.WithCancel(context.Background())
 	p := &Progress{
 		ID:      hex.EncodeToString(b),
 		Channel: make(chan string, 64),
 		Total:   total,
+		ctx:     ctx,
+		cancel:  cancel,
 	}
 	progressMu.Lock()
 	progressMap[p.ID] = p
@@ -39,6 +45,12 @@ func NewProgress(total int) *Progress {
 	p.Channel <- progressEvent("start", "", 0, total)
 	return p
 }
+
+// Context 返回该任务的 context，供子任务响应取消
+func (p *Progress) Context() context.Context { return p.ctx }
+
+// Cancel 取消该任务（幂等）
+func (p *Progress) Cancel() { p.cancel() }
 
 // Send 发送进度事件。step: "app" / "list" / "file" 等
 func (p *Progress) Send(step, name string, done, total int) {
@@ -85,6 +97,8 @@ func (p *Progress) Close() {
 	}
 	close(p.Channel)
 	p.mu.Unlock()
+
+	p.cancel()
 
 	progressMu.Lock()
 	delete(progressMap, p.ID)

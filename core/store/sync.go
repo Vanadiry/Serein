@@ -1,9 +1,11 @@
 package store
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -108,8 +110,12 @@ func copyFile(src, dst string) error {
 	return err
 }
 
-func downloadFile(url, dest string) error {
-	resp, err := httpx.DefaultClient().Get(url)
+func downloadFile(ctx context.Context, url, dest string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("下载 %s: %w", url, err)
+	}
+	resp, err := httpx.DefaultClient().Do(req)
 	if err != nil {
 		return fmt.Errorf("下载 %s: %w", url, err)
 	}
@@ -146,6 +152,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 	}
 	defer p.Close()
 
+	ctx := p.Context()
 	rulesDir := filepath.Join(home, "rules")
 
 	// Phase 1: 遍历
@@ -222,7 +229,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 					}
 					var err error
 					if l.isWeb {
-						err = downloadFile(strings.TrimSuffix(l.baseURL, "/")+"/"+filepath.ToSlash(f), target)
+						err = downloadFile(ctx, strings.TrimSuffix(l.baseURL, "/")+"/"+filepath.ToSlash(f), target)
 					} else {
 						err = copyFile(filepath.Join(l.baseURL, f), target)
 					}
