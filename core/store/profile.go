@@ -1,9 +1,11 @@
 package store
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -31,8 +33,12 @@ func LoadProfile(home string) (Profile, error) {
 	return p, nil
 }
 
-func SyncProfile(home, url string) (Profile, bool, error) {
-	resp, err := httpx.DefaultClient().Get(url)
+func SyncProfile(ctx context.Context, home, url string) (Profile, bool, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return Profile{}, false, fmt.Errorf("获取 profile.json: %w", err)
+	}
+	resp, err := httpx.DefaultClient().Do(req)
 	if err != nil {
 		return Profile{}, false, fmt.Errorf("获取 profile.json: %w", err)
 	}
@@ -59,6 +65,10 @@ func SyncProfile(home, url string) (Profile, bool, error) {
 
 	if remote.Version <= local.Version {
 		return local, false, nil
+	}
+
+	if err := ctx.Err(); err != nil {
+		return Profile{}, false, err
 	}
 
 	path := filepath.Join(home, "user", "profile.json")

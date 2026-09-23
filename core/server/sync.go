@@ -23,7 +23,7 @@ func (s *Server) handleSync(w http.ResponseWriter, r *http.Request) {
 	case "rules":
 		s.syncRules(w)
 	case "profile":
-		s.syncProfile(w)
+		s.syncProfile(w, r)
 	default:
 		writeError(w, http.StatusBadRequest, "unknown sync type: must be 'rules' or 'profile'")
 	}
@@ -40,14 +40,14 @@ func (s *Server) syncRules(w http.ResponseWriter) {
 	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID})
 }
 
-func (s *Server) syncProfile(w http.ResponseWriter) {
+func (s *Server) syncProfile(w http.ResponseWriter, r *http.Request) {
 	url := s.config.Profile.URL
 	if url == "" {
 		writeJSON(w, http.StatusOK, map[string]any{"updated": false, "message": "未配置 profile URL"})
 		return
 	}
 
-	p, updated, err := store.SyncProfile(s.home, url)
+	p, updated, err := store.SyncProfile(r.Context(), s.home, url)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

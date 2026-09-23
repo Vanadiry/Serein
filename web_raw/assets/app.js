@@ -94,11 +94,12 @@ async function api(path) {
     const r = await fetch(API + path);
     return _handleResponse(r);
 }
-async function apiPost(path, body) {
+async function apiPost(path, body, signal) {
     const r = await fetch(API + path, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: body ? JSON.stringify(body) : undefined
+        body: body ? JSON.stringify(body) : undefined,
+        signal: signal
     });
     return _handleResponse(r);
 }
@@ -229,13 +230,19 @@ async function checkRuleErrors() {
 
 // 拉取动态配置
 async function syncProfile() {
-    var ld = showLoading("动态配置", "正在拉取...");
+    var controller = new AbortController();
+    var pm = showProgressModal("动态配置", function () {
+        controller.abort();
+    });
+    pm.setStatus("正在拉取...");
     try {
-        var res = await apiPost("/api/sync", { type: "profile" });
-        if (!res || res.error) {
-            ld.close();
-            return;
-        }
+        var res = await apiPost(
+            "/api/sync",
+            { type: "profile" },
+            controller.signal
+        );
+        pm.close();
+        if (!res || res.error) return;
         if (res.known_extensions && res.known_extensions.length) {
             var escaped = res.known_extensions.map(function (e) {
                 return e.replace(/[.*+?^${}()|[\]\\]/g, function (m) {
@@ -245,9 +252,20 @@ async function syncProfile() {
             DOWNLOAD_EXTS = new RegExp("\\.(" + escaped.join("|") + ")$", "i");
         }
         var msg = res.updated ? "动态配置已更新" : "动态配置已是最新";
-        ld.done(msg, false);
+        _makeToast("动态配置", msg, "bg-ok", "bg-ok/80", 5);
     } catch (e) {
-        ld.done(e.message || "请求失败", true);
+        pm.close();
+        if (e && e.name === "AbortError") {
+            _makeToast("已终止", "动态配置未更新", "bg-warn", "bg-warn/80", 5);
+            return;
+        }
+        _makeToast(
+            "错误",
+            escapeHtml((e && e.message) || "请求失败"),
+            "bg-err",
+            "bg-err/80",
+            0
+        );
     }
 }
 
@@ -815,7 +833,7 @@ function refreshView(el, updateFn) {
 
 // 进度弹窗（全屏遮罩，不可关闭）
 
-function showProgressModal(title, cancelUrl) {
+function showProgressModal(title, cancel) {
     var overlay = document.createElement("div");
     overlay.className =
         "fixed inset-0 z-[200] bg-overlay flex items-center justify-center transition-opacity duration-200";
@@ -846,10 +864,11 @@ function showProgressModal(title, cancelUrl) {
         card.style.transform = "scale(1)";
     });
 
-    // 终止
-    if (cancelUrl) {
+    // 终止：cancel 为 URL 字符串（POST）或回调函数
+    if (cancel) {
         card.querySelector("#prog-cancel").onclick = function () {
-            fetch(cancelUrl, { method: "POST" });
+            if (typeof cancel === "function") cancel();
+            else fetch(cancel, { method: "POST" });
             var bar = card.querySelector("#prog-bar");
             bar.style.background = "var(--c-warn)";
             card.querySelector("#prog-title").textContent =
