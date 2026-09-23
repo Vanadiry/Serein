@@ -11,15 +11,16 @@ import (
 
 // Progress 一次操作的进度状态
 type Progress struct {
-	ID      string
-	Channel chan string
-	Total   int
-	Done    int
-	Name    string // 当前正在处理的名称
-	ctx     context.Context
-	cancel  context.CancelFunc
-	mu      sync.Mutex
-	closed  bool
+	ID        string
+	Channel   chan string
+	Total     int
+	Done      int
+	Name      string // 当前正在处理的名称
+	ctx       context.Context
+	cancel    context.CancelFunc
+	mu        sync.Mutex
+	closed    bool
+	cancelled bool
 }
 
 var (
@@ -50,7 +51,12 @@ func NewProgress(total int) *Progress {
 func (p *Progress) Context() context.Context { return p.ctx }
 
 // Cancel 取消该任务（幂等）
-func (p *Progress) Cancel() { p.cancel() }
+func (p *Progress) Cancel() {
+	p.mu.Lock()
+	p.cancelled = true
+	p.mu.Unlock()
+	p.cancel()
+}
 
 // Send 发送进度事件。step: "app" / "list" / "file" 等
 func (p *Progress) Send(step, name string, done, total int) {
@@ -91,8 +97,9 @@ func (p *Progress) Close() {
 		return
 	}
 	p.closed = true
+	data, _ := json.Marshal(map[string]any{"step": "done", "cancelled": p.cancelled})
 	select {
-	case p.Channel <- `{"step":"done"}`:
+	case p.Channel <- string(data):
 	default:
 	}
 	close(p.Channel)
