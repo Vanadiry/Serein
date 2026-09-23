@@ -59,14 +59,14 @@ func (s *Server) handleRulesCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 type ruleListItem struct {
-	AppID           string   `json:"app_id"`
-	Name            string   `json:"name"`
-	Description     string   `json:"description,omitempty"`
-	OfficialWebsite string   `json:"official_website,omitempty"`
-	Status          []string `json:"status,omitempty"`
-	Platforms       []string `json:"platforms"`
-	SourceID        string   `json:"source_id"`
-	SourceName      string   `json:"source_name,omitempty"`
+	AppID           string           `json:"app_id"`
+	Name            string           `json:"name"`
+	Description     string           `json:"description,omitempty"`
+	OfficialWebsite string           `json:"official_website,omitempty"`
+	Status          store.RuleStatus `json:"status"`
+	Platforms       []string         `json:"platforms"`
+	SourceID        string           `json:"source_id"`
+	SourceName      string           `json:"source_name,omitempty"`
 }
 
 func formatRuleList(home string, rules []store.Rule) []ruleListItem {
@@ -80,7 +80,7 @@ func formatRuleList(home string, rules []store.Rule) []ruleListItem {
 			Name:            rule.Info.Name,
 			Description:     rule.Info.Description,
 			OfficialWebsite: rule.Info.OfficialWebsite,
-			Status:          rule.Info.Status,
+			Status:          rule.Status,
 			Platforms:       rule.Info.Platforms,
 			SourceID:        rule.SourceID,
 		}

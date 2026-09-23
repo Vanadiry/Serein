@@ -53,7 +53,7 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 		Description     string            `json:"description,omitempty"`
 		Name            string            `json:"name"`
 		OfficialWebsite string            `json:"official_website,omitempty"`
-		Status          []string          `json:"status,omitempty"`
+		Status          store.RuleStatus  `json:"status"`
 		SourceID        string            `json:"source_id,omitempty"`
 		SourceName      string            `json:"source_name,omitempty"`
 		CurrentVersion  map[string]string `json:"current_version"`
@@ -83,7 +83,7 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 				d.Name = rule.Info.Name
 				d.Description = rule.Info.Description
 				d.OfficialWebsite = rule.Info.OfficialWebsite
-				d.Status = rule.Info.Status
+				d.Status = rule.Status
 				d.SourceID = rule.SourceID
 				if si, err := store.LoadSourceInfo(s.home, rule.SourceID); err == nil && si != nil {
 					d.SourceName = si.Name

@@ -26,6 +26,33 @@ type RuleInfo struct {
 	Platforms       []string `toml:"platforms"`
 }
 
+// RuleStatus 规则状态：消息 + 可选等级（warn | error | removed）
+type RuleStatus struct {
+	Message string `json:"message"`
+	Level   string `json:"level,omitempty"`
+}
+
+var validStatusLevels = map[string]bool{"warn": true, "error": true, "removed": true}
+
+// ParseRuleStatus 解析 status 数组：下标 0 恒为消息，下标 1（可选）为等级
+// 返回解析结果，以及等级是否未知（未知时按 warn 处理）
+func ParseRuleStatus(s []string) (RuleStatus, bool) {
+	var st RuleStatus
+	if len(s) > 0 {
+		st.Message = s[0]
+	}
+	if len(s) > 1 {
+		lv := strings.ToLower(strings.TrimSpace(s[1]))
+		if validStatusLevels[lv] {
+			st.Level = lv
+		} else {
+			st.Level = "warn"
+			return st, true
+		}
+	}
+	return st, false
+}
+
 // Position 在 TOML 中可为 []any（层级数组）、[][]any（多路径）、
 // string（正则）或 map[string]any（html_selector）。
 // 解析后存为 any，由 checker 运行时判断。
@@ -65,6 +92,7 @@ type PreRequestStep struct {
 // Rule 解析后的完整规则
 type Rule struct {
 	Info        RuleInfo
+	Status      RuleStatus                           // 由 Info.Status 解析
 	SourceID    string                               // 所属规则源 source_id
 	Config      PlatConfig                           // 共享配置
 	Platforms   map[string]PlatConfig                // 各平台特有配置
@@ -171,6 +199,11 @@ func ParseRuleFile(path string) (Rule, []RuleIssue, error) {
 			return Rule{}, issues, err
 		}
 		rule.Info = info
+		st, badLevel := ParseRuleStatus(info.Status)
+		rule.Status = st
+		if badLevel {
+			issues = append(issues, RuleIssue{Level: "warn", Message: fmt.Sprintf("%s: info: 未知状态等级 %q，按 warn 处理", label, info.Status[1])})
+		}
 	}
 
 	// config + config.{os}

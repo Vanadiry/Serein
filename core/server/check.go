@@ -201,6 +201,9 @@ func (s *Server) buildCheckJobs(ctx context.Context, entries []store.TrackerEntr
 		if !ok {
 			continue
 		}
+		if rule.Status.Level == "removed" {
+			continue
+		}
 		jobName := rule.Info.Name
 		platforms := store.PlatformsFor(entry, s.config.Tracker.Platforms)
 
