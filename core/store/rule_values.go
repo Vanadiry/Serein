@@ -1,85 +1,53 @@
 // 规则变量：规则里用 {{name}} 引用用户在 config 的 [rule_values] 里配置的私有值
-// 按 app_id 作用域，无全局回落；未定义的变量直接报错
+// 按 app_id 作用域，无全局回落。替换在规则加载时进行，遍历所有字符串值
 package store
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 )
 
 var ruleValueRe = regexp.MustCompile(`\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}`)
 
-// SubstituteRuleValues 替换字符串里的 {{name}}。出现未定义变量时返回错误
-func SubstituteRuleValues(s string, values map[string]string) (string, error) {
+// substituteString 替换字符串里的 {{name}}，返回结果与未定义的变量名
+func substituteString(s string, values map[string]string) (string, []string) {
 	if !strings.Contains(s, "{{") {
 		return s, nil
 	}
-	var missing string
+	var missing []string
 	out := ruleValueRe.ReplaceAllStringFunc(s, func(m string) string {
 		name := m[2 : len(m)-2]
 		v, ok := values[name]
 		if !ok {
-			missing = name
+			missing = append(missing, name)
 			return m
 		}
 		return v
 	})
-	if missing != "" {
-		return "", fmt.Errorf("未配置规则变量 %s", missing)
-	}
-	return out, nil
+	return out, missing
 }
 
-// ApplyRuleValues 替换 PlatConfig 中允许出现变量的字段（url/v_url/d_url/baseurl/headers）
-// 不修改入参的 map（headers 会复制）。position 字段不替换
-func (c PlatConfig) ApplyRuleValues(values map[string]string) (PlatConfig, error) {
-	var err error
-	if c.URL, err = SubstituteRuleValues(c.URL, values); err != nil {
-		return c, err
-	}
-	if c.VURL, err = SubstituteRuleValues(c.VURL, values); err != nil {
-		return c, err
-	}
-	if c.DURL, err = SubstituteRuleValues(c.DURL, values); err != nil {
-		return c, err
-	}
-	if c.BaseURL, err = SubstituteRuleValues(c.BaseURL, values); err != nil {
-		return c, err
-	}
-	if c.Headers != nil {
-		nh := make(map[string]string, len(c.Headers))
-		for k, v := range c.Headers {
-			nv, e := SubstituteRuleValues(v, values)
-			if e != nil {
-				return c, e
-			}
-			nh[k] = nv
+// substituteRaw 递归替换 raw 中所有字符串值里的 {{name}}（不改动 map 的 key）
+// 未定义的变量名收集到 missing
+func substituteRaw(v any, values map[string]string, missing map[string]bool) any {
+	switch t := v.(type) {
+	case map[string]any:
+		for k, vv := range t {
+			t[k] = substituteRaw(vv, values, missing)
 		}
-		c.Headers = nh
-	}
-	return c, nil
-}
-
-// ApplyRuleValues 替换 PreRequestStep 中允许出现变量的字段（url/baseurl/headers）
-func (s PreRequestStep) ApplyRuleValues(values map[string]string) (PreRequestStep, error) {
-	var err error
-	if s.URL, err = SubstituteRuleValues(s.URL, values); err != nil {
-		return s, err
-	}
-	if s.BaseURL, err = SubstituteRuleValues(s.BaseURL, values); err != nil {
-		return s, err
-	}
-	if s.Headers != nil {
-		nh := make(map[string]string, len(s.Headers))
-		for k, v := range s.Headers {
-			nv, e := SubstituteRuleValues(v, values)
-			if e != nil {
-				return s, e
-			}
-			nh[k] = nv
+		return t
+	case []any:
+		for i, vv := range t {
+			t[i] = substituteRaw(vv, values, missing)
 		}
-		s.Headers = nh
+		return t
+	case string:
+		out, miss := substituteString(t, values)
+		for _, m := range miss {
+			missing[m] = true
+		}
+		return out
+	default:
+		return v
 	}
-	return s, nil
 }

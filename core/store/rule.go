@@ -91,12 +91,13 @@ type PreRequestStep struct {
 
 // Rule 解析后的完整规则
 type Rule struct {
-	Info        RuleInfo
-	Status      RuleStatus                           // 由 Info.Status 解析
-	SourceID    string                               // 所属规则源 source_id
-	Config      PlatConfig                           // 共享配置
-	Platforms   map[string]PlatConfig                // 各平台特有配置
-	PreRequests map[string]map[string]PreRequestStep // id → platform(空串=通用) → step
+	Info          RuleInfo
+	Status        RuleStatus                           // 由 Info.Status 解析
+	MissingValues []string                             // 规则引用但 config 未配置的规则变量
+	SourceID      string                               // 所属规则源 source_id
+	Config        PlatConfig                           // 共享配置
+	Platforms     map[string]PlatConfig                // 各平台特有配置
+	PreRequests   map[string]map[string]PreRequestStep // id → platform(空串=通用) → step
 }
 
 // 解析
@@ -112,6 +113,12 @@ func LoadRules(home string) (map[string]Rule, []RuleIssue, error) {
 	var issues []RuleIssue
 	ruleDir := filepath.Join(home, "rules")
 
+	// 规则变量来自 config.toml；读不到就当作未配置
+	var ruleValues map[string]map[string]string
+	if cfg, cfgErr := LoadConfig(home); cfgErr == nil {
+		ruleValues = cfg.RuleValues
+	}
+
 	err := filepath.WalkDir(ruleDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -122,7 +129,7 @@ func LoadRules(home string) (map[string]Rule, []RuleIssue, error) {
 		// 提取 source_id：从 .toml 文件向上查找最近的 _source.json 所在目录
 		sourceID := findNearestSourceID(ruleDir, path)
 
-		rule, ruleIssues, parseErr := ParseRuleFile(path)
+		rule, ruleIssues, parseErr := ParseRuleFile(path, ruleValues)
 		issues = append(issues, ruleIssues...)
 		if parseErr != nil {
 			issues = append(issues, RuleIssue{Level: "error", Message: fmt.Sprintf("解析规则文件失败 %s: %v", path, parseErr)})
@@ -162,7 +169,7 @@ func RulesFingerprint(home string) string {
 // ruleSections 规则文件的合法顶层段
 var ruleSections = map[string]bool{"info": true, "config": true, "pre_request": true}
 
-func ParseRuleFile(path string) (Rule, []RuleIssue, error) {
+func ParseRuleFile(path string, ruleValues map[string]map[string]string) (Rule, []RuleIssue, error) {
 	var raw map[string]any
 	if _, err := toml.DecodeFile(path, &raw); err != nil {
 		return Rule{}, nil, err
@@ -170,6 +177,26 @@ func ParseRuleFile(path string) (Rule, []RuleIssue, error) {
 
 	label := filepath.Base(path)
 	var issues []RuleIssue
+
+	// 规则变量替换：按 app_id 作用域，遍历所有字符串值（不改 key）
+	appID, _ := raw["info"].(map[string]any)
+	appIDStr := ""
+	if appID != nil {
+		appIDStr, _ = appID["app_id"].(string)
+	}
+	missingSet := make(map[string]bool)
+	raw = substituteRaw(raw, ruleValues[appIDStr], missingSet).(map[string]any)
+	if appID != nil && appIDStr != "" {
+		appID["app_id"] = appIDStr // 身份键，不参与替换
+	}
+	var missing []string
+	for m := range missingSet {
+		missing = append(missing, m)
+	}
+	sort.Strings(missing)
+	for _, m := range missing {
+		issues = append(issues, RuleIssue{Level: "warn", Message: fmt.Sprintf("%s: 未配置规则变量 %s", label, m)})
+	}
 
 	var unknownTop []string
 	for k := range raw {
@@ -183,8 +210,9 @@ func ParseRuleFile(path string) (Rule, []RuleIssue, error) {
 	}
 
 	rule := Rule{
-		Platforms:   make(map[string]PlatConfig),
-		PreRequests: make(map[string]map[string]PreRequestStep),
+		MissingValues: missing,
+		Platforms:     make(map[string]PlatConfig),
+		PreRequests:   make(map[string]map[string]PreRequestStep),
 	}
 
 	// info
