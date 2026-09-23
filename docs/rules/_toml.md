@@ -10,7 +10,7 @@ app_id = "vanadiry-seshat"         # 唯一标识，更推荐直接用 UUID。�
 name = "Seshat"                    # 名称，会在前端显示
 platforms = ["macos", "windows"]   # 平台
 description = "番组计划 Tracker 管理工具"   # 可选，描述
-status = ["ABC"]                    # 可选，状态。若有值，前端将展示一个黄点
+status = ["维护中", "warn"]         # 可选，状态：[消息, 等级]。等级可省略
 official_website = "https://github.com/Vanadiry/Seshat"   # 可选，官网
 
 [config]
@@ -25,6 +25,16 @@ force_downloader = true
 [config.windows]
 d_position = "..."
 ```
+
+## status
+
+`status = ["消息", "等级"]`
+
+下标 0 恒为消息。  
+下标 1 可选，为等级。若无等级，则会在软件名旁边展示橙色圆点。若有等级，检查更新时还会额外弹出对应等级的 toast。
+
+等级允许 `warn`、`error`、`removed`（大小写不敏感）。未知等级按 `warn` 处理，并额外告警。
+等级为 `removed` 时，程序将跳过这个软件。
 
 ## [config]
 
