@@ -171,10 +171,7 @@ paths:
                   results:
                     type: array
                     items:
-                      $ref: "#/components/schemas/TempCheckResult"
-                  expired:
-                    type: boolean
-                    description: 缓存是否超过 24 小时
+                      $ref: "#/components/schemas/CheckResponse"
 
   # Progress (SSE)
   /api/progress/{task_id}:
@@ -434,22 +431,3 @@ components:
         name: { type: string }
         description: { type: string }
         app_count: { type: integer }
-    TempCheckResult:
-      type: object
-      properties:
-        app_id: { type: string }
-        name: { type: string }
-        platforms:
-          type: object
-          additionalProperties:
-            type: object
-            properties:
-              current_version: { type: string }
-              latest_version: { type: string }
-              url:
-                oneOf:
-                  - type: string
-                  - type: array
-                    items: { type: string }
-              error: { type: string }
-              force_downloader: { type: boolean }
