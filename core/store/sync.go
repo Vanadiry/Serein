@@ -305,6 +305,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 		"files":           totalFiles,
 		"file_errors":     fileErrors,
 		"failures":        failures,
+		"cancelled":       ctx.Err() != nil,
 	})
 }
 

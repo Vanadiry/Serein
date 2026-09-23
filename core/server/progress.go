@@ -4,18 +4,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/vanadiry/serein/core/progress"
 )
 
 // POST /api/check/cancel/{task_id}
-// 终止端点。跨站请求由 server 的 sameOriginGuard 统一拦截
-func handleProgressCancel(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "cancelled"})
-	os.Exit(0)
+// 取消任务：中断其 context，由任务自身收尾。跨站请求由 server 的 sameOriginGuard 统一拦截
+func handleProgressCancel(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("task_id")
+	p := progress.GetProgress(id)
+	if p == nil {
+		writeJSON(w, http.StatusNotFound, map[string]string{"error": "task not found"})
+		return
+	}
+	p.Cancel()
+	writeJSON(w, http.StatusOK, map[string]string{"status": "cancelled"})
 }
 
 // GET /api/progress/{task_id} SSE 端点
