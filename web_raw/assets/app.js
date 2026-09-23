@@ -897,6 +897,9 @@ async function asyncCheck(apiPath, body, onDone) {
         if (d.step === "done") {
             evt.close();
             pm.close();
+            if (d.cancelled) {
+                _makeToast("已终止", "取消检查", "bg-warn", "bg-warn/80", 5);
+            }
             onDone();
             return;
         }
@@ -956,6 +959,11 @@ function startSyncProgress(taskId) {
                 );
             } else if (d.file_errors > 0) {
                 parts.push(d.file_errors + " 条规则下载失败");
+            }
+            if (d.cancelled) {
+                _makeToast("已终止", "取消拉取，规则未被替换", "bg-warn", "bg-warn/80", 5);
+                if (typeof loadSources === "function") loadSources();
+                return;
             }
             var msg = parts.length > 0 ? parts.join("<br>") : "同步完成";
             var hasError =
