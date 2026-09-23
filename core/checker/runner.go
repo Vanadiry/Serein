@@ -3,11 +3,17 @@ package checker
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/vanadiry/serein/core/httpx"
 )
+
+// isCanceled 判断错误是否来自 context 取消，取消时不应作为检查错误上报
+func isCanceled(err error) bool {
+	return errors.Is(err, context.Canceled)
+}
 
 // CheckRequest 一次检查的请求参数
 type CheckRequest struct {
@@ -76,11 +82,14 @@ func RunCheck(ctx context.Context, req CheckRequest) (CheckResponse, error) {
 	for _, pc := range req.Platforms {
 		pr, err := RunPlatformCheck(ctx, pc, client)
 		if err != nil {
-			resp.Platforms[pc.OS] = CheckPlatform{
+			cp := CheckPlatform{
 				CurrentVersion:  pc.CurrentVersion,
-				Error:           err.Error(),
 				ForceDownloader: pc.ForceDownloader,
 			}
+			if !isCanceled(err) {
+				cp.Error = err.Error()
+			}
+			resp.Platforms[pc.OS] = cp
 			continue
 		}
 		resp.Platforms[pc.OS] = CheckPlatform{
@@ -123,11 +132,14 @@ func runGitHubCheck(ctx context.Context, req CheckRequest, client *http.Client) 
 		}
 		pr, err := CheckGitHub(ctx, cfg, client)
 		if err != nil {
-			resp.Platforms[pc.OS] = CheckPlatform{
+			cp := CheckPlatform{
 				CurrentVersion:  pc.CurrentVersion,
-				Error:           err.Error(),
 				ForceDownloader: pc.ForceDownloader,
 			}
+			if !isCanceled(err) {
+				cp.Error = err.Error()
+			}
+			resp.Platforms[pc.OS] = cp
 			continue
 		}
 		if pc.DType == "direct" {

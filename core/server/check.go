@@ -85,7 +85,9 @@ func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
 	for _, job := range jobs {
 		resp, err := checker.RunCheck(r.Context(), job.req)
 		if err != nil {
-			events.Emit("error", "[check]", fmt.Sprintf("%s: %v", job.name, err))
+			if !errors.Is(err, context.Canceled) {
+				events.Emit("error", "[check]", fmt.Sprintf("%s: %v", job.name, err))
+			}
 			continue
 		}
 		results = append(results, resp)
@@ -210,7 +212,9 @@ func (s *Server) buildCheckJobs(ctx context.Context, entries []store.TrackerEntr
 			if len(preSteps) > 0 {
 				preURL, err := checker.RunPreRequests(ctx, preSteps, httpx.NewClient())
 				if err != nil {
-					events.Emit("error", "[check]", fmt.Sprintf("%s 前置请求失败: %v", jobName, err))
+					if !errors.Is(err, context.Canceled) {
+						events.Emit("error", "[check]", fmt.Sprintf("%s 前置请求失败: %v", jobName, err))
+					}
 				} else if preURL != "" {
 					platCfg.URL = preURL
 				}
@@ -414,7 +418,9 @@ func (s *Server) handleDirectCheckIDs(ctx context.Context, w http.ResponseWriter
 	for _, id := range ids {
 		pr, err := checkFn(ctx, id, client)
 		if err != nil {
-			events.Emit("error", "["+typ+"]", fmt.Sprintf("%s: %v", id, err))
+			if !errors.Is(err, context.Canceled) {
+				events.Emit("error", "["+typ+"]", fmt.Sprintf("%s: %v", id, err))
+			}
 			continue
 		}
 		currentVer := ""
