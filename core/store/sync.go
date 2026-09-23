@@ -38,6 +38,9 @@ func fetchSourceJSON(url string) (*SourceJSON, []byte, error) {
 			return nil, nil, reqErr
 		}
 		defer resp.Body.Close()
+		if err := httpx.CheckStatus(resp); err != nil {
+			return nil, nil, err
+		}
 		body, err = io.ReadAll(io.LimitReader(resp.Body, maxFetchBytes))
 	} else {
 		body, err = os.ReadFile(url)
@@ -111,6 +114,9 @@ func downloadFile(url, dest string) error {
 		return fmt.Errorf("下载 %s: %w", url, err)
 	}
 	defer resp.Body.Close()
+	if err := httpx.CheckStatus(resp); err != nil {
+		return fmt.Errorf("下载 %s: %w", url, err)
+	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxFetchBytes))
 	if err != nil {
 		return err

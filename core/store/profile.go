@@ -38,13 +38,13 @@ func SyncProfile(home, url string) (Profile, bool, error) {
 	}
 	defer resp.Body.Close()
 
+	if err := httpx.CheckStatus(resp); err != nil {
+		return Profile{}, false, fmt.Errorf("获取 profile.json: %w", err)
+	}
+
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxFetchBytes))
 	if err != nil {
 		return Profile{}, false, err
-	}
-
-	if resp.StatusCode >= 400 {
-		return Profile{}, false, fmt.Errorf("获取 profile.json: HTTP %d", resp.StatusCode)
 	}
 
 	var remote Profile

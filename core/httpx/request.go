@@ -30,6 +30,15 @@ func ClearURLCache() {
 	cacheMu.Unlock()
 }
 
+// CheckStatus 校验响应状态码，>= 400 时读取有限的错误响应体并返回错误
+func CheckStatus(resp *http.Response) error {
+	if resp.StatusCode < 400 {
+		return nil
+	}
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrBodyBytes))
+	return fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
+}
+
 // Request 发起 GET 请求，带 SSRF 校验与响应大小限制，并缓存结果
 func Request(client *http.Client, rawURL, ua string, headers map[string]string) ([]byte, error) {
 	if err := blockPrivate(rawURL); err != nil {
@@ -64,9 +73,8 @@ func Request(client *http.Client, rawURL, ua string, headers map[string]string) 
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode >= 400 {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrBodyBytes))
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
+	if err := CheckStatus(resp); err != nil {
+		return nil, err
 	}
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxRespBytes+1))
@@ -128,9 +136,8 @@ func PostRequest(client *http.Client, rawURL, ua string, headers map[string]stri
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode >= 400 {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrBodyBytes))
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
+	if err := CheckStatus(resp); err != nil {
+		return nil, err
 	}
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxRespBytes+1))
