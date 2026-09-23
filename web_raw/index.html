@@ -742,11 +742,13 @@
                 return errs;
             }
 
-            function finishCheckTracker() {
+            function finishCheckTracker(cancelled) {
                 api("/api/check/temp/" + currentTracker).then(function (data) {
                     var results = (data && data.results) || [];
                     mergeCheckResults(results);
                     loadTrackerDetail(currentTracker);
+                    // 取消时已由 asyncCheck 弹出"已终止"，不再弹"检查完成"
+                    if (cancelled) return;
                     var errs = collectErrors(results);
                     showCheckDone(errs);
                 });

@@ -919,7 +919,7 @@ async function asyncCheck(apiPath, body, onDone) {
             if (d.cancelled) {
                 _makeToast("已终止", "取消检查", "bg-warn", "bg-warn/80", 5);
             }
-            onDone();
+            onDone(d.cancelled);
             return;
         }
         if (d.step === "app") {
