@@ -130,6 +130,13 @@ type leafSrc struct {
 	version int
 }
 
+// syncFailure 一次同步中某个规则文件失败的信息
+type syncFailure struct {
+	Source string `json:"source"`
+	File   string `json:"file"`
+	Error  string `json:"error"`
+}
+
 // SyncAllSourcesAsync 两阶段同步：
 // 1. 遍历源树，收集所有叶子源 → 发 list 事件
 // 2. 并发下载所有规则文件 → 发 file 事件（done/total）
@@ -187,6 +194,8 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 	}
 
 	fileErrors := 0
+	sourcesFailed := 0
+	var failures []syncFailure
 
 	if totalFiles > 0 {
 		sem := make(chan struct{}, concurrency)
@@ -211,6 +220,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 					mu.Lock()
 					leafFailed[i] = true
 					fileErrors++
+					failures = append(failures, syncFailure{Source: l.id, File: f, Error: "非法文件路径"})
 					mu.Unlock()
 					continue
 				}
@@ -227,6 +237,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 					if err != nil {
 						leafFailed[i] = true
 						fileErrors++
+						failures = append(failures, syncFailure{Source: l.id, File: rel, Error: err.Error()})
 						name += " (失败)"
 					} else {
 						contents[i][rel] = body
@@ -237,6 +248,12 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 			}
 		}
 		wg.Wait()
+
+		for i := range leaves {
+			if leafFailed[i] {
+				sourcesFailed++
+			}
+		}
 
 		// 提交：仅整体替换全部文件成功的源；取消时不提交
 		if ctx.Err() == nil {
@@ -277,8 +294,10 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 		"sources_total":   sourcesTotal,
 		"sources_skipped": sourcesSkipped,
 		"sources_updated": sourcesUpdated,
+		"sources_failed":  sourcesFailed,
 		"files":           totalFiles,
 		"file_errors":     fileErrors,
+		"failures":        failures,
 	})
 }
 
