@@ -93,41 +93,29 @@ func safeRelPath(base, rel string) (string, bool) {
 	return cleaned, true
 }
 
-func copyFile(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
+// readLeafFile 读取叶子源的一个文件内容：web 源走网络，本地源读文件
+func readLeafFile(ctx context.Context, l leafSrc, rel string) ([]byte, error) {
+	if !l.isWeb {
+		return os.ReadFile(filepath.Join(l.baseURL, rel))
 	}
-	defer in.Close()
-
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	_, err = io.Copy(out, in)
-	return err
-}
-
-func downloadFile(ctx context.Context, url, dest string) error {
+	url := strings.TrimSuffix(l.baseURL, "/") + "/" + filepath.ToSlash(rel)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return fmt.Errorf("下载 %s: %w", url, err)
+		return nil, fmt.Errorf("下载 %s: %w", url, err)
 	}
 	resp, err := httpx.DefaultClient().Do(req)
 	if err != nil {
-		return fmt.Errorf("下载 %s: %w", url, err)
+		return nil, fmt.Errorf("下载 %s: %w", url, err)
 	}
 	defer resp.Body.Close()
 	if err := httpx.CheckStatus(resp); err != nil {
-		return fmt.Errorf("下载 %s: %w", url, err)
+		return nil, fmt.Errorf("下载 %s: %w", url, err)
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxFetchBytes))
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return os.WriteFile(dest, body, 0644)
+	return body, nil
 }
 
 // 异步同步（带进度）
@@ -180,7 +168,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 	}
 	leaves = fresh
 	sourcesSkipped := len(skipped)
-	sourcesUpdated := len(leaves)
+	sourcesUpdated := 0
 
 	totalFiles := 0
 	for _, l := range leaves {
@@ -206,53 +194,80 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 		var done int
 		var wg sync.WaitGroup
 
-		for _, l := range leaves {
-			dest := filepath.Join(rulesDir, l.destDir)
-			if err := os.RemoveAll(dest); err != nil {
-				events.Emit("error", "[sync]", fmt.Sprintf("清理目录失败 %s: %v", dest, err))
-			}
+		// 内存暂存：每个叶子源的文件内容，仅当该源全部文件成功时才提交
+		contents := make([]map[string][]byte, len(leaves))
+		leafFailed := make([]bool, len(leaves))
+		for i := range leaves {
+			contents[i] = make(map[string][]byte)
+		}
+
+		for i := range leaves {
+			l := leaves[i]
+			base := filepath.Join(rulesDir, l.destDir)
 			for _, f := range l.files {
-				rel, ok := safeRelPath(dest, f)
+				rel, ok := safeRelPath(base, f)
 				if !ok {
 					events.Emit("warn", "[sync]", fmt.Sprintf("跳过非法文件路径 %q（源 %s）", f, l.id))
+					mu.Lock()
+					leafFailed[i] = true
+					fileErrors++
+					mu.Unlock()
 					continue
 				}
 				wg.Add(1)
-				go func(l leafSrc, f string) {
+				go func(i int, l leafSrc, rel string) {
 					defer wg.Done()
 					sem <- struct{}{}
 					defer func() { <-sem }()
 
-					target := filepath.Join(rulesDir, l.destDir, f)
-					if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
-						events.Emit("error", "[sync]", fmt.Sprintf("创建目录失败 %s: %v", filepath.Dir(target), err))
-					}
-					var err error
-					if l.isWeb {
-						err = downloadFile(ctx, strings.TrimSuffix(l.baseURL, "/")+"/"+filepath.ToSlash(f), target)
-					} else {
-						err = copyFile(filepath.Join(l.baseURL, f), target)
-					}
+					body, err := readLeafFile(ctx, l, rel)
 					mu.Lock()
 					done++
-					name := f
+					name := rel
 					if err != nil {
-						name += " (失败)"
+						leafFailed[i] = true
 						fileErrors++
+						name += " (失败)"
+					} else {
+						contents[i][rel] = body
 					}
 					p.Send("file", name, done, totalFiles)
 					mu.Unlock()
-				}(l, rel)
+				}(i, l, rel)
 			}
 		}
 		wg.Wait()
 
-		// 写入 _source.json
-		for _, l := range leaves {
-			dest := filepath.Join(rulesDir, l.destDir)
-			os.MkdirAll(dest, 0755)
-			if err := os.WriteFile(filepath.Join(dest, "_source.json"), l.rawBody, 0644); err != nil {
-				events.Emit("error", "[sync]", fmt.Sprintf("写入 _source.json 失败 %s: %v", l.destDir, err))
+		// 提交：仅整体替换全部文件成功的源；取消时不提交
+		if ctx.Err() == nil {
+			for i := range leaves {
+				if leafFailed[i] {
+					continue
+				}
+				l := leaves[i]
+				dest := filepath.Join(rulesDir, l.destDir)
+				if err := os.RemoveAll(dest); err != nil {
+					events.Emit("error", "[sync]", fmt.Sprintf("清理目录失败 %s: %v", dest, err))
+					continue
+				}
+				if err := os.MkdirAll(dest, 0755); err != nil {
+					events.Emit("error", "[sync]", fmt.Sprintf("创建目录失败 %s: %v", dest, err))
+					continue
+				}
+				for rel, body := range contents[i] {
+					target := filepath.Join(dest, rel)
+					if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+						events.Emit("error", "[sync]", fmt.Sprintf("创建目录失败 %s: %v", filepath.Dir(target), err))
+						continue
+					}
+					if err := os.WriteFile(target, body, 0644); err != nil {
+						events.Emit("error", "[sync]", fmt.Sprintf("写入文件失败 %s: %v", target, err))
+					}
+				}
+				if err := os.WriteFile(filepath.Join(dest, "_source.json"), l.rawBody, 0644); err != nil {
+					events.Emit("error", "[sync]", fmt.Sprintf("写入 _source.json 失败 %s: %v", l.destDir, err))
+				}
+				sourcesUpdated++
 			}
 		}
 	}
