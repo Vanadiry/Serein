@@ -30,12 +30,19 @@ type SourceJSON struct {
 	Files       []string `json:"files"`
 }
 
-func fetchSourceJSON(url string) (*SourceJSON, []byte, error) {
+func fetchSourceJSON(ctx context.Context, url string) (*SourceJSON, []byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
 	var body []byte
 	var err error
 
 	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
-		resp, reqErr := httpx.DefaultClient().Get(url)
+		req, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if reqErr != nil {
+			return nil, nil, reqErr
+		}
+		resp, reqErr := httpx.DefaultClient().Do(req)
 		if reqErr != nil {
 			return nil, nil, reqErr
 		}
@@ -313,7 +320,7 @@ func gatherLeaves(sources []RuleSource, concurrency int, p *progress.Progress) [
 		go func(src RuleSource) {
 			defer wg.Done()
 			sem <- struct{}{}
-			js, raw, err := fetchSourceJSON(src.URL)
+			js, raw, err := fetchSourceJSON(p.Context(), src.URL)
 			<-sem
 			if err != nil {
 				p.Send("error", src.URL+" 获取失败", 0, 0)
@@ -365,7 +372,7 @@ func resolveLeaves(s *SourceJSON, rawBody []byte, sourceURL, destRel string, use
 			subURL = strings.TrimSuffix(baseURL, "/") + "/" + f
 		}
 		sem <- struct{}{}
-		subJSON, subRaw, err := fetchSourceJSON(subURL)
+		subJSON, subRaw, err := fetchSourceJSON(p.Context(), subURL)
 		<-sem
 		if err != nil {
 			p.Send("error", subURL+" 获取失败", 0, 0)
