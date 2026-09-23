@@ -1,6 +1,7 @@
 package checker
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -37,7 +38,7 @@ type vsixResp struct {
 	} `json:"results"`
 }
 
-func CheckMSVSIX(extID string, client *http.Client) (PlatformResult, error) {
+func CheckMSVSIX(ctx context.Context, extID string, client *http.Client) (PlatformResult, error) {
 	parts := strings.SplitN(extID, ".", 2)
 	if len(parts) != 2 {
 		return PlatformResult{}, fmt.Errorf("msvsix: 无效的扩展 ID %q，应为 publisher.extension 格式", extID)
@@ -58,7 +59,7 @@ func CheckMSVSIX(extID string, client *http.Client) (PlatformResult, error) {
 		"Accept":             "application/json;api-version=3.0-preview.1",
 		"X-Market-Client-Id": "VSCode",
 	}
-	data, err := httpx.PostRequest(client, vsixAPI, "VSCode", headers, bodyJSON)
+	data, err := httpx.PostRequest(ctx, client, vsixAPI, "VSCode", headers, bodyJSON)
 	if err != nil {
 		return PlatformResult{}, fmt.Errorf("msvsix: %w", err)
 	}

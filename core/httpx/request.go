@@ -2,6 +2,7 @@
 package httpx
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -40,12 +41,12 @@ func CheckStatus(resp *http.Response) error {
 }
 
 // Request 发起 GET 请求，带 SSRF 校验与响应大小限制，并缓存结果
-func Request(client *http.Client, rawURL, ua string, headers map[string]string) ([]byte, error) {
+func Request(ctx context.Context, client *http.Client, rawURL, ua string, headers map[string]string) ([]byte, error) {
 	if err := blockPrivate(rawURL); err != nil {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("GET", rawURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -113,11 +114,11 @@ func requestKey(req *http.Request) string {
 }
 
 // PostRequest 发起 POST 请求，带 SSRF 校验与响应大小限制
-func PostRequest(client *http.Client, rawURL, ua string, headers map[string]string, bodyJSON []byte) ([]byte, error) {
+func PostRequest(ctx context.Context, client *http.Client, rawURL, ua string, headers map[string]string, bodyJSON []byte) ([]byte, error) {
 	if err := blockPrivate(rawURL); err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequest("POST", rawURL, strings.NewReader(string(bodyJSON)))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, rawURL, strings.NewReader(string(bodyJSON)))
 	if err != nil {
 		return nil, err
 	}

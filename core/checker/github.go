@@ -3,6 +3,7 @@
 package checker
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -29,14 +30,14 @@ type GitHubConfig struct {
 }
 
 // CheckGitHub 请求 /releases，返回最新非预发布版本及其下载链接。
-func CheckGitHub(cfg GitHubConfig, client *http.Client) (PlatformResult, error) {
+func CheckGitHub(ctx context.Context, cfg GitHubConfig, client *http.Client) (PlatformResult, error) {
 	perPage := cfg.PerPage
 	if perPage <= 0 {
 		perPage = defaultPerPage
 	}
 	url := fmt.Sprintf("%s/%s/%s/releases?per_page=%d", githubAPI, cfg.Owner, cfg.Repo, perPage)
 	headers := mergeHeaders(cfg.Headers, "application/vnd.github+json")
-	body, err := httpx.Request(client, url, cfg.UA, headers)
+	body, err := httpx.Request(ctx, client, url, cfg.UA, headers)
 	if err != nil {
 		return PlatformResult{}, fmt.Errorf("github: %w", err)
 	}

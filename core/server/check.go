@@ -2,7 +2,9 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -38,7 +40,7 @@ func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
 	ids := body.IDs
 
 	if body.Type == "msvsix" || body.Type == "openvsx" {
-		s.handleDirectCheckIDs(w, ids, body.Type)
+		s.handleDirectCheckIDs(r.Context(), w, ids, body.Type)
 		return
 	}
 
@@ -78,10 +80,10 @@ func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.ClearURLCache()
-	jobs, _ := s.buildCheckJobs(entries)
+	jobs, _ := s.buildCheckJobs(r.Context(), entries)
 	var results []checker.CheckResponse
 	for _, job := range jobs {
-		resp, err := checker.RunCheck(job.req)
+		resp, err := checker.RunCheck(r.Context(), job.req)
 		if err != nil {
 			events.Emit("error", "[check]", fmt.Sprintf("%s: %v", job.name, err))
 			continue
@@ -182,7 +184,7 @@ type checkJob struct {
 	name string
 }
 
-func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) {
+func (s *Server) buildCheckJobs(ctx context.Context, entries []store.TrackerEntry) ([]checkJob, int) {
 	rules := s.getRules()
 	userData, udErr := store.LoadUserData(s.home)
 	if udErr != nil {
@@ -206,7 +208,7 @@ func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) 
 
 			preSteps := rule.PreRequestChain(os)
 			if len(preSteps) > 0 {
-				preURL, err := checker.RunPreRequests(preSteps, httpx.NewClient())
+				preURL, err := checker.RunPreRequests(ctx, preSteps, httpx.NewClient())
 				if err != nil {
 					events.Emit("error", "[check]", fmt.Sprintf("%s 前置请求失败: %v", jobName, err))
 				} else if preURL != "" {
@@ -269,7 +271,8 @@ func (s *Server) buildCheckJobs(entries []store.TrackerEntry) ([]checkJob, int) 
 func (s *Server) runTrackerChecksAsync(entries []store.TrackerEntry, p *progress.Progress, trackerID string) {
 	defer p.Close()
 
-	jobs, conc := s.buildCheckJobs(entries)
+	ctx := p.Context()
+	jobs, conc := s.buildCheckJobs(ctx, entries)
 
 	total := len(jobs)
 	if total == 0 {
@@ -286,11 +289,18 @@ func (s *Server) runTrackerChecksAsync(entries []store.TrackerEntry, p *progress
 		wg.Add(1)
 		go func(j checkJob) {
 			defer wg.Done()
-			sem <- struct{}{}
+			select {
+			case <-ctx.Done():
+				return
+			case sem <- struct{}{}:
+			}
 			defer func() { <-sem }()
 
-			resp, err := checker.RunCheck(j.req)
+			resp, err := checker.RunCheck(ctx, j.req)
 			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					return
+				}
 				events.Emit("error", "[check]", fmt.Sprintf("%s: %v", j.name, err))
 				return
 			}
@@ -393,7 +403,7 @@ func (s *Server) handleDirectCheck(w http.ResponseWriter, entries []store.Tracke
 	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(len(entries))})
 }
 
-func (s *Server) handleDirectCheckIDs(w http.ResponseWriter, ids []string, typ string) {
+func (s *Server) handleDirectCheckIDs(ctx context.Context, w http.ResponseWriter, ids []string, typ string) {
 	checkFn := checker.CheckMSVSIX
 	if typ == "openvsx" {
 		checkFn = checker.CheckOpenVSX
@@ -402,7 +412,7 @@ func (s *Server) handleDirectCheckIDs(w http.ResponseWriter, ids []string, typ s
 	userData, _ := store.LoadUserData(s.home)
 	var results []checker.CheckResponse
 	for _, id := range ids {
-		pr, err := checkFn(id, client)
+		pr, err := checkFn(ctx, id, client)
 		if err != nil {
 			events.Emit("error", "["+typ+"]", fmt.Sprintf("%s: %v", id, err))
 			continue
@@ -433,6 +443,7 @@ func (s *Server) handleDirectCheckIDs(w http.ResponseWriter, ids []string, typ s
 func (s *Server) runDirectChecksAsync(entries []store.TrackerEntry, p *progress.Progress, typ string) {
 	defer p.Close()
 
+	ctx := p.Context()
 	checkFn := checker.CheckMSVSIX
 	if typ == "openvsx" {
 		checkFn = checker.CheckOpenVSX
@@ -451,11 +462,18 @@ func (s *Server) runDirectChecksAsync(entries []store.TrackerEntry, p *progress.
 		wg.Add(1)
 		go func(e store.TrackerEntry) {
 			defer wg.Done()
-			sem <- struct{}{}
+			select {
+			case <-ctx.Done():
+				return
+			case sem <- struct{}{}:
+			}
 			defer func() { <-sem }()
 
-			pr, err := checkFn(e.AppID, client)
+			pr, err := checkFn(ctx, e.AppID, client)
 			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					return
+				}
 				events.Emit("error", "["+typ+"]", fmt.Sprintf("%s: %v", e.AppID, err))
 				mu.Lock()
 				doneCount++

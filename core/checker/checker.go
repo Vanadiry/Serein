@@ -2,6 +2,7 @@
 package checker
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"sort"
@@ -51,7 +52,7 @@ func stripVersionAffixes(ver string) string {
 }
 
 // RunPlatformCheck 对单个平台执行检查
-func RunPlatformCheck(cfg PlatformCheckConfig, client *http.Client) (PlatformResult, error) {
+func RunPlatformCheck(ctx context.Context, cfg PlatformCheckConfig, client *http.Client) (PlatformResult, error) {
 	var vr PlatformResult
 
 	// 提取版本号
@@ -67,7 +68,7 @@ func RunPlatformCheck(cfg PlatformCheckConfig, client *http.Client) (PlatformRes
 	if vType == "direct" {
 		vr.LatestVersion = stripVersionAffixes(vURL)
 	} else if cfg.VPosition != nil {
-		body, err := httpx.Request(client, vURL, cfg.UA, cfg.Headers)
+		body, err := httpx.Request(ctx, client, vURL, cfg.UA, cfg.Headers)
 		if err != nil {
 			return vr, err
 		}
@@ -98,7 +99,7 @@ func RunPlatformCheck(cfg PlatformCheckConfig, client *http.Client) (PlatformRes
 		}
 		vr.URL = dl
 	} else if cfg.DPosition != nil {
-		body, err := httpx.Request(client, dURL, cfg.UA, cfg.Headers)
+		body, err := httpx.Request(ctx, client, dURL, cfg.UA, cfg.Headers)
 		if err != nil {
 			return vr, err
 		}

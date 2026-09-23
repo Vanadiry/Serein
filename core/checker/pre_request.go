@@ -3,6 +3,7 @@
 package checker
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -12,7 +13,7 @@ import (
 )
 
 // RunPreRequests 执行前置请求链，返回最终 URL（作为 config 的请求地址）
-func RunPreRequests(steps []store.PreRequestStep, client *http.Client) (string, error) {
+func RunPreRequests(ctx context.Context, steps []store.PreRequestStep, client *http.Client) (string, error) {
 	if len(steps) == 0 {
 		return "", nil
 	}
@@ -27,7 +28,7 @@ func RunPreRequests(steps []store.PreRequestStep, client *http.Client) (string, 
 			return "", fmt.Errorf("pre_request %d: no url", i)
 		}
 
-		respBody, err := httpx.Request(client, url, step.UA, step.Headers)
+		respBody, err := httpx.Request(ctx, client, url, step.UA, step.Headers)
 		if err != nil {
 			return "", fmt.Errorf("pre_request %d: %w", i, err)
 		}

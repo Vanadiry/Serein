@@ -2,6 +2,7 @@
 package checker
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -58,7 +59,7 @@ type CheckPlatform struct {
 }
 
 // RunCheck 对一个软件执行检查，返回统一的 CheckResponse。
-func RunCheck(req CheckRequest) (CheckResponse, error) {
+func RunCheck(ctx context.Context, req CheckRequest) (CheckResponse, error) {
 	resp := CheckResponse{
 		AppID:           req.AppID,
 		Name:            req.Name,
@@ -69,11 +70,11 @@ func RunCheck(req CheckRequest) (CheckResponse, error) {
 	client := httpx.NewClient()
 
 	if req.RuleType == "github" {
-		return runGitHubCheck(req, client)
+		return runGitHubCheck(ctx, req, client)
 	}
 
 	for _, pc := range req.Platforms {
-		pr, err := RunPlatformCheck(pc, client)
+		pr, err := RunPlatformCheck(ctx, pc, client)
 		if err != nil {
 			resp.Platforms[pc.OS] = CheckPlatform{
 				CurrentVersion:  pc.CurrentVersion,
@@ -92,7 +93,7 @@ func RunCheck(req CheckRequest) (CheckResponse, error) {
 	return resp, nil
 }
 
-func runGitHubCheck(req CheckRequest, client *http.Client) (CheckResponse, error) {
+func runGitHubCheck(ctx context.Context, req CheckRequest, client *http.Client) (CheckResponse, error) {
 	resp := CheckResponse{
 		AppID:           req.AppID,
 		Name:            req.Name,
@@ -120,7 +121,7 @@ func runGitHubCheck(req CheckRequest, client *http.Client) (CheckResponse, error
 		} else {
 			cfg.DPosition = pc.DPosition
 		}
-		pr, err := CheckGitHub(cfg, client)
+		pr, err := CheckGitHub(ctx, cfg, client)
 		if err != nil {
 			resp.Platforms[pc.OS] = CheckPlatform{
 				CurrentVersion:  pc.CurrentVersion,
