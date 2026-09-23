@@ -935,10 +935,6 @@ function startSyncProgress(taskId) {
                 );
             else if (d.sources_updated == 0 && d.sources_total > 0)
                 parts.push("无任何规则源需要更新");
-            if (d.deleted_files > 0)
-                parts.push(
-                    d.deleted_files + " 条规则已被远端删除，已移入 _deleted"
-                );
             if (d.file_errors > 0)
                 parts.push(d.file_errors + " 条规则下载失败");
             var msg = parts.length > 0 ? parts.join("<br>") : "同步完成";

@@ -202,7 +202,7 @@ paths:
                     skip:     {"step":"skip","name":"<source_id>","files":<n>}
                     file:     {"step":"file","name":"<filename>","done":5,"total":131}
                     error:    {"step":"error","name":"<url> 获取失败","done":0,"total":0}
-                    done:     {"step":"done","sources_total":10,"sources_skipped":3,"sources_updated":6,"files":45,"file_errors":0,"deleted_files":2}
+                    done:     {"step":"done","sources_total":10,"sources_skipped":3,"sources_updated":6,"files":45,"file_errors":0}
                   检查更新事件:
                     start: {"step":"start","name":"","done":0,"total":<n>}
                     app:   {"step":"app","name":"<app>","done":12,"total":30}

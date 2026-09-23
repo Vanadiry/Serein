@@ -250,44 +250,6 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 		}
 	}
 
-	// Phase 3: 清理孤立文件（所有源：已更新 + 已跳过）
-	var allLeaves []leafSrc
-	allLeaves = append(allLeaves, leaves...)
-	allLeaves = append(allLeaves, skipped...)
-
-	deletedDir := filepath.Join(rulesDir, "_deleted")
-	os.MkdirAll(deletedDir, 0755)
-	var deletedFiles int
-
-	for _, l := range allLeaves {
-		fileSet := make(map[string]bool)
-		for _, f := range l.files {
-			fileSet[f] = true
-		}
-		dest := filepath.Join(rulesDir, l.destDir)
-		entries, err := os.ReadDir(dest)
-		if err != nil {
-			continue
-		}
-		for _, e := range entries {
-			if e.IsDir() || e.Name() == "_source.json" {
-				continue
-			}
-			if !fileSet[e.Name()] {
-				targetDir := filepath.Join(deletedDir, l.destDir)
-				os.MkdirAll(targetDir, 0755)
-				oldPath := filepath.Join(dest, e.Name())
-				newPath := filepath.Join(targetDir, e.Name())
-				os.Remove(newPath)
-				if err := os.Rename(oldPath, newPath); err != nil {
-					events.Emit("error", "[sync]", fmt.Sprintf("移动孤立文件失败 %s: %v", e.Name(), err))
-				} else {
-					deletedFiles++
-				}
-			}
-		}
-	}
-
 	p.SendMap(map[string]any{
 		"step":            "done",
 		"sources_total":   sourcesTotal,
@@ -295,7 +257,6 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 		"sources_updated": sourcesUpdated,
 		"files":           totalFiles,
 		"file_errors":     fileErrors,
-		"deleted_files":   deletedFiles,
 	})
 }
 
