@@ -935,10 +935,31 @@ function startSyncProgress(taskId) {
                 );
             else if (d.sources_updated == 0 && d.sources_total > 0)
                 parts.push("无任何规则源需要更新");
-            if (d.file_errors > 0)
+            var failures = d.failures || [];
+            var failedSources = d.sources_failed || 0;
+            if (failures.length > 0) {
+                var lines = [];
+                for (var i = 0; i < failures.length && i < 20; i++) {
+                    var f = failures[i];
+                    lines.push(
+                        escapeHtml(f.source) +
+                            "/" +
+                            escapeHtml(f.file) +
+                            "：" +
+                            escapeHtml(f.error)
+                    );
+                }
+                if (failures.length > 20)
+                    lines.push("…还有 " + (failures.length - 20) + " 条");
+                parts.push(
+                    failedSources + " 个源更新失败：<br>" + lines.join("<br>")
+                );
+            } else if (d.file_errors > 0) {
                 parts.push(d.file_errors + " 条规则下载失败");
+            }
             var msg = parts.length > 0 ? parts.join("<br>") : "同步完成";
-            var hasError = d.file_errors > 0 || sourcesFailed > 0;
+            var hasError =
+                d.file_errors > 0 || failedSources > 0 || sourcesFailed > 0;
             showLoading("拉取规则", msg).done(msg, hasError);
             if (typeof loadSources === "function") loadSources();
             return;
