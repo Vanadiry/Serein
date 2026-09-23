@@ -35,6 +35,10 @@ type Server struct {
 	rulesMu sync.RWMutex
 	rules   map[string]store.Rule
 	rulesFP string
+
+	// 检查结果缓存：按 Tracker（或 direct 的 type）分桶，内层按 app_id；随进程释放
+	resultsMu sync.RWMutex
+	results   map[string]map[string]checker.CheckResponse
 }
 
 func loggingMiddleware(next http.Handler) http.Handler {
@@ -192,7 +196,7 @@ func New(home string, webFS fs.FS) (*Server, error) {
 		checker.SetVersionPrefixes(p.VersionPrefixes)
 		checker.SetVersionSuffixes(p.VersionSuffixes)
 	}
-	s := &Server{home: home, config: cfg, mux: http.NewServeMux(), webFS: webFS, rules: make(map[string]store.Rule)}
+	s := &Server{home: home, config: cfg, mux: http.NewServeMux(), webFS: webFS, rules: make(map[string]store.Rule), results: make(map[string]map[string]checker.CheckResponse)}
 	s.reloadRules()
 	s.registerRoutes()
 	return s, nil

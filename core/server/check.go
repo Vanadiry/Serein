@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -94,6 +93,12 @@ func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
 	}
 	if results == nil {
 		results = []checker.CheckResponse{}
+	}
+	// 单条/按 id 检查的结果并入该 Tracker 的缓存
+	if body.TrackerID != "" {
+		for _, r := range results {
+			s.setCheckResult(body.TrackerID, r)
+		}
 	}
 	writeJSON(w, http.StatusOK, results)
 }
@@ -326,7 +331,7 @@ func (s *Server) runTrackerChecksAsync(entries []store.TrackerEntry, p *progress
 	wg.Wait()
 
 	final := mergeResults(results)
-	saveCheckTemp(s.home, trackerID, final)
+	s.setCheckResults(trackerID, final)
 }
 
 func mergeResults(results []checker.CheckResponse) []checker.CheckResponse {
@@ -363,46 +368,38 @@ func (s *Server) handleCheckTemp(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid tracker_id")
 		return
 	}
-	cache, err := store.LoadTrackerTemp(s.home, trackerID)
-	if err != nil {
-		if os.IsNotExist(err) {
-			writeJSON(w, http.StatusOK, map[string]any{"results": []store.TempCheckResult{}, "expired": false})
-			return
-		}
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	expired := store.IsExpired(cache)
-	writeJSON(w, http.StatusOK, map[string]any{
-		"results": cache.Results,
-		"expired": expired,
-	})
+	writeJSON(w, http.StatusOK, map[string]any{"results": s.getCheckResults(trackerID)})
 }
 
-// 辅助
+// 检查结果缓存：按 Tracker（或 direct 的 type）分桶，内层按 app_id；随进程释放
 
-func saveCheckTemp(home, trackerID string, results []checker.CheckResponse) {
-	var temp []store.TempCheckResult
+func (s *Server) setCheckResults(key string, results []checker.CheckResponse) {
+	m := make(map[string]checker.CheckResponse, len(results))
 	for _, r := range results {
-		platforms := make(map[string]store.TempCheckPlatform)
-		for os, p := range r.Platforms {
-			platforms[os] = store.TempCheckPlatform{
-				CurrentVersion:  p.CurrentVersion,
-				LatestVersion:   p.LatestVersion,
-				URL:             p.URL,
-				Error:           p.Error,
-				ForceDownloader: p.ForceDownloader,
-			}
-		}
-		temp = append(temp, store.TempCheckResult{
-			AppID:     r.AppID,
-			Name:      r.Name,
-			Platforms: platforms,
-		})
+		m[r.AppID] = r
 	}
-	if err := store.SaveTrackerTemp(home, trackerID, temp); err != nil {
-		events.Emit("error", "[check]", fmt.Sprintf("保存检查结果缓存失败: %v", err))
+	s.resultsMu.Lock()
+	s.results[key] = m
+	s.resultsMu.Unlock()
+}
+
+func (s *Server) setCheckResult(key string, r checker.CheckResponse) {
+	s.resultsMu.Lock()
+	if s.results[key] == nil {
+		s.results[key] = make(map[string]checker.CheckResponse)
 	}
+	s.results[key][r.AppID] = r
+	s.resultsMu.Unlock()
+}
+
+func (s *Server) getCheckResults(key string) []checker.CheckResponse {
+	s.resultsMu.RLock()
+	defer s.resultsMu.RUnlock()
+	out := make([]checker.CheckResponse, 0, len(s.results[key]))
+	for _, r := range s.results[key] {
+		out = append(out, r)
+	}
+	return out
 }
 
 func (s *Server) handleDirectCheck(w http.ResponseWriter, entries []store.TrackerEntry, typ string) {
@@ -448,6 +445,10 @@ func (s *Server) handleDirectCheckIDs(ctx context.Context, w http.ResponseWriter
 	}
 	if results == nil {
 		results = []checker.CheckResponse{}
+	}
+	// 单条/按 id 检查的结果并入该 type 的缓存
+	for _, r := range results {
+		s.setCheckResult(typ, r)
 	}
 	writeJSON(w, http.StatusOK, results)
 }
@@ -517,5 +518,5 @@ func (s *Server) runDirectChecksAsync(entries []store.TrackerEntry, p *progress.
 	wg.Wait()
 
 	final := mergeResults(results)
-	saveCheckTemp(s.home, typ, final)
+	s.setCheckResults(typ, final)
 }

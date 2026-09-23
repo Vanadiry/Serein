@@ -14,7 +14,6 @@ func Init(home string) error {
 		filepath.Join(home, "rules"),
 		filepath.Join(home, "tracker"),
 		filepath.Join(home, "user"),
-		filepath.Join(home, "temp", "check"),
 	}
 	for _, d := range dirs {
 		if err := os.MkdirAll(d, 0755); err != nil {
