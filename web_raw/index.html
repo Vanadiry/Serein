@@ -98,7 +98,6 @@
             var currentTracker = null;
             var currentTrackerType = "app";
             var checkResults = {};
-            var _resultsByTracker = {};
             var _trackerTypes = {};
 
             renderTopbar("应用");
@@ -249,9 +248,6 @@
                     checkTracker
                 );
             };
-            document.getElementById("btn-read-cache").onclick = () => {
-                confirmDialog("将读取当前 Tracker 的检查结果缓存", readCache);
-            };
             document.getElementById("btn-new-tracker").onclick = () => {
                 showModal(`
       <div class="text-base font-bold mb-4">新建 Tracker</div>
@@ -291,12 +287,12 @@
             }
 
             async function selectTracker(id) {
-                if (currentTracker && currentTracker !== id) {
-                    _resultsByTracker[currentTracker] = checkResults;
-                }
                 currentTracker = id;
                 currentTrackerType = _trackerTypes[id] || "app";
-                checkResults = _resultsByTracker[id] || {};
+                checkResults = {};
+                // 读取该 Tracker 的内存缓存（若有），切回时直接渲染
+                var cache = await api("/api/check/temp/" + id);
+                mergeCheckResults((cache && cache.results) || []);
                 loadTrackers();
                 hideView(document.getElementById("placeholder"));
                 await loadTrackerDetail(id);
@@ -792,24 +788,6 @@
                 window._hasChallenge = false;
                 body += errs.join("<br>");
                 ld.done(body, true, errs.length + " 个错误");
-            }
-
-            async function readCache() {
-                if (!currentTracker) return;
-                const ld = showLoading("加载中", "正在读取缓存...");
-                var data = await api("/api/check/temp/" + currentTracker);
-                var results = (data && data.results) || [];
-                mergeCheckResults(results);
-                if (data && data.expired) {
-                    ld.done(
-                        "缓存已超过 24 小时，可能不是最新",
-                        true,
-                        "过期缓存"
-                    );
-                } else {
-                    ld.done("读取完成");
-                }
-                loadTrackerDetail(currentTracker);
             }
 
             function mergeCheckResults(data) {
