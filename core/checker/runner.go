@@ -21,9 +21,6 @@ type CheckRequest struct {
 	Name            string
 	OfficialWebsite string
 	RuleType        string // github / json / xml / ...
-	Owner           string
-	Repo            string
-	PerPage         int
 	Platforms       []PlatformCheckConfig
 }
 
@@ -35,6 +32,9 @@ type PlatformCheckConfig struct {
 	UA              string
 	Headers         map[string]string
 	BaseURL         string
+	Owner           string
+	Repo            string
+	PerPage         int
 	VURL            string
 	VType           string
 	DURL            string
@@ -112,23 +112,16 @@ func runGitHubCheck(ctx context.Context, req CheckRequest, client *http.Client) 
 		Platforms:       make(map[string]CheckPlatform),
 	}
 
-	if len(req.Platforms) == 0 {
-		return resp, nil
-	}
-
-	cfg := GitHubConfig{
-		Owner:   req.Owner,
-		Repo:    req.Repo,
-		PerPage: req.PerPage,
-		Label:   req.Name,
-	}
-	if len(req.Platforms) > 0 {
-		cfg.UA = req.Platforms[0].UA
-		cfg.Headers = req.Platforms[0].Headers
-		cfg.AllowPrerelease = req.Platforms[0].AllowPrerelease
-	}
-
 	for _, pc := range req.Platforms {
+		cfg := GitHubConfig{
+			Owner:           pc.Owner,
+			Repo:            pc.Repo,
+			PerPage:         pc.PerPage,
+			UA:              pc.UA,
+			Headers:         pc.Headers,
+			AllowPrerelease: pc.AllowPrerelease,
+			Label:           req.Name,
+		}
 		if pc.DType == "direct" {
 			cfg.DPosition = nil
 		} else {

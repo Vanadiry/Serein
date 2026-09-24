@@ -12,6 +12,7 @@
 
 - 检查入口合并为 `POST /api/check`：以 `scope` 区分范围
 - `/api/check` 请求的 `ids` 按 Tracker 分组
+- 规则中，顶级与不同平台的 `config` 改为解析时合并，所有字段均支持继承与覆盖
 
 #### Fixed
 

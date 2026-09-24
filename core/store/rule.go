@@ -96,8 +96,8 @@ type Rule struct {
 	Status        RuleStatus                           // 由 Info.Status 解析
 	MissingValues []string                             // 规则引用但 config 未配置的规则变量
 	SourceID      string                               // 所属规则源 source_id
-	Config        PlatConfig                           // 共享配置
-	Platforms     map[string]PlatConfig                // 各平台特有配置
+	Config        PlatConfig                           // 共享配置（[config] 基字段）
+	Platforms     map[string]PlatConfig                // 各平台最终配置（解析时已与 Config 合并）
 	PreRequests   map[string]map[string]PreRequestStep // id → platform(空串=通用) → step
 }
 
@@ -236,18 +236,27 @@ func ParseRuleFile(path string, ruleValues map[string]map[string]string) (Rule, 
 	}
 
 	// config + config.{os}
+	// 解析时即合并：config.{os} 在共享 [config] 之上按 key 覆盖（写 0/false/"" 也会覆盖）
 	if cfgRaw, ok := raw["config"]; ok {
 		cfgMap, ok := cfgRaw.(map[string]any)
 		if !ok {
 			return Rule{}, issues, fmt.Errorf("%s: config: 期望表结构", label)
 		}
-		// [config] 允许基字段 + 各平台子表
-		cfg, unknown, err := decodeSection[PlatConfig](cfgMap, label+": config", rule.Info.Platforms)
+		// 共享基字段（排除平台子表）
+		base := make(map[string]any, len(cfgMap))
+		for k, v := range cfgMap {
+			if isPlatformKey(k, rule.Info.Platforms) {
+				continue
+			}
+			base[k] = v
+		}
+		cfg, unknown, err := decodeSection[PlatConfig](base, label+": config", nil)
 		issues = appendUnknown(issues, label+": config", unknown)
 		if err != nil {
 			return Rule{}, issues, err
 		}
 		rule.Config = cfg
+
 		for key, val := range cfgMap {
 			if !isPlatformKey(key, rule.Info.Platforms) {
 				continue
@@ -256,7 +265,14 @@ func ParseRuleFile(path string, ruleValues map[string]map[string]string) (Rule, 
 			if !ok {
 				return Rule{}, issues, fmt.Errorf("%s: config.%s: 期望表结构", label, key)
 			}
-			pc, unknown, err := decodeSection[PlatConfig](vm, label+": config."+key, nil)
+			merged := make(map[string]any, len(base)+len(vm))
+			for k, v := range base {
+				merged[k] = v
+			}
+			for k, v := range vm {
+				merged[k] = v
+			}
+			pc, unknown, err := decodeSection[PlatConfig](merged, label+": config."+key, nil)
 			issues = appendUnknown(issues, label+": config."+key, unknown)
 			if err != nil {
 				return Rule{}, issues, err
@@ -381,67 +397,12 @@ func knownTOMLFields(typ reflect.Type) map[string]bool {
 
 // 合并
 
+// MergedConfig 返回某平台的最终配置。Platforms 在解析时已与共享 [config] 合并好
 func (r Rule) MergedConfig(os string) PlatConfig {
-	cfg := r.Config
 	if plat, ok := r.Platforms[os]; ok {
-		cfg = mergePlatConfig(cfg, plat)
+		return plat
 	}
-	return cfg
-}
-
-func mergePlatConfig(base, plat PlatConfig) PlatConfig {
-	if plat.URL != "" {
-		base.URL = plat.URL
-	}
-	if plat.Type != "" {
-		base.Type = plat.Type
-	}
-	if plat.UA != "" {
-		base.UA = plat.UA
-	}
-	if plat.Headers != nil {
-		base.Headers = plat.Headers
-	}
-	if plat.BaseURL != "" {
-		base.BaseURL = plat.BaseURL
-	}
-	if plat.Owner != "" {
-		base.Owner = plat.Owner
-	}
-	if plat.Repo != "" {
-		base.Repo = plat.Repo
-	}
-	if plat.VPosition != nil {
-		base.VPosition = plat.VPosition
-	}
-	if plat.DPosition != nil {
-		base.DPosition = plat.DPosition
-	}
-	if plat.VJoin != "" {
-		base.VJoin = plat.VJoin
-	}
-	if plat.DJoin != "" {
-		base.DJoin = plat.DJoin
-	}
-	if plat.VURL != "" {
-		base.VURL = plat.VURL
-	}
-	if plat.VType != "" {
-		base.VType = plat.VType
-	}
-	if plat.DURL != "" {
-		base.DURL = plat.DURL
-	}
-	if plat.DType != "" {
-		base.DType = plat.DType
-	}
-	if plat.ForceDownloader {
-		base.ForceDownloader = true
-	}
-	if plat.AllowPrerelease {
-		base.AllowPrerelease = true
-	}
-	return base
+	return r.Config
 }
 
 func (r Rule) PreRequestChain(os string) []PreRequestStep {

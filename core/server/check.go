@@ -192,6 +192,9 @@ func (s *Server) buildCheckJobs(ctx context.Context, entries []store.TrackerEntr
 				UA:              platCfg.UA,
 				Headers:         platCfg.Headers,
 				BaseURL:         platCfg.BaseURL,
+				Owner:           platCfg.Owner,
+				Repo:            platCfg.Repo,
+				PerPage:         platCfg.PerPage,
 				VURL:            platCfg.VURL,
 				VType:           platCfg.VType,
 				DURL:            platCfg.DURL,
@@ -221,9 +224,6 @@ func (s *Server) buildCheckJobs(ctx context.Context, entries []store.TrackerEntr
 				Name:            rule.Info.Name,
 				OfficialWebsite: rule.Info.OfficialWebsite,
 				RuleType:        typ,
-				Owner:           rule.Config.Owner,
-				Repo:            rule.Config.Repo,
-				PerPage:         rule.Config.PerPage,
 				Platforms:       group,
 			}, name: jobName})
 		}
