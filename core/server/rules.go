@@ -37,13 +37,13 @@ func (s *Server) handleRules(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	list, err := store.ListAllSourceInfos(s.home)
+	list, err := store.ListSourceInfos(s.home)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	if list == nil {
-		list = []store.SourceWithID{}
+		list = []store.SourceSummary{}
 	}
 	writeJSON(w, http.StatusOK, list)
 }

@@ -427,8 +427,8 @@ func (r Rule) PreRequestChain(os string) []PreRequestStep {
 }
 
 // LoadSourceInfo 读取 rules 下 _source.json，返回源元信息。
-func LoadSourceInfo(home, sourceID string) (*SourceJSON, error) {
-	path := findSourceJSON(home, sourceID)
+func LoadSourceInfo(home, sourceID string) (*SourceInfo, error) {
+	path := findSourceInfo(home, sourceID)
 	if path == "" {
 		return nil, fmt.Errorf("_source.json not found for %s", sourceID)
 	}
@@ -436,15 +436,15 @@ func LoadSourceInfo(home, sourceID string) (*SourceJSON, error) {
 	if err != nil {
 		return nil, err
 	}
-	var s SourceJSON
+	var s SourceInfo
 	if err := json.Unmarshal(data, &s); err != nil {
 		return nil, err
 	}
 	return &s, nil
 }
 
-// findSourceJSON 在 rules/ 下查找指定 source_id 的 _source.json
-func findSourceJSON(home, sourceID string) string {
+// findSourceInfo 在 rules/ 下查找指定 source_id 的 _source.json
+func findSourceInfo(home, sourceID string) string {
 	ruleDir := filepath.Join(home, "rules")
 	entries, err := os.ReadDir(ruleDir)
 	if err != nil {
@@ -468,11 +468,11 @@ func findSourceJSON(home, sourceID string) string {
 	return ""
 }
 
-// ListAllSourceInfos 遍历 rules/ 下所有 _source.json，跳过 type=list。
+// ListSourceInfos 遍历 rules/ 下所有 _source.json，跳过 type=list。
 // 返回子规则源（type=rules）的元信息。
-func ListAllSourceInfos(home string) ([]SourceWithID, error) {
+func ListSourceInfos(home string) ([]SourceSummary, error) {
 	ruleDir := filepath.Join(home, "rules")
-	var result []SourceWithID
+	var result []SourceSummary
 
 	err := filepath.WalkDir(ruleDir, func(path string, d os.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
@@ -485,14 +485,14 @@ func ListAllSourceInfos(home string) ([]SourceWithID, error) {
 		if readErr != nil {
 			return nil
 		}
-		var s SourceJSON
+		var s SourceInfo
 		if json.Unmarshal(data, &s) != nil {
 			return nil
 		}
 		if s.Type == "list" {
 			return nil
 		}
-		result = append(result, SourceWithID{
+		result = append(result, SourceSummary{
 			SourceID:    s.ID,
 			Name:        s.Name,
 			Description: s.Description,
@@ -506,8 +506,8 @@ func ListAllSourceInfos(home string) ([]SourceWithID, error) {
 	return result, nil
 }
 
-// SourceWithID 源的汇总信息
-type SourceWithID struct {
+// SourceSummary 源的汇总信息
+type SourceSummary struct {
 	SourceID    string `json:"source_id"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`

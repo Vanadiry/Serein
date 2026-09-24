@@ -20,8 +20,8 @@ import (
 
 const maxFetchBytes = 8 << 20 // 8MB
 
-// SourceJSON 规则源的元信息（完整 _source.json 内容）
-type SourceJSON struct {
+// SourceInfo 规则源的元信息（完整 _source.json 内容）
+type SourceInfo struct {
 	ID          string   `json:"source_id"`
 	Name        string   `json:"name,omitempty"`
 	Description string   `json:"description,omitempty"`
@@ -51,7 +51,7 @@ func readURLOrFile(ctx context.Context, rawURL string, limit int64) ([]byte, err
 	return io.ReadAll(io.LimitReader(resp.Body, limit))
 }
 
-func fetchSourceJSON(ctx context.Context, url string) (*SourceJSON, []byte, error) {
+func fetchSourceInfo(ctx context.Context, url string) (*SourceInfo, []byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, nil, err
 	}
@@ -60,7 +60,7 @@ func fetchSourceJSON(ctx context.Context, url string) (*SourceJSON, []byte, erro
 		return nil, nil, err
 	}
 
-	var s SourceJSON
+	var s SourceInfo
 	if err := json.Unmarshal(body, &s); err != nil {
 		return nil, nil, fmt.Errorf("解析 _source.json: %w", err)
 	}
@@ -78,7 +78,7 @@ func loadLocalSourceVersion(dir string) int {
 	if err != nil {
 		return 0
 	}
-	var s SourceJSON
+	var s SourceInfo
 	if json.Unmarshal(data, &s) != nil {
 		return 0
 	}
@@ -341,7 +341,7 @@ func gatherLeaves(sources []RuleSource, concurrency int, p *progress.Progress) (
 		go func(src RuleSource) {
 			defer wg.Done()
 			sem <- struct{}{}
-			js, raw, err := fetchSourceJSON(p.Context(), src.URL)
+			si, raw, err := fetchSourceInfo(p.Context(), src.URL)
 			<-sem
 			if err != nil {
 				p.Send("error", src.URL+" 获取失败", 0, 0)
@@ -352,15 +352,15 @@ func gatherLeaves(sources []RuleSource, concurrency int, p *progress.Progress) (
 				return
 			}
 			mu.Lock()
-			if usedIDs[js.ID] {
+			if usedIDs[si.ID] {
 				mu.Unlock()
 				return
 			}
-			usedIDs[js.ID] = true
+			usedIDs[si.ID] = true
 			mu.Unlock()
 
-			p.Send("list", js.ID, 0, 0)
-			sub, subFails := resolveLeaves(js, raw, src.URL, js.ID, usedIDs, sem, &mu, p)
+			p.Send("list", si.ID, 0, 0)
+			sub, subFails := resolveLeaves(si, raw, src.URL, si.ID, usedIDs, sem, &mu, p)
 			mu.Lock()
 			leaves = append(leaves, sub...)
 			failures = append(failures, subFails...)
@@ -371,7 +371,7 @@ func gatherLeaves(sources []RuleSource, concurrency int, p *progress.Progress) (
 	return leaves, failures
 }
 
-func resolveLeaves(s *SourceJSON, rawBody []byte, sourceURL, destRel string, usedIDs map[string]bool, sem chan struct{}, mu *sync.Mutex, p *progress.Progress) ([]leafSrc, []syncFailure) {
+func resolveLeaves(s *SourceInfo, rawBody []byte, sourceURL, destRel string, usedIDs map[string]bool, sem chan struct{}, mu *sync.Mutex, p *progress.Progress) ([]leafSrc, []syncFailure) {
 	isLocal := !strings.HasPrefix(sourceURL, "http://") && !strings.HasPrefix(sourceURL, "https://")
 	baseURL := s.BaseURL
 	if baseURL == "" {
@@ -399,7 +399,7 @@ func resolveLeaves(s *SourceJSON, rawBody []byte, sourceURL, destRel string, use
 			subURL = strings.TrimSuffix(baseURL, "/") + "/" + f
 		}
 		sem <- struct{}{}
-		subJSON, subRaw, err := fetchSourceJSON(p.Context(), subURL)
+		subInfo, subRaw, err := fetchSourceInfo(p.Context(), subURL)
 		<-sem
 		if err != nil {
 			p.Send("error", subURL+" 获取失败", 0, 0)
@@ -407,17 +407,17 @@ func resolveLeaves(s *SourceJSON, rawBody []byte, sourceURL, destRel string, use
 			failures = append(failures, syncFailure{Source: subURL, Error: err.Error()})
 			continue
 		}
-		if subJSON.ID != subDir {
+		if subInfo.ID != subDir {
 			continue
 		}
 		mu.Lock()
-		if usedIDs[subJSON.ID] {
+		if usedIDs[subInfo.ID] {
 			mu.Unlock()
 			continue
 		}
-		usedIDs[subJSON.ID] = true
+		usedIDs[subInfo.ID] = true
 		mu.Unlock()
-		sub, subFails := resolveLeaves(subJSON, subRaw, subURL, filepath.Join(destRel, subDir), usedIDs, sem, mu, p)
+		sub, subFails := resolveLeaves(subInfo, subRaw, subURL, filepath.Join(destRel, subDir), usedIDs, sem, mu, p)
 		result = append(result, sub...)
 		failures = append(failures, subFails...)
 	}
