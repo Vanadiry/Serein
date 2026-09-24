@@ -450,7 +450,7 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
         "</div>" +
         '<div class="' +
         bodyBg +
-        " text-white px-4 py-2 rounded-b-control" +
+        " text-white px-4 py-2 rounded-b-lg max-h-[60vh] overflow-y-auto" +
         (titleBg === "bg-ok" ? "" : " select-text") +
         '">' +
         (body || "") +
@@ -1204,10 +1204,12 @@ function startSyncProgress(taskId) {
                 if (seen[d.id]) return;
                 remember(d.id);
             }
+            var body = escapeHtml(d.message).replace(/\n/g, "<br>");
+            var persistent = d.context === "[rules]";
             if (d.level === "error") {
                 _makeToast(
                     "错误: " + (d.context || "后端"),
-                    escapeHtml(d.message),
+                    body,
                     "bg-err",
                     "bg-err/80",
                     0
@@ -1215,10 +1217,10 @@ function startSyncProgress(taskId) {
             } else if (d.level === "warn") {
                 _makeToast(
                     "警告: " + (d.context || "后端"),
-                    escapeHtml(d.message),
+                    body,
                     "bg-warn",
                     "bg-warn/80",
-                    8
+                    persistent ? 0 : 8
                 );
             }
         };

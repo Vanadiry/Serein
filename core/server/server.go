@@ -222,10 +222,23 @@ func (s *Server) loadRules(report bool) []store.RuleIssue {
 	s.rules = rules
 	s.rulesFP = store.RulesFingerprint(s.home)
 	s.rulesMu.Unlock()
-	if report {
+	if report && len(issues) > 0 {
+		// 聚合成一条，避免一次性弹出大量 toast（前端可滚动查看全部）
+		errs, warns := 0, 0
+		lines := make([]string, 0, len(issues))
 		for _, is := range issues {
-			events.Emit(is.Level, "[rules]", is.Message)
+			if is.Level == "error" {
+				errs++
+			} else {
+				warns++
+			}
+			lines = append(lines, fmt.Sprintf("[%s] %s", is.Level, is.Message))
 		}
+		level := "warn"
+		if errs > 0 {
+			level = "error"
+		}
+		events.Emit(level, "[rules]", fmt.Sprintf("规则检查：%d 个错误、%d 个警告\n%s", errs, warns, strings.Join(lines, "\n")))
 	}
 	return issues
 }
