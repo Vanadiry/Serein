@@ -404,6 +404,11 @@ components:
               download_method: { type: string, enum: [browser, downloader] }
               download_via_proxy: { type: boolean }
               download_name: { type: string }
+              proxy_url:
+                oneOf:
+                  - type: string
+                  - type: array
+                    items: { type: string }
     RuleItem:
       type: object
       properties:

@@ -68,6 +68,7 @@ type CheckPlatform struct {
 	DownloadMethod   string `json:"download_method,omitempty"`
 	DownloadViaProxy bool   `json:"download_via_proxy,omitempty"`
 	DownloadName     string `json:"download_name,omitempty"`
+	ProxyURL         any    `json:"proxy_url,omitempty"`
 }
 
 // RunCheck 对一个软件执行检查，返回统一的 CheckResponse。

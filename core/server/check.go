@@ -402,6 +402,62 @@ func mergeResults(results []checker.CheckResponse) []checker.CheckResponse {
 	return final
 }
 
+// attachProxyURL 为需要改名的平台补上签名后的下载代理地址（服务端统一处理）
+func (s *Server) attachProxyURL(resp *checker.CheckResponse) {
+	for os, cp := range resp.Platforms {
+		if !cp.DownloadViaProxy || cp.URL == nil {
+			continue
+		}
+		if u := s.signURLs(cp.URL, proxyName(resp, os, cp)); u != nil {
+			cp.ProxyURL = u
+			resp.Platforms[os] = cp
+		}
+	}
+}
+
+// proxyName 计算代理落盘名：VSIX/OpenVSX 用标准名，其余用 download_name（替换 {version}）
+func proxyName(resp *checker.CheckResponse, os string, cp checker.CheckPlatform) string {
+	if os == "msvsix" || os == "openvsx" {
+		if cp.LatestVersion != "" {
+			return fmt.Sprintf("%s-%s.vsix", resp.AppID, cp.LatestVersion)
+		}
+		return resp.AppID + ".vsix"
+	}
+	return strings.ReplaceAll(cp.DownloadName, "{version}", cp.LatestVersion)
+}
+
+// signURLs 镜像 URL 的形状（string / []string / []any），逐个生成签名代理地址
+func (s *Server) signURLs(u any, name string) any {
+	switch v := u.(type) {
+	case string:
+		if v == "" {
+			return nil
+		}
+		return s.proxyURL(v, name)
+	case []string:
+		out := make([]string, 0, len(v))
+		for _, x := range v {
+			out = append(out, s.proxyURL(x, name))
+		}
+		if len(out) == 0 {
+			return nil
+		}
+		return out
+	case []any:
+		out := make([]string, 0, len(v))
+		for _, x := range v {
+			if str, ok := x.(string); ok {
+				out = append(out, s.proxyURL(str, name))
+			}
+		}
+		if len(out) == 0 {
+			return nil
+		}
+		return out
+	}
+	return nil
+}
+
 // GET /api/check/temp/{tracker_id}
 
 func (s *Server) handleCheckTemp(w http.ResponseWriter, r *http.Request) {
@@ -569,6 +625,9 @@ func (s *Server) runCheckAllAsync(list []checkAllTracker, p *progress.Progress, 
 		// replace：整表检查整桶替换；单条/按 id 检查只 upsert（保留该桶其它 app 的结果）
 		if ctx.Err() == nil || savePartial {
 			merged := mergeResults(results)
+			for i := range merged {
+				s.attachProxyURL(&merged[i])
+			}
 			if replace {
 				s.setCheckResults(t.id, merged)
 			} else {
