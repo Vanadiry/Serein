@@ -1,169 +1,59 @@
 # Changelog
 
-## [Unreleased]
+## [2.0.0] - 2026-09-25
 
-### [v2.0.0-dev.10] - 2026-09-25
+> 破坏性变更：vsix 类 Tracker 改用 `[tracker] app_id = [...]` 数组格式
 
-#### Added
+### Added
 
-- 规则卡片新增「复制」：按勾选平台复制一段 `[[tracker]]` 片段，便于手动粘贴
+- 全局搜索页 `/search`：跨 Tracker 搜索应用与规则，支持 `/` 快捷键；结果可跳转并在目标页高亮
+- 下载代理 `GET /api/file`：流式转发上游、统一落盘文件名，支持 Range 与 24h 签名 URL
+- Tracker 多选检查：侧栏多选 + 「检查已选定」；完成后自动跳到第一个有更新的 Tracker
+- 检查全部：一次性检查所有 Tracker
+- 官网 / 下载地址弹窗：列出官网、各平台下载链接与代理链接，可复制 / 打开
+- 规则结构与语义校验（`rule.schema.json` + 运行时语义检查）
+- 本地开发规则源校验：`[serein] rule_source_dev` + 规则页「检查规则 [Dev]」
+- 任务可取消：检查、拉取规则、拉取动态配置均可中途终止
+- 规则变量 `rule_values`
+- 规则 `status`（消息 + 等级）
+- 规则新增 `allow_prerelease` / `download_method` / `download_via_proxy` / `download_name`
+- 侧栏 Tracker 显示条目数与更新数（如 `(3/15)`）
+- 规则卡片「追踪 / 复制」
+- 首次启动引导新增「界面速览」，支持点击步骤序号跳转
 
-#### Changed
+### Changed
 
-- 「追踪」与 `POST /api/tracker/add` 仅写入默认 Tracker
-- 侧栏头部固定、列表独立滚动
-- 默认窗口尺寸改为 1050×700（3:2），最小尺寸调整为 800×600
-
-### [v2.0.0-dev.9] - 2026-09-25
-
-#### Added
-
-- 添加对规则的结构和语义校验
-- 本地开发规则源校验
+- 检查入口合并为 `POST /api/check`（`scope = all | trackers | ids`）
+- 检查结果改为按 Tracker 的内存缓存（进程内有效、不落盘）
+- 规则 `config` 改为解析时合并：`[config]` 可被 `[config.os]` 按字段继承与覆盖
+- VSIX / OpenVSX Tracker 改用 `[tracker] app_id = [...]`
+- VSIX 文件名标准化为 `publisher.ext-version.vsix`
+- `/api/open-url`、`/api/download` 仅限本机；远程访问一律在客户端浏览器下载
+- `/api/tracker/add` 仅写入默认 Tracker（缺失时自动创建）
+- 前端：圆角 / 阴影抽为设计 token、输入框统一 `.input`、空态与过渡统一；侧栏头部固定 + 列表独立滚动；修复深浅色
+- 默认窗口 1050×700，最小 800×600
 - 补充单元测试
 
-#### Changed
-
-- vsix 类型的 Tracker 改为一般数组格式
-- 规则检查结果聚合为一条提示
-- toast 内容可滚动
-- 规则源相关 Go 类型命名收敛
-
-#### Removed
-
-- vsix 类的 Tracker 不再兼容旧的 `[[tracker]]` 格式
-
-### [v2.0.0-dev.8] - 2026-09-24
-
-#### Added
-
-- 全局搜索页 `/search`：跨 Tracker 搜索应用与规则，支持 `/` 快捷键唤起
-- 官网 / 下载地址弹窗：列出并允许打开或复制官网、各平台下载链接与代理链接
-- Tracker 多选检查：侧栏多选模式
-- 侧栏每个 Tracker 显示条目数与更新数
-- 首次启动引导新增界面速览，并支持点击步骤序号跳转
-
-#### Changed
-
-- 全部或多选检查完成后，会自动跳转到第一个有更新的 Tracker
-- 检查被取消或出错时不再显示绿色版本与确认图标，保持中性便于识别未检查项
-- 圆角 / 阴影抽为设计 token；输入框统一为 `.input`；空态与交互过渡统一
-
-#### Fixed
+### Fixed
 
 - 修复深浅色主题切换
-- 规则拉取失败时给出明确汇总并记录日志
+- 规则拉取失败给出明确汇总并记录日志；校验 HTTP 状态码，4xx/5xx 不再写入
 - 未更新时不再重载规则，避免误报旧规则告警
-- 修复退出多选模式后未恢复原视图的问题
+- 检查被取消 / 出错时不再显示绿色版本与确认图标
+- 确认更新后同步内存缓存，切换 Tracker 不再重新显示更新箭头
+- 补全协议相对（`//host/...`）等缺失 scheme 的链接
 - `first_run` 未配置时默认开启首次指引
-
-#### Removed
-
-- 规则页移除内置搜索
-
-### [v2.0.0-dev.7] - 2026-09-24
-
-#### Added
-
-- 下载代理 `GET /api/file`：流式转发上游并按标准名落盘，支持 Range 与签名 URL（24 小时）
-- 新增 `download_via_proxy`、`download_name` 配置
-
-#### Changed
-
-- 规则 `force_downloader` 迁移为 `download_method`
-- `/api/open-url`、`/api/download` 仅限本机调用，远程访问则在客户端浏览器下载
-- vsix 自动变更文件名改为 `publisher.ext-version.vsix` 格式
-
-#### Removed
-
-- 内置下载页 `downloader.html`
-- VSIX 内建下载弹窗
-
-### [v2.0.0-dev.6] - 2026-09-24
-
-#### Added
-
-- GitHub 规则支持 `allow_prerelease`：开启后不过滤 prerelease，直接取最新一条
-- 动态配置支持本地文件路径
-
-#### Changed
-
-- 检查入口合并为 `POST /api/check`：以 `scope` 区分范围
-- `/api/check` 请求的 `ids` 按 Tracker 分组
-- 规则中，顶级与不同平台的 `config` 改为解析时合并，所有字段均支持继承与覆盖
-
-#### Fixed
-
+- 退出多选模式后正确恢复原视图
 - 检查告警的事件标题带上软件名
-- 确认更新后同步内存检查缓存，切换 Tracker 不再重新显示更新箭头
-- 补全协议相对（`//host/...`）等缺失 scheme 的链接，避免打开/下载被拒
 
-#### Removed
+### Removed
 
-- 合并 `/api/check/ids`、`/api/check/tracker`、`/api/check/all` 为 `/api/check`
-
-### [v2.0.0-dev.5] - 2026-09-23
-
-#### Added
-
-- 检查全部：一次性检查所有 Tracker
-
-#### Changed
-
-- `/api/check/tracker` 改为接收 `tracker_ids` 数组。按顺序串行检查，可一次检查任意数量
-- 检查结果缓存改为按 Tracker 的内存缓存：切换 Tracker 自动读取，退出程序即释放、不落盘
-- 单条检查的结果并入所属 Tracker 的缓存
-
-#### Removed
-
-- 移除磁盘检查结果缓存（`temp/*.json`）
-- 移除前端读取缓存按钮
-
-### [v2.0.0-dev.4] - 2026-09-23
-
-#### Added
-
-- 规则变量 `rule_values`：允许在规则中添加自定义变量，并在规则加载时从用户 config 相应配置中替换
-
-### [v2.0.0-dev.3] - 2026-09-23
-
-#### Added
-
-- 规则 `status` 支持消息和等级配置
-
-### [v2.0.0-dev.2] - 2026-09-23
-
-#### Added
-
-- 任务取消：检查与规则拉取可中途终止
-- 取消检查时保留并展示已完成的部分结果
-- 拉取动态配置增加阻断式弹窗，并支持取消
-
-#### Changed
-
-- 终止任务不再结束进程，改为取消对应任务
-- 检查与规则拉取接入 `context`，取消时中断在途请求
-- 拉取动态配置取消时不再写入
-
-### [v2.0.0-dev.1] - 2026-09-23
-
-#### Added
-
-- 拉取规则失败时，列出具体失败的规则文件
-
-#### Changed
-
-- 拉取规则改为先下载到内存，某源全部文件成功后再整体替换该目录
-- 拉取规则任一文件失败时不再替换，保留原有规则
-
-#### Fixed
-
-- 拉取规则与 profile 校验 HTTP 状态码，4xx/5xx 不再被当作内容写入
-
-#### Removed
-
-- 移除拉取规则时的本地 `_deleted` 搬移，不再自动清理远端已删除的规则
-- 移除规则同步进度中的 `deleted_files` 字段
+- 内置下载页 `downloader.html` 与 VSIX 内建下载弹窗
+- 规则页内置搜索（改为全局搜索）
+- VSIX / OpenVSX 旧 `[[tracker]]` 格式兼容
+- 磁盘检查结果缓存（`temp/*.json`）与前端「读取缓存」按钮
+- 合并 `/api/check/{ids,tracker,all}` 为 `/api/check`
+- 拉取规则时的本地 `_deleted` 搬移与 `deleted_files` 字段
 
 ## [v1.4.0] - 2026-09-22
 
