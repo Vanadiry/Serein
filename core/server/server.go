@@ -136,7 +136,7 @@ func (s *Server) registerRoutes() {
 				data, err := fs.ReadFile(s.webFS, "index.html")
 				if err == nil {
 					firstRun := "true"
-					if !s.config.Serein.FirstRun {
+					if !s.config.Serein.FirstRunEnabled() {
 						firstRun = "false"
 					}
 					w.Header().Set("Content-Type", "text/html; charset=utf-8")
