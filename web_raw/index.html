@@ -277,7 +277,9 @@
                 else checkTracker();
             };
             document.getElementById("btn-check-all").onclick = checkAll;
-            document.getElementById("btn-multi").onclick = toggleMultiSelect;
+            document.getElementById("btn-multi").onclick = function () {
+                toggleMultiSelect();
+            };
             updateCheckButtons();
             document.getElementById("btn-new-tracker").onclick = () => {
                 showModal(`
