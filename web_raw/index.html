@@ -282,7 +282,7 @@
             document.getElementById("btn-new-tracker").onclick = () => {
                 showModal(`
       <div class="text-base font-bold mb-4">新建 Tracker</div>
-      <input id="new-tracker-name" class="w-full bg-surface border border-bord rounded-control px-3 py-2 text-sm outline-none focus:border-accent mb-3" placeholder="Tracker 名称">
+      <input id="new-tracker-name" class="input w-full mb-3" placeholder="Tracker 名称">
       <div class="flex gap-2">
         <button onclick="closeModal(this.closest('.fixed'))" class="flex-1 px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>
         <button id="btn-create-tracker" class="flex-1 px-4 py-2 rounded-control bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">创建</button>
@@ -833,7 +833,7 @@
                                 entry.current_version &&
                                 entry.current_version[os]) ||
                             "";
-                        return `<div class="flex items-center gap-2"><span class="text-xs text-sub w-16">${escapeHtml(os)}</span><input class="flex-1 bg-surface border border-bord rounded-control px-3 py-1.5 text-sm outline-none focus:border-accent" value="${escapeAttr(cur)}" data-os="${escapeAttr(os)}"></div>`;
+                        return `<div class="flex items-center gap-2"><span class="text-sm text-sub w-16">${escapeHtml(os)}</span><input class="input flex-1" value="${escapeAttr(cur)}" data-os="${escapeAttr(os)}"></div>`;
                     })
                     .join("");
                 document.getElementById("btn-save-version").onclick =

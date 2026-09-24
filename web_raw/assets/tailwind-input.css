@@ -117,6 +117,23 @@ textarea,
 #search-placeholder {
     user-select: text;
 }
+
+/* 统一输入框/下拉样式 */
+.input {
+    background: var(--c-surface);
+    border: 1px solid var(--c-bord);
+    border-radius: var(--radius-control);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--c-text);
+    outline: none;
+}
+.input:focus {
+    border-color: var(--c-accent);
+}
+.input::placeholder {
+    color: var(--c-sub);
+}
 .text-err {
     color: var(--c-err);
 }

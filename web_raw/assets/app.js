@@ -798,7 +798,7 @@ function linkItem(it) {
         "</div>" +
         '<input value="' +
         abs +
-        '" spellcheck="false" class="w-full bg-bg border border-bord-mid rounded-control px-3 py-2.5 text-sm text-text outline-none focus:border-accent overflow-x-auto whitespace-nowrap">' +
+        '" spellcheck="false" class="input w-full">' +
         "</div>"
     );
 }
