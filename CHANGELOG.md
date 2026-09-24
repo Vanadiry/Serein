@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### [v2.0.0-dev.7] - 2026-09-24
+
+#### Added
+
+- 下载代理 `GET /api/file`：流式转发上游并按标准名落盘，支持 Range 与签名 URL（24 小时）
+- 新增 `download_via_proxy`、`download_name` 配置
+
+#### Changed
+
+- 规则 `force_downloader` 迁移为 `download_method`
+- `/api/open-url`、`/api/download` 仅限本机调用，远程访问则在客户端浏览器下载
+- vsix 自动变更文件名改为 `publisher.ext-version.vsix` 格式
+
+#### Removed
+
+- 内置下载页 `downloader.html`
+- VSIX 内建下载弹窗
+
 ### [v2.0.0-dev.6] - 2026-09-24
 
 #### Added
