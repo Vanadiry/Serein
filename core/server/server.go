@@ -39,6 +39,9 @@ type Server struct {
 	// 检查结果缓存：按 Tracker（或 direct 的 type）分桶，内层按 app_id；随进程释放
 	resultsMu sync.RWMutex
 	results   map[string]map[string]checker.CheckResponse
+
+	// 下载代理签名密钥；进程级随机，重启即失效
+	proxySecret []byte
 }
 
 func loggingMiddleware(next http.Handler) http.Handler {
@@ -87,6 +90,7 @@ func sameOriginGuard(next http.Handler) http.Handler {
 func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/open-url", s.handleOpenURL)
 	s.mux.HandleFunc("POST /api/download", s.handleDownload)
+	s.mux.HandleFunc("GET /api/file", s.handleFile)
 
 	s.mux.HandleFunc("GET /api/tracker/list/all", s.handleTrackerListAll)
 	s.mux.HandleFunc("GET /api/tracker/list/", s.handleTrackerListByID)
@@ -196,6 +200,11 @@ func New(home string, webFS fs.FS) (*Server, error) {
 		checker.SetVersionSuffixes(p.VersionSuffixes)
 	}
 	s := &Server{home: home, config: cfg, mux: http.NewServeMux(), webFS: webFS, rules: make(map[string]store.Rule), results: make(map[string]map[string]checker.CheckResponse)}
+	secret, err := newProxySecret()
+	if err != nil {
+		return nil, err
+	}
+	s.proxySecret = secret
 	s.reloadRules()
 	s.registerRoutes()
 	return s, nil
