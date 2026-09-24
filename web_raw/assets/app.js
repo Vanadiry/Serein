@@ -686,17 +686,119 @@ function linkWithTooltip(href, innerHTML, os, opts) {
     );
 }
 
-// 官网链接悬停（高亮根域）
-function earthTooltip(href) {
-    var m = href.match(/^(https?:\/\/[^\/]+)/);
-    var domain = m ? m[1] : href;
-    var rest = m ? href.slice(domain.length) : "";
-    return (
-        '<span class="text-ok font-semibold">' +
-        escapeHtml(domain) +
-        "</span>" +
-        escapeHtml(rest)
+// 链接弹窗：官网 + 各平台下载链接（含代理链接）
+function openLinksModal(appId, site) {
+    var r =
+        typeof checkResults !== "undefined" && checkResults
+            ? checkResults[appId]
+            : null;
+    if (!site && r) site = r.official_website;
+
+    var items = [];
+    var notes = [];
+    if (site) {
+        items.push({ label: "官网", url: site });
+    } else {
+        notes.push("无官网");
+    }
+
+    if (!r || !r.platforms || Object.keys(r.platforms).length === 0) {
+        notes.push("尚未检查更新，暂无下载地址");
+    } else {
+        var order = ["macos", "windows", "linux", "ios", "android"];
+        var oses = Object.keys(r.platforms).sort(function (a, b) {
+            return order.indexOf(a) - order.indexOf(b);
+        });
+        var noLink = [];
+        var any = false;
+        oses.forEach(function (os) {
+            var p = r.platforms[os];
+            var urls = typeof p.url === "string" ? [p.url] : p.url || [];
+            var proxies =
+                typeof p.proxy_url === "string"
+                    ? [p.proxy_url]
+                    : p.proxy_url || [];
+            if (urls.length === 0) {
+                noLink.push(os);
+                return;
+            }
+            urls.forEach(function (u, i) {
+                any = true;
+                items.push({ label: os, url: u });
+                if (proxies[i])
+                    items.push({ label: os + " · 代理", url: proxies[i] });
+            });
+        });
+        if (!any) notes.push("无下载地址");
+        else if (noLink.length > 0)
+            notes.push("无下载地址：" + noLink.join("、"));
+    }
+
+    var body = items.map(linkItem).join("");
+    body += notes
+        .map(function (n) {
+            return (
+                '<div class="text-xs text-sub px-1 py-1.5">' +
+                escapeHtml(n) +
+                "</div>"
+            );
+        })
+        .join("");
+
+    showModal(
+        '<div class="flex items-center justify-between mb-3">' +
+            '<div class="text-base font-bold">官网/下载地址</div>' +
+            '<button onclick="closeModal(this.closest(\'.fixed\'))" class="w-7 h-7 flex items-center justify-center rounded-lg border border-bord bg-transparent text-sub cursor-pointer hover:bg-active hover:text-text">&times;</button>' +
+            "</div>" +
+            '<div class="max-h-[70vh] overflow-y-auto -mr-2 pr-2">' +
+            body +
+            "</div>",
+        true
     );
+}
+
+function linkItem(it) {
+    var abs = escapeAttr(absoluteUrl(it.url));
+    var cls =
+        'class="px-2.5 py-1 rounded-md border border-bord bg-transparent text-sub text-xs cursor-pointer hover:bg-active hover:text-text"';
+    return (
+        '<div class="mb-5">' +
+        '<div class="flex items-center justify-between mb-1.5">' +
+        '<div class="text-sm text-text font-medium">' +
+        escapeHtml(it.label) +
+        "</div>" +
+        '<div class="flex gap-2">' +
+        '<button data-url="' +
+        abs +
+        '" onclick="copyLink(this)" ' +
+        cls +
+        ">复制</button>" +
+        '<button data-url="' +
+        abs +
+        '" onclick="openUrl(this.dataset.url)" ' +
+        cls +
+        ">打开</button>" +
+        "</div>" +
+        "</div>" +
+        '<input value="' +
+        abs +
+        '" spellcheck="false" class="w-full bg-bg border border-bord-mid rounded-lg px-3 py-2.5 text-sm text-text outline-none focus:border-accent overflow-x-auto whitespace-nowrap">' +
+        "</div>"
+    );
+}
+
+function copyLink(btn) {
+    var done = function () {
+        btn.textContent = "已复制";
+        setTimeout(function () {
+            btn.textContent = "复制";
+        }, 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(btn.dataset.url).then(done, done);
+    } else {
+        done();
+    }
 }
 
 // 纯文本提示
@@ -777,7 +879,7 @@ function confirmDialog(msg, cb) {
 }
 
 // 弹窗
-function showModal(html) {
+function showModal(html, wide) {
     const el = document.createElement("div");
     el.className =
         "fixed inset-0 z-[51] flex items-center justify-center bg-overlay transition-opacity duration-200";
@@ -785,7 +887,10 @@ function showModal(html) {
     el.onclick = (e) => {
         if (e.target === el) el.remove();
     };
-    el.innerHTML = `<div class="bg-surface-alt border border-bord rounded-xl p-6 min-w-[400px] max-w-[520px] shadow-2xl transition-all duration-200" style="opacity:0;transform:scale(.95)">${html}</div>`;
+    const size = wide
+        ? "min-w-[560px] max-w-[780px]"
+        : "min-w-[400px] max-w-[520px]";
+    el.innerHTML = `<div class="bg-surface-alt border border-bord rounded-xl p-6 ${size} shadow-2xl transition-all duration-200" style="opacity:0;transform:scale(.95)">${html}</div>`;
     document.body.appendChild(el);
     requestAnimationFrame(function () {
         el.style.opacity = "1";

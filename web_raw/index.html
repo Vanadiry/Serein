@@ -569,7 +569,7 @@
                 }
                 // 常驻按钮：编辑、地球、刷新，粉色背景
                 rightIcons += `<span onclick="event.stopPropagation(); editVersion(this.dataset.appid)" data-appid="${escapeAttr(d.app_id)}" ${tipAttr("修改已记录的版本号")}>${iconImg("edit", "修改已记录的版本号", "w-5 h-5")}</span>`;
-                rightIcons += `<span class="${d.official_website ? "cursor-pointer hover:opacity-80 transition-opacity" : "opacity-30"}" ${d.official_website ? tipAttr(earthTooltip(d.official_website)) : ""}>${d.official_website ? '<span data-url="' + escapeAttr(d.official_website) + '" onclick="event.stopPropagation(); openExternalUrl(this.dataset.url)">' + iconImg("earth", "官网", "w-5 h-5") + "</span>" : iconImg("earth", "无官网", "w-5 h-5")}</span>`;
+                rightIcons += `<span class="cursor-pointer hover:opacity-80 transition-opacity" data-appid="${escapeAttr(d.app_id)}" data-site="${escapeAttr(d.official_website || "")}" ${tipAttr("官网/下载地址")} onclick="event.stopPropagation(); openLinksModal(this.dataset.appid, this.dataset.site)">${iconImg("earth", "官网/下载地址", "w-5 h-5")}</span>`;
                 rightIcons += `<span onclick="event.stopPropagation(); refreshApp(this.dataset.appid)" data-appid="${escapeAttr(d.app_id)}" ${tipAttr("检查更新")}>${iconImg("refresh", "检查更新", "w-5 h-5")}</span>`;
                 rightIcons += `</span>`;
 
