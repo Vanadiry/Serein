@@ -18,11 +18,11 @@ Serein 内置支持检查 VSCode 扩展的更新，无需编写规则表。
 display_name = "名称"
 type = "msvsix"
 
-[[tracker]]
-app_id = "ms-python.python"
-
-[[tracker]]
-app_id = "ms-vscode.cpptools"
+[tracker]
+app_id = [
+    "ms-python.python",
+    "ms-vscode.cpptools",
+]
 ```
 
 Tracker 的 `type`（Tracker 类型）为你想要连接的插件市场代号，为 `msvsix` 或 `openvsx`。

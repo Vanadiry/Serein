@@ -23,12 +23,54 @@ type TrackerInfo struct {
 	Count       int    `json:"count"` // 条目数
 }
 
-// trackerFile 一个 tracker 文件，可含多条 [[tracker]]
+// trackerFile 一个 tracker 文件（app 类型），可含多条 [[tracker]]
 type trackerFile struct {
 	DisplayName string         `toml:"display_name,omitempty"`
 	Order       int            `toml:"order,omitempty"`
 	Type        string         `toml:"type,omitempty"`
 	Trackers    []TrackerEntry `toml:"tracker"`
+}
+
+// trackerMeta 顶层元信息（与类型无关）
+type trackerMeta struct {
+	DisplayName string `toml:"display_name,omitempty"`
+	Order       int    `toml:"order,omitempty"`
+	Type        string `toml:"type,omitempty"`
+}
+
+// decodeTrackerFile 读取 tracker 文件，返回元信息与条目
+// msvsix / openvsx 使用单表 [tracker] app_id = [...]；其余使用 [[tracker]]
+func decodeTrackerFile(path string) (trackerMeta, []TrackerEntry, error) {
+	var meta trackerMeta
+	if err := decodeTOML(path, &meta); err != nil {
+		return meta, nil, err
+	}
+
+	if meta.Type == "msvsix" || meta.Type == "openvsx" {
+		var v struct {
+			Tracker struct {
+				AppID []string `toml:"app_id"`
+			} `toml:"tracker"`
+		}
+		if err := decodeTOML(path, &v); err != nil {
+			return meta, nil, fmt.Errorf("%s：VSIX Tracker 需使用 [tracker] app_id = [...] 格式", filepath.Base(path))
+		}
+		entries := make([]TrackerEntry, 0, len(v.Tracker.AppID))
+		for _, id := range v.Tracker.AppID {
+			if id != "" {
+				entries = append(entries, TrackerEntry{AppID: id})
+			}
+		}
+		return meta, entries, nil
+	}
+
+	var a struct {
+		Trackers []TrackerEntry `toml:"tracker"`
+	}
+	if err := decodeTOML(path, &a); err != nil {
+		return meta, nil, err
+	}
+	return meta, a.Trackers, nil
 }
 
 // LoadAllTrackerInfo 扫描 tracker/ 下所有 .toml，返回文件元信息列表。
@@ -49,19 +91,19 @@ func LoadAllTrackerInfo(home string) ([]TrackerInfo, error) {
 		}
 		id := strings.TrimSuffix(e.Name(), ".toml")
 		path := filepath.Join(dir, e.Name())
-		var tf trackerFile
-		if err := decodeTOML(path, &tf); err != nil {
+		meta, trackerEntries, err := decodeTrackerFile(path)
+		if err != nil {
 			continue
 		}
-		name := tf.DisplayName
+		name := meta.DisplayName
 		if name == "" {
 			name = id
 		}
-		trackerType := tf.Type
+		trackerType := meta.Type
 		if trackerType == "" {
 			trackerType = "app"
 		}
-		list = append(list, TrackerInfo{ID: id, DisplayName: name, Order: tf.Order, Type: trackerType, Count: len(tf.Trackers)})
+		list = append(list, TrackerInfo{ID: id, DisplayName: name, Order: meta.Order, Type: trackerType, Count: len(trackerEntries)})
 	}
 	sort.Slice(list, func(i, j int) bool {
 		if list[i].Order != list[j].Order {
@@ -102,11 +144,11 @@ func loadTrackerFiles(home, name string) ([]TrackerEntry, error) {
 			continue
 		}
 		path := filepath.Join(dir, e.Name())
-		var tf trackerFile
-		if err := decodeTOML(path, &tf); err != nil {
+		_, trackerEntries, err := decodeTrackerFile(path)
+		if err != nil {
 			continue
 		}
-		list = append(list, tf.Trackers...)
+		list = append(list, trackerEntries...)
 	}
 	return list, nil
 }
@@ -136,14 +178,14 @@ func GetTrackerType(home, name string) string {
 	if err != nil {
 		return "app"
 	}
-	var tf trackerFile
-	if err := decodeTOML(path, &tf); err != nil {
+	var meta trackerMeta
+	if err := decodeTOML(path, &meta); err != nil {
 		return "app"
 	}
-	if tf.Type == "" {
+	if meta.Type == "" {
 		return "app"
 	}
-	return tf.Type
+	return meta.Type
 }
 
 // TrackerExists 检查 tracker 文件（按文件名）是否存在。
