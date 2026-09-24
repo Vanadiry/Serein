@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -224,8 +225,8 @@ func ParseRuleFile(path string, ruleValues map[string]map[string]string) (Rule, 
 		if !ok {
 			return Rule{}, issues, fmt.Errorf("%s: info: 期望表结构", label)
 		}
-		info, unknown, err := decodeSection[RuleInfo](infoMap, label+": info", nil)
-		issues = appendUnknown(issues, label+": info", unknown)
+		issues = append(issues, validateSection("info", label+": info", infoMap)...)
+		info, _, err := decodeSection[RuleInfo](infoMap, label+": info", nil)
 		if err != nil {
 			return Rule{}, issues, err
 		}
@@ -252,8 +253,8 @@ func ParseRuleFile(path string, ruleValues map[string]map[string]string) (Rule, 
 			}
 			base[k] = v
 		}
-		cfg, unknown, err := decodeSection[PlatConfig](base, label+": config", nil)
-		issues = appendUnknown(issues, label+": config", unknown)
+		issues = append(issues, validateSection("plat", label+": config", base)...)
+		cfg, _, err := decodeSection[PlatConfig](base, label+": config", nil)
 		if err != nil {
 			return Rule{}, issues, err
 		}
@@ -274,8 +275,8 @@ func ParseRuleFile(path string, ruleValues map[string]map[string]string) (Rule, 
 			for k, v := range vm {
 				merged[k] = v
 			}
-			pc, unknown, err := decodeSection[PlatConfig](merged, label+": config."+key, nil)
-			issues = appendUnknown(issues, label+": config."+key, unknown)
+			issues = append(issues, validateSection("plat", label+": config."+key, merged)...)
+			pc, _, err := decodeSection[PlatConfig](merged, label+": config."+key, nil)
 			if err != nil {
 				return Rule{}, issues, err
 			}
@@ -313,8 +314,8 @@ func ParseRuleFile(path string, ruleValues map[string]map[string]string) (Rule, 
 					if !ok {
 						return Rule{}, issues, fmt.Errorf("%s: pre_request.%s.%s: 期望表结构", label, id, k)
 					}
-					rs, unknown, err := decodeSection[PreRequestStep](vm, label+": pre_request."+id+"."+k, nil)
-					issues = appendUnknown(issues, label+": pre_request."+id+"."+k, unknown)
+					issues = append(issues, validateSection("pre_step", label+": pre_request."+id+"."+k, vm)...)
+					rs, _, err := decodeSection[PreRequestStep](vm, label+": pre_request."+id+"."+k, nil)
 					if err != nil {
 						return Rule{}, issues, err
 					}
@@ -325,8 +326,8 @@ func ParseRuleFile(path string, ruleValues map[string]map[string]string) (Rule, 
 					issues = append(issues, RuleIssue{Level: "warn", Message: fmt.Sprintf("%s: pre_request.%s: 未知字段 %s", label, id, strings.Join(stray, ", "))})
 				}
 			} else {
-				rs, unknown, err := decodeSection[PreRequestStep](stepMap, label+": pre_request."+id, nil)
-				issues = appendUnknown(issues, label+": pre_request."+id, unknown)
+				issues = append(issues, validateSection("pre_step", label+": pre_request."+id, stepMap)...)
+				rs, _, err := decodeSection[PreRequestStep](stepMap, label+": pre_request."+id, nil)
 				if err != nil {
 					return Rule{}, issues, err
 				}
@@ -336,15 +337,11 @@ func ParseRuleFile(path string, ruleValues map[string]map[string]string) (Rule, 
 		}
 	}
 
-	return rule, issues, nil
-}
-
-// appendUnknown 把未知字段名转成告警 issue
-func appendUnknown(issues []RuleIssue, section string, unknown []string) []RuleIssue {
-	if len(unknown) == 0 {
-		return issues
+	for _, is := range rule.Validate() {
+		is.Message = label + ": " + is.Message
+		issues = append(issues, is)
 	}
-	return append(issues, RuleIssue{Level: "warn", Message: fmt.Sprintf("%s: 未知字段 %s", section, strings.Join(unknown, ", "))})
+	return rule, issues, nil
 }
 
 // decodeSection 校验未知字段并解码为强类型。未知字段随返回值交给调用方决定如何处理；
@@ -405,6 +402,140 @@ func (r Rule) MergedConfig(os string) PlatConfig {
 		return plat
 	}
 	return r.Config
+}
+
+// Validate 语义校验（解析后调用）：平台、type、github 必填、url scheme、position 与正则。
+// 返回的 Message 不含文件名，由调用方补前缀。
+func (r Rule) Validate() []RuleIssue {
+	var issues []RuleIssue
+	if len(r.Info.Platforms) == 0 {
+		issues = append(issues, RuleIssue{Level: "error", Message: "info: 至少需要一个平台"})
+	}
+	for _, p := range r.Info.Platforms {
+		if strings.TrimSpace(p) == "" {
+			issues = append(issues, RuleIssue{Level: "error", Message: "info: 平台名不能为空"})
+		}
+	}
+	for _, os := range r.Info.Platforms {
+		if strings.TrimSpace(os) == "" {
+			continue
+		}
+		issues = append(issues, validatePlatConfig("config."+os, r.MergedConfig(os))...)
+	}
+	return issues
+}
+
+func validatePlatConfig(name string, c PlatConfig) []RuleIssue {
+	var issues []RuleIssue
+	add := func(level, msg string) {
+		issues = append(issues, RuleIssue{Level: level, Message: name + ": " + msg})
+	}
+
+	vType := c.VType
+	if vType == "" {
+		vType = c.Type
+	}
+	dType := c.DType
+	if dType == "" {
+		dType = c.Type
+	}
+	if vType == "" {
+		add("error", "缺少 type（版本号解析器）")
+	}
+	if dType == "" {
+		add("error", "缺少 type（下载解析器）")
+	}
+
+	if c.Type == "github" {
+		if c.Owner == "" {
+			add("error", "github 规则缺少 owner")
+		}
+		if c.Repo == "" {
+			add("error", "github 规则缺少 repo")
+		}
+	}
+
+	checkURL := func(field, u string) {
+		if u == "" || strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") {
+			return
+		}
+		add("warn", field+" 不是 http(s) 链接")
+	}
+	checkURL("url", c.URL)
+	checkURL("v_url", c.VURL)
+	checkURL("d_url", c.DURL)
+
+	issues = append(issues, validatePosition(name, "v_position", c.VPosition, vType)...)
+	issues = append(issues, validatePosition(name, "d_position", c.DPosition, dType)...)
+	return issues
+}
+
+func validatePosition(name, field string, pos any, typ string) []RuleIssue {
+	if pos == nil || typ == "" || typ == "direct" {
+		return nil
+	}
+	var issues []RuleIssue
+	add := func(msg string) {
+		issues = append(issues, RuleIssue{Level: "warn", Message: name + ": " + field + " " + msg})
+	}
+	switch typ {
+	case "json", "xml":
+		arr, ok := pos.([]any)
+		if !ok {
+			add("应为数组")
+			return issues
+		}
+		checkPositionRegex(arr, add)
+	case "regex":
+		s, ok := pos.(string)
+		if !ok {
+			add("应为正则字符串")
+			return issues
+		}
+		if _, err := regexp.Compile(s); err != nil {
+			add("正则无法编译：" + err.Error())
+		}
+	case "html_selector":
+		m, ok := pos.(map[string]any)
+		if !ok {
+			add("应为对象（含 selector / attr / regex）")
+			return issues
+		}
+		if sel, _ := m["selector"].(string); sel == "" {
+			add("缺少 selector")
+		}
+		if re, _ := m["regex"].(string); re != "" {
+			if _, err := regexp.Compile(re); err != nil {
+				add("regex 无法编译：" + err.Error())
+			}
+		}
+	case "github":
+		s, ok := pos.(string)
+		if !ok {
+			add("应为匹配文件名用的正则字符串")
+			return issues
+		}
+		if _, err := regexp.Compile(s); err != nil {
+			add("正则无法编译：" + err.Error())
+		}
+	}
+	return issues
+}
+
+// checkPositionRegex 校验 json/xml 数组 position 中 `name~正则` 段的正则
+func checkPositionRegex(arr []any, add func(string)) {
+	for _, v := range arr {
+		switch x := v.(type) {
+		case []any:
+			checkPositionRegex(x, add)
+		case string:
+			if i := strings.Index(x, "~"); i >= 0 {
+				if _, err := regexp.Compile(x[i+1:]); err != nil {
+					add("内联正则无法编译（" + x + "）：" + err.Error())
+				}
+			}
+		}
+	}
 }
 
 func (r Rule) PreRequestChain(os string) []PreRequestStep {
