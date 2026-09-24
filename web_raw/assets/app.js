@@ -221,6 +221,7 @@ function renderTopbar(current) {
         <nav class="flex gap-1 ml-2 items-center">
           <a href="/" class="no-underline px-3 py-1.5 rounded-lg text-sm ${navCls("/")}">应用</a>
           <a href="/rules" class="no-underline px-3 py-1.5 rounded-lg text-sm ${navCls("/rules")}">规则</a>
+          <a href="/search" class="no-underline px-3 py-1.5 rounded-lg text-sm ${navCls("/search")}">搜索</a>
           <a href="/settings" class="no-underline px-3 py-1.5 rounded-lg text-sm ${navCls("/settings")}">设置</a>
         </nav>
         <div class="flex-1"></div>
@@ -230,22 +231,18 @@ function renderTopbar(current) {
                   ? `
           <button id="btn-tracker-check" style="display:none" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">检查当前 Tracker</button>
           `
-                  : isSettings
-                    ? ""
-                    : `
-          ${
-              isRules
-                  ? `<button id="btn-rule-check" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">检查错误</button>`
-                  : ""
-          }
+                  : isRules
+                    ? `
+          <button id="btn-rule-check" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">检查错误</button>
           <button id="btn-sync-profile" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">拉取动态配置</button>
           <button id="btn-sync" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">拉取规则</button>
           `
+                    : ""
           }
         </nav>
       </div>
     </div>`;
-    if (!isIndex && !isSettings) {
+    if (isRules) {
         document
             .getElementById("btn-sync")
             .addEventListener("click", function () {
@@ -256,11 +253,9 @@ function renderTopbar(current) {
             .addEventListener("click", function () {
                 confirmDialog("将从远端拉取最新的动态配置", syncProfile);
             });
-        if (isRules) {
-            document
-                .getElementById("btn-rule-check")
-                .addEventListener("click", checkRuleErrors);
-        }
+        document
+            .getElementById("btn-rule-check")
+            .addEventListener("click", checkRuleErrors);
     }
 }
 
@@ -1207,3 +1202,23 @@ function startSyncProgress(taskId) {
     }
     connectEvents();
 })();
+
+// 全局 "/" 跳转到搜索页（搜索页内自行聚焦输入框）
+document.addEventListener("keydown", function (e) {
+    if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+    var t = e.target;
+    if (t) {
+        var tag = t.tagName;
+        if (
+            tag === "INPUT" ||
+            tag === "TEXTAREA" ||
+            tag === "SELECT" ||
+            t.isContentEditable
+        )
+            return;
+    }
+    var p = location.pathname;
+    if (p === "/search" || p === "/search.html") return;
+    e.preventDefault();
+    location.href = "/search";
+});

@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-CN" class="bg-bg">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>搜索 | Serein</title>
+        <link rel="icon" href="/assets/favicon.svg" />
+        <link rel="stylesheet" href="/assets/style.css" />
+        <style>
+            #search-area {
+                transition: margin-top 0.35s ease;
+            }
+        </style>
+    </head>
+    <body class="text-text min-h-screen">
+        <div id="topbar"></div>
+
+        <main class="max-w-[720px] mx-auto p-6">
+            <div id="search-area" class="mt-[25vh]">
+                <div
+                    class="flex items-stretch bg-input border border-bord-strong rounded-xl overflow-hidden focus-within:border-accent transition-colors"
+                >
+                    <input
+                        id="q"
+                        placeholder="搜索应用或规则…"
+                        class="flex-1 px-4 py-3 bg-transparent text-base outline-none border-0 min-w-0"
+                        autofocus
+                    />
+                </div>
+            </div>
+            <div id="results" class="mt-6"></div>
+        </main>
+
+        <script src="/assets/app.min.js"></script>
+        <script>
+            renderTopbar("搜索");
+
+            renderResultsHint();
+
+            var qp = new URLSearchParams(location.search);
+            var initQ = qp.get("q");
+            if (initQ) {
+                document.getElementById("q").value = initQ;
+                doSearch();
+            }
+
+            var _timer;
+            document.getElementById("q").addEventListener("input", function () {
+                clearTimeout(_timer);
+                _timer = setTimeout(doSearch, 220);
+            });
+            document
+                .getElementById("q")
+                .addEventListener("keydown", function (e) {
+                    if (e.key === "Enter") doSearch();
+                });
+            document.addEventListener("keydown", function (e) {
+                if (
+                    e.key !== "/" ||
+                    document.activeElement === document.getElementById("q")
+                )
+                    return;
+                var t = e.target;
+                if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA"))
+                    return;
+                e.preventDefault();
+                document.getElementById("q").focus();
+            });
+
+            function renderResultsHint() {
+                document.getElementById("results").innerHTML =
+                    '<div class="text-center py-16 text-sub">输入关键词搜索应用或规则</div>';
+            }
+
+            async function doSearch() {
+                var q = document.getElementById("q").value.trim();
+                var res = document.getElementById("results");
+                if (!q) {
+                    document.getElementById("search-area").style.marginTop =
+                        "25vh";
+                    renderResultsHint();
+                    return;
+                }
+                document.getElementById("search-area").style.marginTop = "0";
+                res.innerHTML =
+                    '<div class="text-center py-10 text-sub">搜索中…</div>';
+                var d =
+                    (await api("/api/search?q=" + encodeURIComponent(q))) || {};
+                renderResults(d.apps || [], d.rules || []);
+            }
+
+            function sectionHeader(label, n) {
+                return (
+                    '<div class="flex items-center gap-2 mb-3"><span class="w-[3px] h-[18px] bg-accent rounded-sm"></span><span class="font-bold text-sm">' +
+                    escapeHtml(label) +
+                    '</span><span class="text-xs text-sub">(' +
+                    n +
+                    ")</span></div>"
+                );
+            }
+
+            function resultRow(href, title, sub, meta) {
+                return (
+                    '<div data-href="' +
+                    escapeAttr(href) +
+                    '" onclick="location.href=this.dataset.href" class="flex items-center gap-3 bg-surface border border-bord-mid rounded-lg py-2 px-3 cursor-pointer hover:border-accent transition-colors">' +
+                    '<div class="flex-1 min-w-0"><div class="text-sm font-semibold truncate">' +
+                    escapeHtml(title) +
+                    '</div><div class="text-xs text-sub truncate mt-0.5">' +
+                    escapeHtml(sub) +
+                    "</div></div>" +
+                    (meta
+                        ? '<div class="text-xs text-sub shrink-0 max-w-[30%] truncate">' +
+                          escapeHtml(meta) +
+                          "</div>"
+                        : "") +
+                    "</div>"
+                );
+            }
+
+            function versionText(cv) {
+                var order = ["macos", "windows", "linux", "ios", "android"];
+                var parts = [];
+                Object.keys(cv || {})
+                    .sort(function (a, b) {
+                        return order.indexOf(a) - order.indexOf(b);
+                    })
+                    .forEach(function (os) {
+                        parts.push(os + " " + cv[os]);
+                    });
+                return parts.length ? parts.join(" · ") : "未记录版本";
+            }
+
+            function renderResults(apps, rules) {
+                var res = document.getElementById("results");
+                if (!apps.length && !rules.length) {
+                    res.innerHTML =
+                        '<div class="text-center py-16 text-sub">未找到结果</div>';
+                    return;
+                }
+                var html = "";
+                if (apps.length) {
+                    html +=
+                        '<div class="mb-6">' +
+                        sectionHeader("应用", apps.length) +
+                        '<div class="flex flex-col gap-1">' +
+                        apps
+                            .map(function (it) {
+                                return resultRow(
+                                    "/?tracker=" +
+                                        encodeURIComponent(it.tracker_id) +
+                                        "&app=" +
+                                        encodeURIComponent(it.app_id),
+                                    it.name || it.app_id,
+                                    versionText(it.current_version),
+                                    it.tracker_name
+                                );
+                            })
+                            .join("") +
+                        "</div></div>";
+                }
+                if (rules.length) {
+                    html +=
+                        '<div class="mb-6">' +
+                        sectionHeader("规则", rules.length) +
+                        '<div class="flex flex-col gap-1">' +
+                        rules
+                            .map(function (it) {
+                                return resultRow(
+                                    "/rules?source=" +
+                                        encodeURIComponent(it.source_id) +
+                                        "&rule=" +
+                                        encodeURIComponent(it.app_id),
+                                    it.name || it.app_id,
+                                    it.description || "无简介",
+                                    it.source_name
+                                );
+                            })
+                            .join("") +
+                        "</div></div>";
+                }
+                res.innerHTML = html;
+            }
+        </script>
+    </body>
+</html>

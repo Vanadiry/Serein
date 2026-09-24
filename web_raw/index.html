@@ -592,7 +592,7 @@
                 rightIcons += `<span onclick="event.stopPropagation(); refreshApp(this.dataset.appid)" data-appid="${escapeAttr(d.app_id)}" ${tipAttr("检查更新")}>${iconImg("refresh", "检查更新", "w-5 h-5")}</span>`;
                 rightIcons += `</span>`;
 
-                return `<div class="flex items-center bg-surface-alt border border-bord-mid rounded-lg pl-2 pr-4 h-16 hover:border-bord transition-colors mb-2 overflow-hidden">
+                return `<div data-appid="${escapeAttr(d.app_id)}" class="flex items-center bg-surface-alt border border-bord-mid rounded-lg pl-2 pr-4 h-16 hover:border-bord transition-colors mb-2 overflow-hidden">
       <div class="flex-1 min-w-0 pr-4 flex flex-col justify-center">
         <div class="text-base font-semibold truncate pl-1"><span class="select-text${st && st.nameClass ? " " + st.nameClass : ""}" ${tipAttr(escapeHtml(d.app_id || "") + (d.description ? "<br>" + escapeHtml(d.description) : "") + (st ? "<br>状态：" + escapeHtml(st.message) : ""))}>${escapeHtml(d.name || d.app_id)}</span>${timeHTML}${st ? " " + st.dotHTML : ""}</div>
         <div class="mt-0.5">${versionHTML}</div>
@@ -836,6 +836,27 @@
                 if (!Array.isArray(data)) return;
                 for (const r of data) checkResults[r.app_id] = r;
             }
+
+            // 支持 /?tracker=<id>&app=<id> 定位（来自全局搜索）
+            (async function () {
+                var qp = new URLSearchParams(location.search);
+                var tid = qp.get("tracker");
+                var aid = qp.get("app");
+                if (!tid) return;
+                await selectTracker(tid);
+                if (!aid) return;
+                setTimeout(function () {
+                    var el = document.querySelector(
+                        '[data-appid="' + CSS.escape(aid) + '"]'
+                    );
+                    if (!el) return;
+                    el.scrollIntoView({ block: "center" });
+                    el.classList.add("ring-2", "ring-accent");
+                    setTimeout(function () {
+                        el.classList.remove("ring-2", "ring-accent");
+                    }, 2500);
+                }, 150);
+            })();
         </script>
     </body>
 </html>

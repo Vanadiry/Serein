@@ -298,7 +298,7 @@
                     .map((r) => {
                         const platforms = r.platforms || [];
                         const st = statusInfo(r.status);
-                        return `<div class="bg-surface-alt border border-bord-mid rounded-xl p-3 flex flex-col card-h hover:border-bord transition-colors">
+                        return `<div data-appid="${escapeAttr(r.app_id)}" class="bg-surface-alt border border-bord-mid rounded-xl p-3 flex flex-col card-h hover:border-bord transition-colors">
         <div class="text-sm font-semibold truncate"><span class="select-text${st && st.nameClass ? " " + st.nameClass : ""}" ${tipAttr(escapeHtml(r.app_id || "") + (st ? "<br>状态：" + escapeHtml(st.message) : ""))}>${escapeHtml(r.name || r.app_id)}</span>${st ? " " + st.dotHTML : ""}</div>
         <div class="select-text text-xs text-sub mt-1 truncate">${escapeHtml(r.description || r.app_id)}</div>
         <div class="flex-1 mt-3 flex flex-col gap-1 pl-2">
@@ -319,6 +319,27 @@
                 btn.textContent = "✓";
                 btn.classList.add("text-ok");
             }
+
+            // 支持 /rules?source=<id>&rule=<app_id> 定位（来自全局搜索）
+            (async function () {
+                var qp = new URLSearchParams(location.search);
+                var sid = qp.get("source");
+                var rid = qp.get("rule");
+                if (!sid) return;
+                await selectSource(sid);
+                if (!rid) return;
+                setTimeout(function () {
+                    var el = document.querySelector(
+                        '[data-appid="' + CSS.escape(rid) + '"]'
+                    );
+                    if (!el) return;
+                    el.scrollIntoView({ block: "center" });
+                    el.classList.add("ring-2", "ring-accent");
+                    setTimeout(function () {
+                        el.classList.remove("ring-2", "ring-accent");
+                    }, 2500);
+                }, 200);
+            })();
         </script>
     </body>
 </html>
