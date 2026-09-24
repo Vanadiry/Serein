@@ -82,62 +82,35 @@ paths:
                 items: { type: string }
 
   # Check
-  /api/check/ids:
+  /api/check:
     post:
       tags: [Check]
-      summary: 检查指定软件（同步返回结果）
+      summary: 发起检查（异步，返回 task_id；进度见 /api/progress/{task_id}）
+      description: |
+        通过 `scope` 指定检查范围：
+        - `all`：检查所有 Tracker
+        - `trackers`：检查 `tracker_ids` 指定的 Tracker（按顺序串行）
+        - `ids`：按 Tracker 分组检查给定 id，`ids` 为 `{ "<tracker>": ["id", ...] }`
       requestBody:
         content:
           application/json:
             schema:
               type: object
-              required: [ids]
+              required: [scope]
               properties:
-                type:
+                scope:
                   type: string
-                  enum: [app, msvsix, openvsx]
-                  default: app
-                  description: "app 使用规则表检查，msvsix/openvsx 直接调用对应市场 API"
-                ids:
-                  type: array
-                  items: { type: string }
-                tracker_id:
-                  type: string
-                  description: "限定在该 Tracker 记录内检查，平台以 Tracker 为准，不填则跨所有 Tracker"
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/CheckResponse"
-  /api/check/tracker:
-    post:
-      tags: [Check]
-      summary: 检查指定 tracker（数组，按顺序串行；异步，返回 task_id）
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [tracker_ids]
-              properties:
+                  enum: [all, trackers, ids]
                 tracker_ids:
                   type: array
                   items: { type: string }
-      responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/TaskResponse"
-  /api/check/all:
-    post:
-      tags: [Check]
-      summary: 检查所有 Tracker（异步，返回 task_id）
+                  description: scope=trackers 时必填
+                ids:
+                  type: object
+                  additionalProperties:
+                    type: array
+                    items: { type: string }
+                  description: scope=ids 时必填；key 为 Tracker 名
       responses:
         "200":
           description: OK

@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### [v2.0.0-beta.6] - 2026-09-24
+
+#### Changed
+
+- 检查入口合并为 `POST /api/check`：以 `scope` 区分范围
+- `/api/check` 请求的 `ids` 按 Tracker 分组
+
+#### Removed
+
+- 合并 `/api/check/ids`、`/api/check/tracker`、`/api/check/all` 为 `/api/check`
+
 ### [v2.0.0-beta.5] - 2026-09-23
 
 #### Added

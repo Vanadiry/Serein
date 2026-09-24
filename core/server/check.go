@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,107 +21,54 @@ import (
 	"github.com/vanadiry/serein/core/store"
 )
 
-// POST /api/check/ids
-
-func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
+// POST /api/check
+func (s *Server) handleCheck(w http.ResponseWriter, r *http.Request) {
 	limitBody(w, r)
 	var body struct {
-		Type      string   `json:"type"`
-		TrackerID string   `json:"tracker_id"`
-		IDs       []string `json:"ids"`
+		Scope      string              `json:"scope"`
+		TrackerIDs []string            `json:"tracker_ids"`
+		IDs        map[string][]string `json:"ids"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid body")
 		return
 	}
-	if body.Type == "" {
-		body.Type = "app"
-	}
-	ids := body.IDs
 
-	if body.Type == "msvsix" || body.Type == "openvsx" {
-		s.handleDirectCheckIDs(r.Context(), w, ids, body.Type)
-		return
-	}
-
-	// 指定 tracker_id 时只在该 Tracker 记录内检查，平台以 Tracker 为准，否则回退到全量
-	var allEntries []store.TrackerEntry
-	if body.TrackerID != "" {
-		if !store.ValidTrackerName(body.TrackerID) {
-			writeError(w, http.StatusBadRequest, "invalid tracker_id")
+	var list []checkAllTracker
+	savePartial := true // 指定范围检查时，取消也保留已完成部分
+	switch body.Scope {
+	case "all":
+		list = s.buildCheckList(nil, nil)
+		savePartial = false // 全部检查：取消不覆盖未完成桶
+	case "trackers":
+		if len(body.TrackerIDs) == 0 {
+			writeError(w, http.StatusBadRequest, "missing tracker_ids")
 			return
 		}
-		entries, err := store.LoadTrackerFile(s.home, body.TrackerID)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		allEntries = entries
-	} else {
-		entries, err := store.LoadTracker(s.home)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
-		allEntries = entries
-	}
-
-	var entries []store.TrackerEntry
-	for _, e := range allEntries {
-		for _, id := range ids {
-			if e.AppID == id {
-				entries = append(entries, e)
-				break
+		for _, id := range body.TrackerIDs {
+			if !store.ValidTrackerName(id) {
+				writeError(w, http.StatusBadRequest, "invalid tracker_id: "+id)
+				return
 			}
 		}
-	}
-	if len(entries) == 0 {
-		writeJSON(w, http.StatusOK, []checker.CheckResponse{})
-		return
-	}
-	httpx.ClearURLCache()
-	jobs, _ := s.buildCheckJobs(r.Context(), entries)
-	var results []checker.CheckResponse
-	for _, job := range jobs {
-		resp, err := checker.RunCheck(r.Context(), job.req)
-		if err != nil {
-			if !errors.Is(err, context.Canceled) {
-				events.Emit("error", "[check]", fmt.Sprintf("%s: %v", job.name, err))
-			}
-			continue
-		}
-		results = append(results, resp)
-	}
-	if results == nil {
-		results = []checker.CheckResponse{}
-	}
-	// 单条/按 id 检查的结果并入该 Tracker 的缓存
-	if body.TrackerID != "" {
-		for _, r := range results {
-			s.setCheckResult(body.TrackerID, r)
-		}
-	}
-	writeJSON(w, http.StatusOK, results)
-}
-
-// POST /api/check/tracker
-// body: {"tracker_ids": ["a","b"]}（按传入顺序串行检查，数组可任意长度）
-func (s *Server) handleCheckTracker(w http.ResponseWriter, r *http.Request) {
-	limitBody(w, r)
-	var body struct {
-		TrackerIDs []string `json:"tracker_ids"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || len(body.TrackerIDs) == 0 {
-		writeError(w, http.StatusBadRequest, "missing tracker_ids")
-		return
-	}
-	for _, id := range body.TrackerIDs {
-		if !store.ValidTrackerName(id) {
-			writeError(w, http.StatusBadRequest, "invalid tracker_id: "+id)
+		list = s.buildCheckList(body.TrackerIDs, nil)
+	case "ids":
+		if len(body.IDs) == 0 {
+			writeError(w, http.StatusBadRequest, "missing ids")
 			return
 		}
+		for id := range body.IDs {
+			if !store.ValidTrackerName(id) {
+				writeError(w, http.StatusBadRequest, "invalid tracker_id: "+id)
+				return
+			}
+		}
+		list = s.buildCheckList(nil, body.IDs)
+	default:
+		writeError(w, http.StatusBadRequest, "invalid scope: must be all|trackers|ids")
+		return
 	}
-	s.startCheckList(w, s.buildCheckList(body.TrackerIDs), true)
+	s.startCheckList(w, list, savePartial)
 }
 
 // startCheckList 为一个 tracker 列表启动异步检查任务（total 为条目数）
@@ -461,33 +409,6 @@ func (s *Server) getCheckResults(key string) []checker.CheckResponse {
 	return out
 }
 
-func (s *Server) handleDirectCheckIDs(ctx context.Context, w http.ResponseWriter, ids []string, typ string) {
-	checkFn := selectDirectCheckFn(typ)
-	client := httpx.NewClient()
-	userData, _ := store.LoadUserData(s.home)
-	var results []checker.CheckResponse
-	for _, id := range ids {
-		resp, err := directCheckResponse(ctx, checkFn, client, id, typ, userData)
-		if err != nil {
-			if !errors.Is(err, context.Canceled) {
-				events.Emit("error", "["+typ+"]", fmt.Sprintf("%s: %v", id, err))
-			}
-			continue
-		}
-		results = append(results, resp)
-	}
-	if results == nil {
-		results = []checker.CheckResponse{}
-	}
-	// 单条/按 id 检查的结果并入该 type 的缓存
-	for _, r := range results {
-		s.setCheckResult(typ, r)
-	}
-	writeJSON(w, http.StatusOK, results)
-}
-
-// POST /api/check/all：一次性检查所有 Tracker
-
 type checkAllTracker struct {
 	id      string
 	name    string
@@ -495,14 +416,8 @@ type checkAllTracker struct {
 	entries []store.TrackerEntry
 }
 
-func (s *Server) handleCheckAll(w http.ResponseWriter, r *http.Request) {
-	limitBody(w, r)
-	s.startCheckList(w, s.buildCheckList(nil), false)
-}
-
-// buildCheckList 按给定 tracker id 列表构造检查列表；ids 为空表示全部
-// 保持给定顺序并去重，跳过不存在或空的 Tracker
-func (s *Server) buildCheckList(ids []string) []checkAllTracker {
+// buildCheckList 构造检查列表
+func (s *Server) buildCheckList(trackerIDs []string, idFilter map[string][]string) []checkAllTracker {
 	infos, err := store.LoadAllTrackerInfo(s.home)
 	if err != nil {
 		return nil
@@ -511,33 +426,65 @@ func (s *Server) buildCheckList(ids []string) []checkAllTracker {
 	for _, ti := range infos {
 		byID[ti.ID] = ti
 	}
+
 	var order []string
-	if len(ids) > 0 {
-		seen := make(map[string]bool, len(ids))
-		for _, id := range ids {
+	switch {
+	case len(idFilter) > 0:
+		for id := range idFilter {
+			order = append(order, id)
+		}
+		sort.Strings(order)
+	case len(trackerIDs) > 0:
+		seen := make(map[string]bool, len(trackerIDs))
+		for _, id := range trackerIDs {
 			if !seen[id] {
 				seen[id] = true
 				order = append(order, id)
 			}
 		}
-	} else {
+	default:
 		for _, ti := range infos {
 			order = append(order, ti.ID)
 		}
 	}
+
 	var list []checkAllTracker
 	for _, id := range order {
 		ti, ok := byID[id]
 		if !ok {
 			continue
 		}
-		entries, err := store.LoadTrackerFile(s.home, id)
-		if err != nil || len(entries) == 0 {
-			continue
-		}
 		typ := ti.Type
 		if typ == "" {
 			typ = "app"
+		}
+		all, err := store.LoadTrackerFile(s.home, id)
+		if err != nil {
+			continue
+		}
+		var entries []store.TrackerEntry
+		if idFilter != nil {
+			if typ == "msvsix" || typ == "openvsx" {
+				// direct：按给定 id 直接检查，不要求在 Tracker 中
+				for _, x := range idFilter[id] {
+					entries = append(entries, store.TrackerEntry{AppID: x})
+				}
+			} else {
+				want := make(map[string]bool, len(idFilter[id]))
+				for _, x := range idFilter[id] {
+					want[x] = true
+				}
+				for _, e := range all {
+					if want[e.AppID] {
+						entries = append(entries, e)
+					}
+				}
+			}
+		} else {
+			entries = all
+		}
+		if len(entries) == 0 {
+			continue
 		}
 		list = append(list, checkAllTracker{id: ti.ID, name: ti.DisplayName, typ: typ, entries: entries})
 	}

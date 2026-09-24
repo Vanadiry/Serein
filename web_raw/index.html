@@ -250,15 +250,8 @@
                     ? SEREIN_DOWNLOADER
                     : "无");
 
-            document.getElementById("btn-tracker-check").onclick = () => {
-                confirmDialog(
-                    "将检查当前 Tracker 中所有软件的更新",
-                    checkTracker
-                );
-            };
-            document.getElementById("btn-check-all").onclick = () => {
-                confirmDialog("将检查所有 Tracker 中所有软件的更新", checkAll);
-            };
+            document.getElementById("btn-tracker-check").onclick = checkTracker;
+            document.getElementById("btn-check-all").onclick = checkAll;
             document.getElementById("btn-new-tracker").onclick = () => {
                 showModal(`
       <div class="text-base font-bold mb-4">新建 Tracker</div>
@@ -582,33 +575,14 @@
     </div>`;
             }
 
-            async function refreshApp(appId) {
+            function refreshApp(appId) {
                 console.log("[check] ids:", appId);
-                const ld = showLoading("加载中", "正在检查...");
-                var body = { ids: [appId] };
-                if (
-                    currentTrackerType === "msvsix" ||
-                    currentTrackerType === "openvsx"
-                ) {
-                    body.type = currentTrackerType;
-                } else {
-                    body.type = "app";
-                    if (currentTracker) body.tracker_id = currentTracker;
-                }
-                const data = await apiPost("/api/check/ids", body);
-                mergeCheckResults(data || []);
-                const detail =
-                    (await api("/api/tracker/list/" + currentTracker)) || [];
-                const list = document.getElementById("software-list");
-                if (!list.classList.contains("hidden")) {
-                    list.innerHTML = detail
-                        .map((d) => renderSoftwareRow(d))
-                        .join("");
-                }
-                var errs = collectErrors(data || []);
-                ld.close();
-                showStatusToasts(detail.filter((d) => d.app_id === appId));
-                showCheckDone(errs);
+                // 单条检查：共用进度遮罩，无需二次确认
+                runCheck(
+                    { scope: "ids", ids: { [currentTracker]: [appId] } },
+                    finishCheckTracker,
+                    null
+                );
             }
 
             async function confirmUpdate(appId) {
@@ -767,22 +741,37 @@
                 showCheckDone(errs);
             }
 
+            // 统一检查入口：共用进度遮罩；confirmMsg 为真时先二次确认
+            function runCheck(body, onDone, confirmMsg) {
+                if (confirmMsg) {
+                    confirmDialog(confirmMsg, () =>
+                        asyncCheck("/api/check", body, onDone)
+                    );
+                } else {
+                    asyncCheck("/api/check", body, onDone);
+                }
+            }
+
             function checkTracker() {
                 console.log("[check] tracker:", currentTracker);
-                asyncCheck(
-                    "/api/check/tracker",
-                    { tracker_ids: [currentTracker] },
-                    finishCheckTracker
+                runCheck(
+                    { scope: "trackers", tracker_ids: [currentTracker] },
+                    finishCheckTracker,
+                    "将检查当前 Tracker 中所有软件的更新"
                 );
             }
 
             function checkAll() {
                 console.log("[check] all");
-                asyncCheck("/api/check/all", {}, function (cancelled) {
-                    // 完成后刷新当前视图（若已选中 Tracker）
-                    if (currentTracker) selectTracker(currentTracker);
-                    if (cancelled) return;
-                });
+                runCheck(
+                    { scope: "all" },
+                    function (cancelled) {
+                        // 完成后刷新当前视图（若已选中 Tracker）
+                        if (currentTracker) selectTracker(currentTracker);
+                        if (cancelled) return;
+                    },
+                    "将检查所有 Tracker 中所有软件的更新"
+                );
             }
 
             function showCheckDone(errs) {
