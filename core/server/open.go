@@ -6,7 +6,17 @@ import (
 	"net/url"
 	"os/exec"
 	"runtime"
+	"strings"
 )
+
+// normalizeURL 给协议相对（//host）的地址补上 https
+func normalizeURL(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if strings.HasPrefix(raw, "//") {
+		return "https:" + raw
+	}
+	return raw
+}
 
 func OpenBrowser(url string) {
 	var c *exec.Cmd
@@ -30,6 +40,7 @@ func (s *Server) handleOpenURL(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "missing url")
 		return
 	}
+	body.URL = normalizeURL(body.URL)
 	u, err := url.Parse(body.URL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		writeError(w, http.StatusBadRequest, "only http/https URLs are allowed")

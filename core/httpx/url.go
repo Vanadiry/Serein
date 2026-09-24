@@ -11,20 +11,24 @@ func JoinURL(base, ref string) string {
 	if ref == "" {
 		return base
 	}
-	if base == "" {
-		return ref
+	// 协议相对//host/，补上 scheme
+	if strings.HasPrefix(ref, "//") {
+		if bu, err := url.Parse(base); err == nil && bu.Scheme != "" {
+			return bu.Scheme + ":" + ref
+		}
+		return "https:" + ref
 	}
 	if isAbsoluteURL(ref) {
+		return ref
+	}
+	if base == "" {
 		return ref
 	}
 	return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(ref, "/")
 }
 
-// isAbsoluteURL 判断是否为绝对地址（含 scheme，或协议相对 //host）
+// isAbsoluteURL 判断是否为绝对地址（含 scheme）
 func isAbsoluteURL(s string) bool {
-	if strings.HasPrefix(s, "//") {
-		return true
-	}
 	u, err := url.Parse(s)
 	return err == nil && u.IsAbs()
 }
