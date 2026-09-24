@@ -990,8 +990,7 @@ function startSyncProgress(taskId) {
                     var f = failures[i];
                     lines.push(
                         escapeHtml(f.source) +
-                            "/" +
-                            escapeHtml(f.file) +
+                            (f.file ? "/" + escapeHtml(f.file) : "") +
                             "：" +
                             escapeHtml(f.error)
                     );
