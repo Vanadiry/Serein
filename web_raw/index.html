@@ -360,6 +360,11 @@
                             p.latest_version &&
                             p.latest_version !== p.current_version
                     );
+                const checkedAny =
+                    checked &&
+                    Object.values(checked.platforms || {}).some(
+                        (p) => !p.error && p.latest_version
+                    );
                 var timeHTML = "";
                 if (d.confirmed_at) {
                     timeHTML =
@@ -437,10 +442,7 @@
                         }
                     }
                     versionHTML = `<span class="select-text text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
-                } else if (
-                    checked &&
-                    Object.keys(checked.platforms || {}).length > 0
-                ) {
+                } else if (checkedAny) {
                     const parts = [];
                     var sortedOS = Object.keys(checked.platforms).sort(
                         function (a, b) {
@@ -459,27 +461,35 @@
                     for (var si = 0; si < sortedOS.length; si++) {
                         var os = sortedOS[si];
                         var p = checked.platforms[os];
-                        var v =
-                            p.current_version ||
-                            p.latest_version ||
-                            d.current_version?.[os] ||
-                            "-";
-                        if (!groups2[v]) {
-                            groups2[v] = [];
-                            groupOrder2.push(v);
+                        var ok = !p.error && !!p.latest_version;
+                        var v = ok
+                            ? p.current_version || p.latest_version || "-"
+                            : p.current_version ||
+                              d.current_version?.[os] ||
+                              "-";
+                        var key = (ok ? "ok|" : "raw|") + v;
+                        if (!groups2[key]) {
+                            groups2[key] = { v: v, ok: ok, oses: [] };
+                            groupOrder2.push(key);
                         }
-                        groups2[v].push(os);
+                        groups2[key].oses.push(os);
                     }
                     for (var gi = 0; gi < groupOrder2.length; gi++) {
-                        var v2 = groupOrder2[gi];
+                        var g2 = groups2[groupOrder2[gi]];
                         var icons = '<span class="inline-flex gap-px">';
-                        for (var ii = 0; ii < groups2[v2].length; ii++) {
-                            icons += platformIcon(groups2[v2][ii], "w-4 h-4");
+                        for (var ii = 0; ii < g2.oses.length; ii++) {
+                            icons += platformIcon(g2.oses[ii], "w-4 h-4");
                         }
                         icons += "</span>";
-                        parts.push(
-                            `<span class="opacity-50">${icons}</span> <span class="text-ok">${escapeHtml(v2)}</span> <span class="text-sub">(无更新)</span>`
-                        );
+                        if (g2.ok) {
+                            parts.push(
+                                `<span class="opacity-50">${icons}</span> <span class="text-ok">${escapeHtml(g2.v)}</span> <span class="text-sub">(无更新)</span>`
+                            );
+                        } else {
+                            parts.push(
+                                `<span class="opacity-50">${icons}</span> <span class="text-sub">${escapeHtml(g2.v)}</span>`
+                            );
+                        }
                     }
                     versionHTML = `<span class="select-text text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
                 } else {
@@ -565,7 +575,9 @@
                             });
                         }
                     }
-                    rightIcons += `<span onclick="event.stopPropagation(); confirmUpdate(this.dataset.appid)" data-appid="${escapeAttr(d.app_id)}" class="mx-3" ${tipAttr("确认这个更新")}>${iconYes("应用更新", "w-5 h-5")}</span>`;
+                    if (checkedAny) {
+                        rightIcons += `<span onclick="event.stopPropagation(); confirmUpdate(this.dataset.appid)" data-appid="${escapeAttr(d.app_id)}" class="mx-3" ${tipAttr("确认这个更新")}>${iconYes("应用更新", "w-5 h-5")}</span>`;
+                    }
                 }
                 // 常驻按钮：编辑、地球、刷新，粉色背景
                 rightIcons += `<span onclick="event.stopPropagation(); editVersion(this.dataset.appid)" data-appid="${escapeAttr(d.app_id)}" ${tipAttr("修改已记录的版本号")}>${iconImg("edit", "修改已记录的版本号", "w-5 h-5")}</span>`;
