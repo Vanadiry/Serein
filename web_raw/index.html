@@ -185,9 +185,18 @@
                             "。</p>"
                     },
                     {
+                        title: "界面速览",
+                        html:
+                            '<div class="text-sm text-sub leading-relaxed space-y-2">' +
+                            '<div>按 <kbd class="px-1 rounded-chip border border-bord text-text">/</kbd> 或顶栏「搜索」，可全局搜索应用与规则，点击结果即可跳转。</div>' +
+                            "<div>开启应用页面侧栏「多选」按钮，可以选择多个 Tracker 并批量检查。</div>" +
+                            '<div>侧栏 Tracker 后的 <span class="text-warn">(3/15)</span> 表示共有 15 条记录，其中 3 个有更新。</div>' +
+                            "</div>"
+                    },
+                    {
                         title: "开始使用",
                         html:
-                            '<div class="text-xs text-sub leading-relaxed space-y-1.5">' +
+                            '<div class="text-sm text-sub leading-relaxed space-y-1.5">' +
                             '<div><span class="text-accent font-semibold">0. </span>请至少阅读' +
                             extLink(
                                 "https://github.com/Vanadiry/Serein/blob/main/docs/guide.md",
@@ -196,7 +205,7 @@
                             "</div>" +
                             '<div><span class="text-accent font-semibold">1. </span>前往「规则」页面，在右上角拉取规则和动态配置</div>' +
                             '<div><span class="text-accent font-semibold">2. </span>添加你想要追踪的软件，这会自动创建默认 Tracker</div>' +
-                            '<div><span class="text-accent font-semibold">3. </span>前往「应用」页面，点击「检查当前 Tracker」</div>' +
+                            '<div><span class="text-accent font-semibold">3. </span>前往「应用」页面，点击「检查全部」或「检查当前 Tracker」</div>' +
                             "</div>" +
                             '<p class="text-sm text-sub leading-relaxed mt-4">就是这么简单！谢谢你的使用，请随意探索吧。</p>'
                     }
@@ -214,9 +223,11 @@
                             var cls =
                                 i === current
                                     ? "bg-accent text-white"
-                                    : "bg-surface border border-bord-mid text-sub";
+                                    : "bg-surface border border-bord-mid text-sub hover:border-accent cursor-pointer";
                             return (
-                                '<div class="w-6 h-6 rounded-pill flex items-center justify-center text-xs font-semibold ' +
+                                '<div data-step="' +
+                                i +
+                                '" class="w-6 h-6 rounded-pill flex items-center justify-center text-xs font-semibold cursor-pointer ' +
                                 cls +
                                 '">' +
                                 (i + 1) +
@@ -241,6 +252,14 @@
                         btnLabel +
                         "</button></div>" +
                         "</div>";
+                    welcome
+                        .querySelectorAll("[data-step]")
+                        .forEach(function (el) {
+                            el.addEventListener("click", function () {
+                                current = parseInt(el.dataset.step, 10);
+                                render();
+                            });
+                        });
                     welcome
                         .querySelector("#welcome-btn")
                         .addEventListener("click", function () {
