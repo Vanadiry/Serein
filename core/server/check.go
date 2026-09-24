@@ -122,12 +122,45 @@ func (s *Server) handleCheckConfirm(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	// 同步内存检查缓存里的 current_version，避免切 tab 时读回旧值、又重新显示更新箭头
+	versions := make(map[string]string, len(body))
+	for k, v := range body {
+		if k == "app_id" {
+			continue
+		}
+		versions[k] = v
+	}
+	s.syncCachedCurrent(appID, versions)
 	log.Logf("[confirm] %s: %v", appID, userData[appID])
 	writeJSON(w, http.StatusOK, map[string]any{
 		"app_id":    appID,
 		"status":    "ok",
 		"platforms": userData[appID],
 	})
+}
+
+// syncCachedCurrent 把确认后的版本号写回所有包含该 app 的内存检查缓存
+func (s *Server) syncCachedCurrent(appID string, versions map[string]string) {
+	if len(versions) == 0 {
+		return
+	}
+	s.resultsMu.Lock()
+	defer s.resultsMu.Unlock()
+	for _, bucket := range s.results {
+		r, ok := bucket[appID]
+		if !ok {
+			continue
+		}
+		if r.Platforms == nil {
+			r.Platforms = make(map[string]checker.CheckPlatform)
+		}
+		for os, v := range versions {
+			p := r.Platforms[os]
+			p.CurrentVersion = v
+			r.Platforms[os] = p
+		}
+		bucket[appID] = r
+	}
 }
 
 // 异步检查（后台 goroutine，通过 SSE 推送进度）
