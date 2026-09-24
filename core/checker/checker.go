@@ -72,7 +72,7 @@ func RunPlatformCheck(ctx context.Context, cfg PlatformCheckConfig, client *http
 		if err != nil {
 			return vr, err
 		}
-		ver, err := extractValue(body, vType, cfg.VPosition, cfg.VJoin, "")
+		ver, err := extractValue(body, vType, cfg.VPosition, cfg.VJoin, "", cfg.Label)
 		if err != nil {
 			return vr, err
 		}
@@ -103,7 +103,7 @@ func RunPlatformCheck(ctx context.Context, cfg PlatformCheckConfig, client *http
 		if err != nil {
 			return vr, err
 		}
-		dl, err := extractValue(body, dType, cfg.DPosition, cfg.DJoin, "")
+		dl, err := extractValue(body, dType, cfg.DPosition, cfg.DJoin, "", cfg.Label)
 		if err != nil {
 			return vr, err
 		}
@@ -115,7 +115,7 @@ func RunPlatformCheck(ctx context.Context, cfg PlatformCheckConfig, client *http
 
 // extractValue 根据 type 从响应体中提取一个值（版本号或下载链接）。
 // join 为空 → 单路径；非空 → 多路径拼接。
-func extractValue(body []byte, typ string, pos any, join, baseURL string) (any, error) {
+func extractValue(body []byte, typ string, pos any, join, baseURL, label string) (any, error) {
 	switch typ {
 	case "json":
 		return extractJSONValue(body, pos, join)
@@ -126,7 +126,11 @@ func extractValue(body []byte, typ string, pos any, join, baseURL string) (any, 
 	case "html_selector":
 		return extractSelectorValue(body, pos, baseURL)
 	default:
-		events.Emit("warn", "[checker]", fmt.Sprintf("未知提取类型: %s", typ))
+		ctx := "[checker]"
+		if label != "" {
+			ctx += " " + label
+		}
+		events.Emit("warn", ctx, fmt.Sprintf("未知提取类型: %s", typ))
 		return nil, nil
 	}
 }

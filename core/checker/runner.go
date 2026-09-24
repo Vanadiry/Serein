@@ -45,6 +45,7 @@ type PlatformCheckConfig struct {
 	DJoin           string
 	CurrentVersion  string
 	ForceDownloader bool
+	Label           string // 事件标题里的标识
 }
 
 // CheckResponse API 返回的检查结果
