@@ -4,10 +4,10 @@
 
 Serein 依赖 Tracker 和规则表来运行。  
 Tracker 是一个列表，记录了你需要检查更新的软件 ID。  
-程序会根据 ID，在规则表中查找，并使用找到的规则，来获取新版本的版本号和下载链接。
+程序会根据 ID，在规则中查找，并使用找到的规则，来获取新版本的版本号和下载链接。
 
-默认的规则表 [SereinRulesList](https://github.com/Vanadiry/SereinRulesList) 由 Vanadiry 维护。  
-如果你需要新的规则，可以自行创建，或者在默认规则表的仓库中提交 Issue 或 PR。
+默认的规则源 [SereinRulesList](https://github.com/Vanadiry/SereinRulesList) 由 Vanadiry 维护。  
+如果你需要新的规则，可以自行创建，或者在默认规则源的仓库中提交 Issue 或 PR。
 
 ## 配置
 
@@ -149,7 +149,7 @@ Tracker 中的 `platforms` 优先级高于配置文件中的 `platforms`。
 
 主目录下共有 3 个子目录、1 个文件存放重要数据。
 
-- `rules/`：规则表
+- `rules/`：规则
 - `tracker/`：追踪列表
 - `user/`：已追踪软件版本、确认时间，以及动态配置
 - `config.toml`：Serein 主配置

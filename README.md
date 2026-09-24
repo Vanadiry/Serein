@@ -6,7 +6,7 @@
 所有更新规则依赖用户贡献的规则表，直接从对应软件官方源获取版本信息。  
 规则表去中心化分发，任何人都可独立维护和分发，无需信任中心化服务。
 
-内置的规则表：[Vanadiry/SereinRulesList](https://github.com/Vanadiry/SereinRulesList)  
+内置的规则源：[Vanadiry/SereinRulesList](https://github.com/Vanadiry/SereinRulesList)  
 由于 Serein 的解析引擎直接解析网页等数据，因此并不局限于监控软件。几乎任何能被看到的内容，都能被追踪。
 
 <img src="/docs/image/readme-01.png" width="500"/>
@@ -56,4 +56,4 @@ python3 scripts/build.py desktop   # Serein Desktop
 程序首次启动时会在 `~/.vSoft/Serein/` 生成 `config.toml`。  
 通过环境变量 `SEREIN_HOME` 可自定义主目录。
 
-首次启动请前往规则页点击「拉取规则」拉取内置规则表。
+首次启动请前往规则页点击「拉取规则」，从内置规则源中拉取规则表。
