@@ -17,7 +17,7 @@ func (s *Server) handleRules(w http.ResponseWriter, r *http.Request) {
 		var filtered []store.Rule
 		ql := strings.ToLower(q)
 		for _, rule := range rules {
-			if strings.Contains(strings.ToLower(rule.Info.Name), ql) {
+			if textMatches(ql, rule.Info.Name, rule.Info.AppID, rule.Info.Description) {
 				filtered = append(filtered, rule)
 			}
 		}

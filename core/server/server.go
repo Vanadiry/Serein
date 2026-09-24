@@ -109,6 +109,7 @@ func (s *Server) registerRoutes() {
 
 	s.mux.HandleFunc("GET /api/rules", s.handleRules)
 	s.mux.HandleFunc("POST /api/rules/check", s.handleRulesCheck)
+	s.mux.HandleFunc("GET /api/search", s.handleSearch)
 
 	dlDesc := parseDownloaderDesc(s.config.Download.Downloader)
 	dlType := parseDownloaderType(s.config.Download.Downloader)
