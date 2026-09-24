@@ -132,6 +132,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TaskResponse"
+  /api/check/all:
+    post:
+      tags: [Check]
+      summary: 检查所有 Tracker（异步，返回 task_id）
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskResponse"
   /api/check/confirm:
     post:
       tags: [Check]

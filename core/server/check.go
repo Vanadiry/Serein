@@ -520,3 +520,176 @@ func (s *Server) runDirectChecksAsync(entries []store.TrackerEntry, p *progress.
 	final := mergeResults(results)
 	s.setCheckResults(typ, final)
 }
+
+// POST /api/check/all：一次性检查所有 Tracker
+
+type checkAllTracker struct {
+	id      string
+	name    string
+	typ     string
+	entries []store.TrackerEntry
+}
+
+func (s *Server) handleCheckAll(w http.ResponseWriter, r *http.Request) {
+	limitBody(w, r)
+	infos, err := store.LoadAllTrackerInfo(s.home)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	var list []checkAllTracker
+	total := 0
+	for _, ti := range infos {
+		entries, err := store.LoadTrackerFile(s.home, ti.ID)
+		if err != nil || len(entries) == 0 {
+			continue
+		}
+		typ := ti.Type
+		if typ == "" {
+			typ = "app"
+		}
+		list = append(list, checkAllTracker{id: ti.ID, name: ti.DisplayName, typ: typ, entries: entries})
+		total += len(entries)
+	}
+	if total == 0 {
+		writeJSON(w, http.StatusOK, map[string]string{"task_id": "", "total": "0"})
+		return
+	}
+	log.Logf("[check/all] %d trackers, %d apps", len(list), total)
+	httpx.ClearURLCache()
+	p := progress.NewProgress(total)
+	go s.runCheckAllAsync(list, p)
+	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(total)})
+}
+
+func (s *Server) runCheckAllAsync(list []checkAllTracker, p *progress.Progress) {
+	defer p.Close()
+	ctx := p.Context()
+	conc := s.config.Download.Concurrency
+	if conc < 1 {
+		conc = 1
+	}
+	totalApps := p.Total
+	doneApps := 0
+
+	for _, t := range list {
+		if ctx.Err() != nil {
+			break
+		}
+		seen := make(map[string]bool)
+		var recMu sync.Mutex
+		record := func(appID, name string) {
+			recMu.Lock()
+			defer recMu.Unlock()
+			if !seen[appID] {
+				seen[appID] = true
+				doneApps++
+			}
+			p.Send("app", t.name+"："+name, doneApps, totalApps)
+		}
+
+		var results []checker.CheckResponse
+		if t.typ == "msvsix" || t.typ == "openvsx" {
+			results = s.runTrackerDirect(ctx, t, conc, record)
+		} else {
+			results = s.runTrackerJobs(ctx, t, conc, record)
+		}
+
+		if ctx.Err() != nil {
+			// 取消：只写已完成的桶，不覆盖未完成桶
+			break
+		}
+		s.setCheckResults(t.id, mergeResults(results))
+	}
+}
+
+func (s *Server) runTrackerJobs(ctx context.Context, t checkAllTracker, conc int, record func(string, string)) []checker.CheckResponse {
+	jobs, _ := s.buildCheckJobs(ctx, t.entries)
+	sem := make(chan struct{}, conc)
+	var mu sync.Mutex
+	var results []checker.CheckResponse
+	var wg sync.WaitGroup
+	for _, job := range jobs {
+		wg.Add(1)
+		go func(j checkJob) {
+			defer wg.Done()
+			select {
+			case <-ctx.Done():
+				return
+			case sem <- struct{}{}:
+			}
+			defer func() { <-sem }()
+			resp, err := checker.RunCheck(ctx, j.req)
+			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					return
+				}
+				events.Emit("error", "[check]", fmt.Sprintf("%s: %v", j.name, err))
+				record(j.req.AppID, j.name)
+				return
+			}
+			mu.Lock()
+			results = append(results, resp)
+			mu.Unlock()
+			record(resp.AppID, j.name)
+		}(job)
+	}
+	wg.Wait()
+	return results
+}
+
+func (s *Server) runTrackerDirect(ctx context.Context, t checkAllTracker, conc int, record func(string, string)) []checker.CheckResponse {
+	checkFn := checker.CheckMSVSIX
+	if t.typ == "openvsx" {
+		checkFn = checker.CheckOpenVSX
+	}
+	client := httpx.NewClient()
+	userData, _ := store.LoadUserData(s.home)
+	sem := make(chan struct{}, conc)
+	var mu sync.Mutex
+	var results []checker.CheckResponse
+	var wg sync.WaitGroup
+	for _, e := range t.entries {
+		wg.Add(1)
+		go func(e store.TrackerEntry) {
+			defer wg.Done()
+			select {
+			case <-ctx.Done():
+				return
+			case sem <- struct{}{}:
+			}
+			defer func() { <-sem }()
+			pr, err := checkFn(ctx, e.AppID, client)
+			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					return
+				}
+				events.Emit("error", "["+t.typ+"]", fmt.Sprintf("%s: %v", e.AppID, err))
+				record(e.AppID, e.AppID)
+				return
+			}
+			currentVer := ""
+			if ud, ok := userData[e.AppID]; ok {
+				currentVer = ud[t.typ]
+			}
+			resp := checker.CheckResponse{
+				AppID: e.AppID,
+				Name:  e.AppID,
+				Platforms: map[string]checker.CheckPlatform{
+					t.typ: {
+						CurrentVersion:  currentVer,
+						LatestVersion:   pr.LatestVersion,
+						URL:             pr.URL,
+						ForceDownloader: true,
+					},
+				},
+			}
+			mu.Lock()
+			results = append(results, resp)
+			mu.Unlock()
+			record(resp.AppID, e.AppID)
+		}(e)
+	}
+	wg.Wait()
+	return results
+}

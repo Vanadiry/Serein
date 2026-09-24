@@ -96,6 +96,7 @@ func (s *Server) registerRoutes() {
 
 	s.mux.HandleFunc("POST /api/check/ids", s.handleCheckIDs)
 	s.mux.HandleFunc("POST /api/check/tracker", s.handleCheckTracker)
+	s.mux.HandleFunc("POST /api/check/all", s.handleCheckAll)
 	s.mux.HandleFunc("POST /api/check/confirm", s.handleCheckConfirm)
 	s.mux.HandleFunc("GET /api/check/temp/{type}", s.handleCheckTemp)
 	s.mux.HandleFunc("GET /api/progress/{task_id}", handleProgressSSE)
