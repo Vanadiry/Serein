@@ -118,6 +118,7 @@ func runGitHubCheck(ctx context.Context, req CheckRequest, client *http.Client) 
 		Owner:   req.Owner,
 		Repo:    req.Repo,
 		PerPage: req.PerPage,
+		Label:   req.Name,
 	}
 	if len(req.Platforms) > 0 {
 		cfg.UA = req.Platforms[0].UA

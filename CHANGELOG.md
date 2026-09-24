@@ -9,6 +9,10 @@
 - 检查入口合并为 `POST /api/check`：以 `scope` 区分范围
 - `/api/check` 请求的 `ids` 按 Tracker 分组
 
+#### Fixed
+
+- GitHub 检查的告警标题带上软件名
+
 #### Removed
 
 - 合并 `/api/check/ids`、`/api/check/tracker`、`/api/check/all` 为 `/api/check`
