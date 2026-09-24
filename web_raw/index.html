@@ -48,13 +48,6 @@
                     <p class="mb-2">
                         在左侧栏选择一个 Tracker 来查看对应列表中追踪的软件。
                     </p>
-                    <p class="mb-2">点击右上角的按钮，能够检查软件更新。</p>
-                    <button
-                        id="btn-check-all-welcome"
-                        class="mb-8 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90 border-0"
-                    >
-                        检查全部
-                    </button>
                     <p class="mb-8">
                         若是你第一次启动，请前往<a
                             href="/rules"
@@ -263,12 +256,9 @@
                     checkTracker
                 );
             };
-            const _askCheckAll = () => {
+            document.getElementById("btn-check-all").onclick = () => {
                 confirmDialog("将检查所有 Tracker 中所有软件的更新", checkAll);
             };
-            document.getElementById("btn-check-all").onclick = _askCheckAll;
-            document.getElementById("btn-check-all-welcome").onclick =
-                _askCheckAll;
             document.getElementById("btn-new-tracker").onclick = () => {
                 showModal(`
       <div class="text-base font-bold mb-4">新建 Tracker</div>
@@ -311,7 +301,10 @@
                 currentTracker = id;
                 currentTrackerType = _trackerTypes[id] || "app";
                 checkResults = {};
-                // 读取该 Tracker 的内存缓存（若有），切回时直接渲染
+                // 选中后才显示「检查当前 Tracker」
+                var _tc = document.getElementById("btn-tracker-check");
+                if (_tc) _tc.style.display = "";
+                // 读取该 Tracker 的内存缓存（若有），切回来时直接渲染
                 var cache = await api("/api/check/temp/" + id);
                 mergeCheckResults((cache && cache.results) || []);
                 loadTrackers();
