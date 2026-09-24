@@ -71,8 +71,8 @@ fn setup_desktop(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         "data:text/html,%3C!doctype%20html%3E%3Cmeta%20charset=utf-8%3E".parse()?;
     let win = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(blank))
         .title("Serein")
-        .inner_size(1200.0, 800.0)
-        .min_inner_size(1000.0, 600.0)
+        .inner_size(1050.0, 700.0)
+        .min_inner_size(900.0, 600.0)
         .center()
         .resizable(true)
         .fullscreen(false)
