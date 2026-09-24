@@ -67,3 +67,27 @@ app_id = "a.b"
 		t.Fatalf("旧格式应被跳过，得到 %+v", entries)
 	}
 }
+
+func TestAddToDefaultTracker(t *testing.T) {
+	home := t.TempDir()
+	if err := AddToTracker(home, DefaultTrackerID, TrackerEntry{AppID: "x", Platforms: []string{"macos"}}); err != nil {
+		t.Fatal(err)
+	}
+	// 自动创建默认 Tracker，且带 display_name
+	infos, _ := LoadAllTrackerInfo(home)
+	if len(infos) != 1 || infos[0].ID != DefaultTrackerID || infos[0].Count != 1 {
+		t.Fatalf("infos=%+v", infos)
+	}
+	if infos[0].DisplayName == "" || infos[0].DisplayName == DefaultTrackerID {
+		t.Fatalf("默认 Tracker 应有 display_name，得到 %q", infos[0].DisplayName)
+	}
+
+	// 同 app_id 再添加 → 合并平台，不新增条目
+	if err := AddToTracker(home, DefaultTrackerID, TrackerEntry{AppID: "x", Platforms: []string{"macos", "windows"}}); err != nil {
+		t.Fatal(err)
+	}
+	entries, _ := LoadTrackerFile(home, DefaultTrackerID)
+	if len(entries) != 1 || len(entries[0].Platforms) != 2 {
+		t.Fatalf("平台应合并去重，得到 %+v", entries)
+	}
+}

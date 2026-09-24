@@ -167,15 +167,12 @@ func (s *Server) handleTrackerNew(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]string{"id": body.ID})
 }
 
-// POST /api/tracker/add
-
+// POST /api/tracker/add 仅写入默认 Tracker
 func (s *Server) handleTrackerAdd(w http.ResponseWriter, r *http.Request) {
 	limitBody(w, r)
 	var body struct {
-		TrackerID   string   `json:"tracker_id"`
-		AppID       string   `json:"app_id"`
-		Description string   `json:"description,omitempty"`
-		Platforms   []string `json:"platforms"`
+		AppID     string   `json:"app_id"`
+		Platforms []string `json:"platforms"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid body")
@@ -185,15 +182,8 @@ func (s *Server) handleTrackerAdd(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "missing app_id")
 		return
 	}
-	if body.TrackerID == "" {
-		body.TrackerID = "_serein"
-	}
-	if !store.ValidTrackerName(body.TrackerID) {
-		writeError(w, http.StatusBadRequest, "tracker_id contains invalid characters")
-		return
-	}
 
-	if err := store.AddToTracker(s.home, body.TrackerID, store.TrackerEntry{
+	if err := store.AddToTracker(s.home, store.DefaultTrackerID, store.TrackerEntry{
 		AppID:     body.AppID,
 		Platforms: body.Platforms,
 	}); err != nil {
@@ -201,7 +191,7 @@ func (s *Server) handleTrackerAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{
-		"tracker_id": body.TrackerID,
+		"tracker_id": store.DefaultTrackerID,
 		"app_id":     body.AppID,
 	})
 }

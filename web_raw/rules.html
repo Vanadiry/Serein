@@ -27,10 +27,19 @@
                     id="welcome-view"
                     class="text-sub text-sm max-w-[600px] pt-[25vh] pl-2"
                 >
-                    <h2 class="text-base font-semibold text-text mb-3">规则</h2>
+                    <h2 class="text-lg font-semibold text-text mb-3">规则</h2>
                     <p class="mb-2">在左侧选择一个规则源，查看其中的规则。</p>
-                    <p>
+                    <p class="mb-8">
                         若是你第一次启动，请点击右上角的「拉取规则」来拉取内置的规则表。
+                    </p>
+                    <h2 class="text-lg font-semibold text-text mb-3">修改 Tracker</h2>
+                    <p class="mb-2">
+                        每条规则可勾选平台后，点“追踪”来加入默认 Tracker；<br />或点“复制”来复制一段
+                        [[tracker]] 片段，自行粘贴到 Tracker 文件。
+                    </p>
+                    <p>
+                        更推荐按 Tracker
+                        格式手动编写与管理，这样便于管理，也拥有更高的自定义程度。
                     </p>
                 </div>
                 <!-- 卡片视图 -->
@@ -237,7 +246,10 @@
         <div class="flex-1 mt-3 flex flex-col gap-1 pl-2">
           ${platforms.map((p) => `<label class="flex items-center gap-2 text-xs text-sub cursor-pointer"><input type="checkbox" class="rule-cb" data-os="${escapeAttr(p)}" onchange="event.stopPropagation()"> ${escapeHtml(platformLabel(p))}</label>`).join("")}
         </div>
-        <button onclick="event.stopPropagation(); addToTracker(this.dataset.appid, this)" data-appid="${escapeAttr(r.app_id)}" class="mt-3 w-full text-center text-xs text-sub hover:text-text border border-bord rounded-control py-1 cursor-pointer hover:border-accent transition-colors">添加到默认 Tracker</button>
+        <div class="mt-3 flex gap-2">
+          <button onclick="event.stopPropagation(); addToTracker(this.dataset.appid, this)" data-appid="${escapeAttr(r.app_id)}" class="flex-1 text-center text-xs text-sub hover:text-text border border-bord rounded-control py-1 cursor-pointer hover:border-accent transition-colors">追踪</button>
+          <button onclick="event.stopPropagation(); copyTrackerSnippet(this.dataset.appid, this)" data-appid="${escapeAttr(r.app_id)}" class="flex-1 text-center text-xs text-sub hover:text-text border border-bord rounded-control py-1 cursor-pointer hover:border-accent transition-colors">复制</button>
+        </div>
       </div>`;
                     })
                     .join("");
@@ -251,6 +263,35 @@
                 await apiPost("/api/tracker/add", { app_id: appId, platforms });
                 btn.textContent = "✓";
                 btn.classList.add("text-ok");
+            }
+
+            // 按勾选平台复制一段 [[tracker]] 片段，供手动粘贴
+            function copyTrackerSnippet(appId, btn) {
+                const cbs = btn
+                    .closest(".card-h")
+                    .querySelectorAll(".rule-cb:checked");
+                const platforms = Array.from(cbs).map((cb) => cb.dataset.os);
+                let snippet = '[[tracker]]\napp_id = "' + appId + '"';
+                if (platforms.length) {
+                    snippet +=
+                        "\nplatforms = [" +
+                        platforms.map((p) => '"' + p + '"').join(", ") +
+                        "]";
+                }
+                snippet += "\n";
+                const done = function () {
+                    btn.textContent = "已复制";
+                    btn.classList.add("text-ok");
+                    setTimeout(function () {
+                        btn.textContent = "复制";
+                        btn.classList.remove("text-ok");
+                    }, 1500);
+                };
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(snippet).then(done, done);
+                } else {
+                    done();
+                }
             }
 
             // 支持 /rules?source=<id>&rule=<app_id> 定位（来自全局搜索）

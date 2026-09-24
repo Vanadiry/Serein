@@ -55,7 +55,7 @@ paths:
   /api/tracker/add:
     post:
       tags: [Tracker]
-      summary: 追加条目到 tracker
+      summary: 追加条目到默认 Tracker
       requestBody:
         content:
           application/json:
@@ -63,7 +63,6 @@ paths:
               type: object
               required: [app_id]
               properties:
-                tracker_id: { type: string, default: "_serein" }
                 app_id: { type: string }
                 platforms: { type: array, items: { type: string } }
       responses:
@@ -366,6 +365,9 @@ components:
         display_name: { type: string }
         order: { type: integer }
         type: { type: string, description: "app（默认）| msvsix | openvsx" }
+        count: { type: integer, description: 条目数 }
+        updated: { type: integer, description: 有更新的条目数（仅 list/all） }
+        checked: { type: boolean, description: 是否检查过（仅 list/all） }
     TrackerDetail:
       type: object
       properties:

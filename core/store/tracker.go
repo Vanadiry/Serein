@@ -6,7 +6,12 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"github.com/BurntSushi/toml"
 )
+
+// DefaultTrackerID 默认 Tracker 的文件名（不含 .toml）
+const DefaultTrackerID = "_serein"
 
 // TrackerEntry 单条追踪记录
 type TrackerEntry struct {
@@ -219,6 +224,17 @@ func AddToTracker(home, name string, entry TrackerEntry) error {
 	if _, err := os.Stat(path); err == nil {
 		if decErr := decodeTOML(path, &tf); decErr != nil {
 			return fmt.Errorf("解析 tracker 文件失败 %s: %w", path, decErr)
+		}
+	} else {
+		// 新文件：套用默认模板（含 display_name 等），避免生成裸文件
+		if _, decErr := toml.Decode(DefaultTrackerTOML, &tf); decErr != nil {
+			return decErr
+		}
+		if name == DefaultTrackerID {
+			tf.DisplayName = "默认"
+		}
+		if mkErr := os.MkdirAll(filepath.Dir(path), 0755); mkErr != nil {
+			return mkErr
 		}
 	}
 
