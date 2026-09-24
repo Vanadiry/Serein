@@ -1,7 +1,7 @@
 openapi: "3.0.3"
 info:
   title: Serein API
-  version: "1.4.0"
+  version: "2.0.0"
 servers:
   - url: http://127.0.0.1:12510
 paths:
@@ -188,20 +188,22 @@ paths:
                     done:     {"step":"done","sources_total":10,"sources_skipped":3,"sources_updated":5,"sources_failed":1,"files":45,"file_errors":1,"failures":[{"source":"v-github","file":"foo.toml","error":"HTTP 404: Not Found"}]}
                   检查更新事件:
                     start: {"step":"start","name":"","done":0,"total":<n>}
-                    app:   {"step":"app","name":"<app>","done":12,"total":30}
-                    done:  {"step":"done"}
+                    app:   {"step":"app","name":"<app>","done":12,"total":30}   # 检查全部时为 "<Tracker>：<app>"
+                    done:  {"step":"done","cancelled":false}
+                  检查结果按 Tracker 缓存在内存（进程内），通过 GET /api/check/temp/{tracker_id} 读取。
 
   /api/check/cancel/{task_id}:
     post:
       tags: [Progress]
-      summary: 终止任务（退出后端进程）
+      summary: 终止任务（取消其 context，由任务自身收尾，不再结束进程）
       parameters:
         - name: task_id
           in: path
           required: true
           schema: { type: string }
       responses:
-        "200": { description: "进程退出" }
+        "200": { description: "已取消" }
+        "404": { description: "任务不存在" }
 
   # Events (SSE)
   /api/events:
@@ -309,7 +311,7 @@ paths:
   /api/download:
     post:
       tags: [Download]
-      summary: 发送到下载器（根据 config 的 downloader 配置分发：browser/builtin/ndm/自定义命令）
+      summary: 发送到下载器（根据 config 的 downloader 配置分发：browser / ndm / 自定义命令）
       requestBody:
         content:
           application/json:
@@ -378,6 +380,8 @@ components:
           additionalProperties: { type: string }
         confirmed_at: { type: string, description: "上次确认更新的 UTC 时间戳" }
         rule_missing: { type: boolean }
+        status:
+          $ref: "#/components/schemas/RuleStatus"
     CheckResponse:
       type: object
       properties:
@@ -410,6 +414,14 @@ components:
           items: { type: string }
         source_id: { type: string }
         source_name: { type: string }
+        status:
+          $ref: "#/components/schemas/RuleStatus"
+    RuleStatus:
+      type: object
+      description: 规则状态：消息 + 可选等级
+      properties:
+        message: { type: string }
+        level: { type: string, description: "warn | error | removed（可省略）" }
     SourceItem:
       type: object
       properties:

@@ -1,6 +1,6 @@
-# 规则源格式
+# 规则表
 
-每条规则一个 `.toml` 文件，程序递归加载 `rules/` 下所有内容。  
+每条规则表，为一个 `.toml` 文件，程序递归加载 `rules/` 下所有内容。  
 
 ## 结构
 
@@ -13,11 +13,15 @@ description = "番组计划 Tracker 管理工具"   # 可选，描述
 status = ["维护中", "warn"]         # 可选，状态：[消息, 等级]。等级可省略
 official_website = "https://github.com/Vanadiry/Seshat"   # 可选，官网
 
+# 全局 config，在当前规则表中通用，不论平台
+# 允许被 config.os 中同名配置覆盖
 [config]
-type = "github"
+type = "json"
 url = "https://..."
 v_position = "..."
 
+# 允许在此处为每个平台做特定配置，平台必须在 [info] 中的 platforms 声明
+# 只要在 config.os 中声明的配置，都会替换 config 中的同名项，即使字段值为空或 false
 [config.macos]
 d_position = "..."
 force_downloader = true
@@ -26,7 +30,7 @@ force_downloader = true
 d_position = "..."
 ```
 
-## status
+### 状态（status）
 
 `status = ["消息", "等级"]`
 
@@ -36,12 +40,11 @@ d_position = "..."
 等级允许 `warn`、`error`、`removed`（大小写不敏感）。未知等级按 `warn` 处理，并额外告警。
 等级为 `removed` 时，程序将跳过这个软件。
 
-## 规则变量
+### 规则变量（rule_values）
 
 规则中，除了“`key`、表名、`app_id`”以外，其他的任何字符串值都可以设置 `{{name}}` 这样的自定义变量。  
 自定义变量名允许由数字、字母、下划线组成，不能以数字开头。  
 需要注意的是，需要与规则中的 `{version}` 区分：规则变量以双花括号包裹。
-
 
 ```toml
 # 这个示例中，配置了“Token”自定义变量
@@ -64,7 +67,7 @@ app_id.value_name = "xxx"
 
 关于用户配置，详见 [guide](../guide.md)。
 
-## [config]
+### [config]
 
 | 字段 | 说明 |
 | ---- | ---- |
@@ -73,7 +76,10 @@ app_id.value_name = "xxx"
 | `ua` | 自定义 UA（可选） |
 | `headers` | 自定义请求头内联字典（可选） |
 | `baseurl` | 拼接相对路径（仅 d_position 非直通模式时生效） |
-| `force_downloader` | 强制使用下载器（可选，默认 false） |
+| `owner` | 仅 `github`：仓库作者 |
+| `repo` | 仅 `github`：仓库名 |
+| `per_page` | 仅 `github`：拉取条数（可选） |
+| `allow_prerelease` | 仅 `github`：允许不过滤 prerelease（可选） |
 | `v_position` | 版本号定位（各解析器格式不同，详见各解析器文档） |
 | `d_position` | 下载链接定位 |
 | `v_join` | 版本号多路径拼接分隔符 |
@@ -82,13 +88,12 @@ app_id.value_name = "xxx"
 | `v_type` | 版本号独立解析器类型，覆盖 `type`（可选） |
 | `d_url` | 下载链接独立请求地址，覆盖 `url`（可选） |
 | `d_type` | 下载链接独立解析器类型，覆盖 `type`（可选） |
-
-`[config.{os}]` 中同名字段覆盖 `[config]`，未覆盖则继承。
+| `force_downloader` | 强制使用下载器（可选） |
 
 当获取到的下载地址为带有重定向的链接，而非直链，且重定向链接能被下载器正确处理时，可以加入 `force_downloader = true`。  
 前端对于此类规则表，将不弹“可能不是一个下载链接”提示窗，而直接拉起可用的下载器。
 
-## 分开请求版本号与下载链接
+### 分开请求版本号与下载链接
 
 当版本号和下载链接位于不同页面时，使用 `v_url` 和 `d_url` 分别指定：
 
@@ -106,34 +111,7 @@ d_position = { selector = ".link", attr = "href" }
 
 未设置 `v_url` / `d_url` 时，回退到 `url`。未设置 `v_type` / `d_type` 时，回退到 `type`。
 
-## 直通模式
-
-当下载链接（或版本号）有固定规律、不需要解析页面时，使用 `d_type = "direct"`（或 `v_type = "direct"`）。
-
-程序不会发起 HTTP 请求，直接将 `d_url` 字符串作为下载链接返回。字符串中的 `{version}` 会被替换为当前提取到的版本号。
-
-```toml
-[config]
-type = "json"
-url = "https://api.example.com/releases/latest"
-v_position = ["tag_name"]
-
-d_type = "direct"
-d_url = "https://cdn.example.com/releases/{version}/app.dmg"
-```
-
-> **限制**：`direct` 只能用于 `v_type` 或 `d_type`，不能作为主 `type`。`{version}` 无法替换时（如版本号提取失败），下载链接直接报错。
-
-## 解析器类型
-
-- [JSON](json.md)
-- [XML](xml.md)
-- [正则表达式](regex.md)
-- [HTML 选择器](html_selector.md)
-- [GitHub Release](github.md)
-- 直通（仅用于 `v_type` / `d_type`，详见上方[直通模式](#直通模式)）
-
-## 前置请求
+### 前置请求
 
 当需要多步跳转时，用 `[pre_request.NNN]` 定义链式请求：
 
