@@ -14,6 +14,7 @@ import (
 
 	"github.com/vanadiry/serein/core/events"
 	"github.com/vanadiry/serein/core/httpx"
+	"github.com/vanadiry/serein/core/log"
 	"github.com/vanadiry/serein/core/progress"
 )
 
@@ -150,21 +151,35 @@ type syncFailure struct {
 // 2. 并发下载所有规则文件 → 发 file 事件（done/total）
 // onDone 在同步完成后（进度关闭后）调用，可用于重载规则缓存
 func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *progress.Progress, onDone func()) {
-	if onDone != nil {
-		defer onDone()
-	}
-	defer p.Close()
+	reload := false
+	defer func() {
+		p.Close()
+		if reload && onDone != nil {
+			onDone()
+		}
+	}()
 
 	ctx := p.Context()
 	rulesDir := filepath.Join(home, "rules")
 
 	// Phase 1: 遍历
-	leaves := gatherLeaves(sources, concurrency, p)
+	leaves, gatherFailures := gatherLeaves(sources, concurrency, p)
+	sourcesTotal := len(leaves) + len(gatherFailures)
 	if len(leaves) == 0 {
+		// gather 阶段全部失败：明确汇总，避免静默“同步完成”
+		p.SendMap(map[string]any{
+			"step":            "done",
+			"sources_total":   sourcesTotal,
+			"sources_skipped": 0,
+			"sources_updated": 0,
+			"sources_failed":  len(gatherFailures),
+			"files":           0,
+			"file_errors":     0,
+			"failures":        gatherFailures,
+			"cancelled":       ctx.Err() != nil,
+		})
 		return
 	}
-
-	sourcesTotal := len(leaves)
 
 	// 过滤版本未变的子规则源
 	var fresh []leafSrc
@@ -202,8 +217,8 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 	}
 
 	fileErrors := 0
-	sourcesFailed := 0
-	var failures []syncFailure
+	sourcesFailed := len(gatherFailures)
+	failures := append([]syncFailure(nil), gatherFailures...)
 
 	if totalFiles > 0 {
 		sem := make(chan struct{}, concurrency)
@@ -297,6 +312,9 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 		}
 	}
 
+	if sourcesUpdated > 0 {
+		reload = true
+	}
 	p.SendMap(map[string]any{
 		"step":            "done",
 		"sources_total":   sourcesTotal,
@@ -310,12 +328,13 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 	})
 }
 
-func gatherLeaves(sources []RuleSource, concurrency int, p *progress.Progress) []leafSrc {
+func gatherLeaves(sources []RuleSource, concurrency int, p *progress.Progress) ([]leafSrc, []syncFailure) {
 	sem := make(chan struct{}, concurrency)
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	usedIDs := make(map[string]bool)
 	var leaves []leafSrc
+	var failures []syncFailure
 
 	for _, src := range sources {
 		wg.Add(1)
@@ -326,6 +345,10 @@ func gatherLeaves(sources []RuleSource, concurrency int, p *progress.Progress) [
 			<-sem
 			if err != nil {
 				p.Send("error", src.URL+" 获取失败", 0, 0)
+				log.LogfWarn("[sync] 获取 %s 失败: %v", src.URL, err)
+				mu.Lock()
+				failures = append(failures, syncFailure{Source: src.URL, Error: err.Error()})
+				mu.Unlock()
 				return
 			}
 			mu.Lock()
@@ -337,17 +360,18 @@ func gatherLeaves(sources []RuleSource, concurrency int, p *progress.Progress) [
 			mu.Unlock()
 
 			p.Send("list", js.ID, 0, 0)
-			sub := resolveLeaves(js, raw, src.URL, js.ID, usedIDs, sem, &mu, p)
+			sub, subFails := resolveLeaves(js, raw, src.URL, js.ID, usedIDs, sem, &mu, p)
 			mu.Lock()
 			leaves = append(leaves, sub...)
+			failures = append(failures, subFails...)
 			mu.Unlock()
 		}(src)
 	}
 	wg.Wait()
-	return leaves
+	return leaves, failures
 }
 
-func resolveLeaves(s *SourceJSON, rawBody []byte, sourceURL, destRel string, usedIDs map[string]bool, sem chan struct{}, mu *sync.Mutex, p *progress.Progress) []leafSrc {
+func resolveLeaves(s *SourceJSON, rawBody []byte, sourceURL, destRel string, usedIDs map[string]bool, sem chan struct{}, mu *sync.Mutex, p *progress.Progress) ([]leafSrc, []syncFailure) {
 	isLocal := !strings.HasPrefix(sourceURL, "http://") && !strings.HasPrefix(sourceURL, "https://")
 	baseURL := s.BaseURL
 	if baseURL == "" {
@@ -359,9 +383,10 @@ func resolveLeaves(s *SourceJSON, rawBody []byte, sourceURL, destRel string, use
 		}
 	}
 	if s.Type != "list" {
-		return []leafSrc{{id: s.ID, rawBody: rawBody, destDir: destRel, baseURL: baseURL, files: s.Files, isWeb: !isLocal, version: s.Version}}
+		return []leafSrc{{id: s.ID, rawBody: rawBody, destDir: destRel, baseURL: baseURL, files: s.Files, isWeb: !isLocal, version: s.Version}}, nil
 	}
 	var result []leafSrc
+	var failures []syncFailure
 	for _, f := range s.Files {
 		if filepath.Base(f) != "_source.json" {
 			continue
@@ -378,6 +403,8 @@ func resolveLeaves(s *SourceJSON, rawBody []byte, sourceURL, destRel string, use
 		<-sem
 		if err != nil {
 			p.Send("error", subURL+" 获取失败", 0, 0)
+			log.LogfWarn("[sync] 获取 %s 失败: %v", subURL, err)
+			failures = append(failures, syncFailure{Source: subURL, Error: err.Error()})
 			continue
 		}
 		if subJSON.ID != subDir {
@@ -390,7 +417,9 @@ func resolveLeaves(s *SourceJSON, rawBody []byte, sourceURL, destRel string, use
 		}
 		usedIDs[subJSON.ID] = true
 		mu.Unlock()
-		result = append(result, resolveLeaves(subJSON, subRaw, subURL, filepath.Join(destRel, subDir), usedIDs, sem, mu, p)...)
+		sub, subFails := resolveLeaves(subJSON, subRaw, subURL, filepath.Join(destRel, subDir), usedIDs, sem, mu, p)
+		result = append(result, sub...)
+		failures = append(failures, subFails...)
 	}
-	return result
+	return result, failures
 }
