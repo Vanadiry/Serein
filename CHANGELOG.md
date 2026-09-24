@@ -7,6 +7,7 @@
 #### Added
 
 - GitHub 规则支持 `allow_prerelease`：开启后不过滤 prerelease，直接取最新一条
+- 动态配置支持本地文件路径
 
 #### Changed
 

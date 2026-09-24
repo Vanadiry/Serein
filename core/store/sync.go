@@ -30,30 +30,31 @@ type SourceJSON struct {
 	Files       []string `json:"files"`
 }
 
+// readURLOrFile 读取内容：http(s) 走网络（带 ctx / 状态码校验 / 大小上限），否则读本地文件
+func readURLOrFile(ctx context.Context, rawURL string, limit int64) ([]byte, error) {
+	if !strings.HasPrefix(rawURL, "http://") && !strings.HasPrefix(rawURL, "https://") {
+		return os.ReadFile(rawURL)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := httpx.DefaultClient().Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if err := httpx.CheckStatus(resp); err != nil {
+		return nil, err
+	}
+	return io.ReadAll(io.LimitReader(resp.Body, limit))
+}
+
 func fetchSourceJSON(ctx context.Context, url string) (*SourceJSON, []byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, nil, err
 	}
-	var body []byte
-	var err error
-
-	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
-		req, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-		if reqErr != nil {
-			return nil, nil, reqErr
-		}
-		resp, reqErr := httpx.DefaultClient().Do(req)
-		if reqErr != nil {
-			return nil, nil, reqErr
-		}
-		defer resp.Body.Close()
-		if err := httpx.CheckStatus(resp); err != nil {
-			return nil, nil, err
-		}
-		body, err = io.ReadAll(io.LimitReader(resp.Body, maxFetchBytes))
-	} else {
-		body, err = os.ReadFile(url)
-	}
+	body, err := readURLOrFile(ctx, url, maxFetchBytes)
 	if err != nil {
 		return nil, nil, err
 	}

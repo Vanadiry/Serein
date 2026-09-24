@@ -4,12 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"path/filepath"
-
-	"github.com/vanadiry/serein/core/httpx"
 )
 
 type Profile struct {
@@ -34,23 +30,9 @@ func LoadProfile(home string) (Profile, error) {
 }
 
 func SyncProfile(ctx context.Context, home, url string) (Profile, bool, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	body, err := readURLOrFile(ctx, url, maxFetchBytes)
 	if err != nil {
 		return Profile{}, false, fmt.Errorf("获取 profile.json: %w", err)
-	}
-	resp, err := httpx.DefaultClient().Do(req)
-	if err != nil {
-		return Profile{}, false, fmt.Errorf("获取 profile.json: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if err := httpx.CheckStatus(resp); err != nil {
-		return Profile{}, false, fmt.Errorf("获取 profile.json: %w", err)
-	}
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxFetchBytes))
-	if err != nil {
-		return Profile{}, false, err
 	}
 
 	var remote Profile
