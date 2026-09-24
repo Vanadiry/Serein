@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "position": {
+      "oneOf": [
+        { "type": "array" },
+        { "type": "string" },
+        { "type": "object" }
+      ]
+    },
+    "info": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["app_id", "name", "platforms"],
+      "properties": {
+        "app_id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "official_website": { "type": "string" },
+        "status": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "platforms": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      }
+    },
+    "plat": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": { "enum": ["json", "xml", "regex", "html_selector", "github"] },
+        "url": { "type": "string" },
+        "ua": { "type": "string" },
+        "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+        "baseurl": { "type": "string" },
+        "owner": { "type": "string" },
+        "repo": { "type": "string" },
+        "per_page": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "allow_prerelease": { "type": "boolean" },
+        "v_url": { "type": "string" },
+        "v_type": { "type": "string" },
+        "d_url": { "type": "string" },
+        "d_type": { "type": "string" },
+        "v_join": { "type": "string" },
+        "d_join": { "type": "string" },
+        "v_position": { "$ref": "#/$defs/position" },
+        "d_position": { "$ref": "#/$defs/position" },
+        "download_method": { "enum": ["browser", "downloader"] },
+        "download_via_proxy": { "type": "boolean" },
+        "download_name": { "type": "string" }
+      }
+    },
+    "pre_step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "position"],
+      "properties": {
+        "url": { "type": "string" },
+        "type": { "type": "string" },
+        "ua": { "type": "string" },
+        "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+        "baseurl": { "type": "string" },
+        "position": { "$ref": "#/$defs/position" }
+      }
+    }
+  }
+}
