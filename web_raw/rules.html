@@ -14,11 +14,20 @@
             class="max-w-[1200px] mx-auto p-6 flex gap-6 min-h-[calc(100vh-49px)]"
         >
             <aside class="w-[200px] shrink-0 pr-4 border-r border-bord-mid">
-                <div class="sticky top-6">
-                    <div class="text-sm text-sub font-semibold mb-2">
+                <div
+                    class="sticky top-[72px] flex flex-col max-h-[calc(100vh-96px)]"
+                >
+                    <div
+                        class="shrink-0 text-sm text-sub font-semibold pb-2 mb-2 border-b border-bord-mid"
+                    >
                         规则源
                     </div>
-                    <nav id="source-nav" class="flex flex-col gap-0.5"></nav>
+                    <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
+                        <nav
+                            id="source-nav"
+                            class="flex flex-col gap-0.5"
+                        ></nav>
+                    </div>
                 </div>
             </aside>
 
@@ -32,7 +41,9 @@
                     <p class="mb-8">
                         若是你第一次启动，请点击右上角的「拉取规则」来拉取内置的规则表。
                     </p>
-                    <h2 class="text-lg font-semibold text-text mb-3">修改 Tracker</h2>
+                    <h2 class="text-lg font-semibold text-text mb-3">
+                        修改 Tracker
+                    </h2>
                     <p class="mb-2">
                         每条规则可勾选平台后，点“追踪”来加入默认 Tracker；<br />或点“复制”来复制一段
                         [[tracker]] 片段，自行粘贴到 Tracker 文件。

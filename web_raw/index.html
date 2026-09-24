@@ -14,8 +14,12 @@
             class="max-w-[1200px] mx-auto p-6 flex gap-6 min-h-[calc(100vh-49px)]"
         >
             <aside class="w-[200px] shrink-0 pr-4 border-r border-bord-mid">
-                <div class="sticky top-6">
-                    <div class="flex items-center justify-between mb-2">
+                <div
+                    class="sticky top-[72px] flex flex-col max-h-[calc(100vh-96px)]"
+                >
+                    <div
+                        class="shrink-0 flex items-center justify-between gap-2 pb-2 mb-2 border-b border-bord-mid"
+                    >
                         <div class="text-sm text-sub font-semibold">
                             Tracker
                         </div>
@@ -27,13 +31,20 @@
                             多选
                         </button>
                     </div>
-                    <nav id="tracker-nav" class="flex flex-col gap-0.5"></nav>
-                    <button
-                        id="btn-new-tracker"
-                        class="mt-3 w-full text-center text-xs text-sub hover:text-text border border-dashed border-bord-strong rounded-control py-1.5 cursor-pointer hover:border-accent transition-colors"
+                    <div
+                        class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden"
                     >
-                        新建 Tracker
-                    </button>
+                        <nav
+                            id="tracker-nav"
+                            class="flex flex-col gap-0.5"
+                        ></nav>
+                        <button
+                            id="btn-new-tracker"
+                            class="mt-3 w-full text-center text-xs text-sub hover:text-text border border-dashed border-bord-strong rounded-control py-1.5 cursor-pointer hover:border-accent transition-colors"
+                        >
+                            新建 Tracker
+                        </button>
+                    </div>
                 </div>
             </aside>
 
