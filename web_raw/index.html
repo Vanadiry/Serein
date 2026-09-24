@@ -320,8 +320,10 @@
                 const list = document.getElementById("software-list");
                 const placeholder = document.getElementById("placeholder");
                 if (!data.length) {
-                    placeholder.innerHTML =
-                        '<h2 class="text-lg font-semibold text-text mb-2">空的 Tracker</h2><p>这个 Tracker 还没有添加任何软件。前往<a href="/rules" class="text-accent hover:underline">规则页面</a>搜索并添加软件。</p>';
+                    placeholder.innerHTML = emptyState(
+                        "空的 Tracker",
+                        '这个 Tracker 还没有添加任何软件。前往<a href="/rules" class="text-accent hover:underline">规则页</a>搜索并添加软件。'
+                    );
                     swapView(list, placeholder);
                     return data;
                 }

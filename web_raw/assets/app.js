@@ -61,6 +61,26 @@ function openUrl(url) {
     }
 }
 
+// 统一空态：align = ""（默认，交给容器）| "top" | "center"
+function emptyState(title, descHtml, align) {
+    var a =
+        align === "center"
+            ? "text-center py-16"
+            : align === "top"
+              ? "pt-[20vh] pl-2"
+              : "";
+    return (
+        '<div class="text-sub text-sm ' +
+        a +
+        '">' +
+        '<h2 class="text-lg font-semibold text-text mb-3">' +
+        escapeHtml(title) +
+        "</h2>" +
+        (descHtml ? '<p class="mb-2">' + descHtml + "</p>" : "") +
+        "</div>"
+    );
+}
+
 // 主题：localStorage > 系统偏好
 (function () {
     var saved = localStorage.getItem("theme");
@@ -1104,7 +1124,13 @@ function startSyncProgress(taskId) {
                 parts.push(d.file_errors + " 条规则下载失败");
             }
             if (d.cancelled) {
-                _makeToast("已终止", "取消拉取，规则未被替换", "bg-warn", "bg-warn/80", 5);
+                _makeToast(
+                    "已终止",
+                    "取消拉取，规则未被替换",
+                    "bg-warn",
+                    "bg-warn/80",
+                    5
+                );
                 if (typeof loadSources === "function") loadSources();
                 return;
             }

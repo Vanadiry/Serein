@@ -77,6 +77,17 @@ body {
     font-family:
         ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
+
+/* 统一交互过渡（Tailwind 的 transition-* 工具类会覆盖此处） */
+button,
+a,
+input,
+select {
+    transition:
+        color 0.15s ease,
+        background-color 0.15s ease,
+        border-color 0.15s ease;
+}
 .card-h {
     min-height: 160px;
 }

@@ -68,8 +68,11 @@
             });
 
             function renderResultsHint() {
-                document.getElementById("results").innerHTML =
-                    '<div class="text-center py-16 text-sub">输入关键词搜索应用或规则</div>';
+                document.getElementById("results").innerHTML = emptyState(
+                    "搜索应用与规则",
+                    '输入关键词搜索，在任意页面按 / 可唤起搜索框。',
+                    "center"
+                );
             }
 
             async function doSearch() {
@@ -134,8 +137,11 @@
             function renderResults(apps, rules) {
                 var res = document.getElementById("results");
                 if (!apps.length && !rules.length) {
-                    res.innerHTML =
-                        '<div class="text-center py-16 text-sub">未找到结果</div>';
+                    res.innerHTML = emptyState(
+                        "未找到结果",
+                        '试试其他关键词，或前往<a href="/rules" class="text-accent hover:underline">规则页</a>拉取规则。',
+                        "center"
+                    );
                     return;
                 }
                 var html = "";
