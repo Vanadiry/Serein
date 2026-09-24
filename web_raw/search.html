@@ -18,7 +18,7 @@
         <main class="max-w-[720px] mx-auto p-6">
             <div id="search-area" class="mt-[25vh]">
                 <div
-                    class="flex items-stretch bg-input border border-bord-strong rounded-xl overflow-hidden focus-within:border-accent transition-colors"
+                    class="flex items-stretch bg-input border border-bord-strong rounded-card overflow-hidden focus-within:border-accent transition-colors"
                 >
                     <input
                         id="q"
@@ -94,7 +94,7 @@
 
             function sectionHeader(label, n) {
                 return (
-                    '<div class="flex items-center gap-2 mb-3"><span class="w-[3px] h-[18px] bg-accent rounded-sm"></span><span class="font-bold text-sm">' +
+                    '<div class="flex items-center gap-2 mb-3"><span class="w-[3px] h-[18px] bg-accent rounded-chip"></span><span class="font-bold text-sm">' +
                     escapeHtml(label) +
                     '</span><span class="text-xs text-sub">(' +
                     n +
@@ -106,7 +106,7 @@
                 return (
                     '<div data-href="' +
                     escapeAttr(href) +
-                    '" onclick="location.href=this.dataset.href" class="flex items-center gap-3 bg-surface border border-bord-mid rounded-lg py-2 px-3 cursor-pointer hover:border-accent transition-colors">' +
+                    '" onclick="location.href=this.dataset.href" class="flex items-center gap-3 bg-surface border border-bord-mid rounded-control py-2 px-3 cursor-pointer hover:border-accent transition-colors">' +
                     '<div class="flex-1 min-w-0"><div class="text-sm font-semibold truncate">' +
                     escapeHtml(title) +
                     '</div><div class="text-xs text-sub truncate mt-0.5">' +

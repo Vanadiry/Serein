@@ -21,7 +21,7 @@
                         </div>
                         <button
                             id="btn-multi"
-                            class="text-xs text-sub hover:text-text cursor-pointer border border-bord rounded-md bg-transparent px-2 py-0.5 transition-colors"
+                            class="text-xs text-sub hover:text-text cursor-pointer border border-bord rounded-chip bg-transparent px-2 py-0.5 transition-colors"
                             title="多选 Tracker"
                         >
                             多选
@@ -30,7 +30,7 @@
                     <nav id="tracker-nav" class="flex flex-col gap-0.5"></nav>
                     <button
                         id="btn-new-tracker"
-                        class="mt-3 w-full text-center text-xs text-sub hover:text-text border border-dashed border-bord-strong rounded-lg py-1.5 cursor-pointer hover:border-accent transition-colors"
+                        class="mt-3 w-full text-center text-xs text-sub hover:text-text border border-dashed border-bord-strong rounded-control py-1.5 cursor-pointer hover:border-accent transition-colors"
                     >
                         新建 Tracker
                     </button>
@@ -216,7 +216,7 @@
                                     ? "bg-accent text-white"
                                     : "bg-surface border border-bord-mid text-sub";
                             return (
-                                '<div class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ' +
+                                '<div class="w-6 h-6 rounded-pill flex items-center justify-center text-xs font-semibold ' +
                                 cls +
                                 '">' +
                                 (i + 1) +
@@ -229,7 +229,7 @@
                         current < steps.length - 1 ? "了解了！" : "开始使用";
 
                     welcome.innerHTML =
-                        '<div class="bg-surface-alt border border-bord rounded-xl p-6 max-w-[480px] w-[90vw] shadow-2xl">' +
+                        '<div class="bg-surface-alt border border-bord rounded-card p-6 max-w-[480px] w-[90vw] shadow-overlay">' +
                         '<div class="flex items-center gap-2 mb-4">' +
                         tabs +
                         "</div>" +
@@ -237,7 +237,7 @@
                         s.title +
                         "</h3>" +
                         s.html +
-                        '<div class="flex justify-end mt-5"><button id="welcome-btn" class="px-5 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer border-0 hover:opacity-90 transition-all active:scale-[0.98]">' +
+                        '<div class="flex justify-end mt-5"><button id="welcome-btn" class="px-5 py-2 rounded-control bg-accent text-white text-sm font-semibold cursor-pointer border-0 hover:opacity-90 transition-all active:scale-[0.98]">' +
                         btnLabel +
                         "</button></div>" +
                         "</div>";
@@ -282,10 +282,10 @@
             document.getElementById("btn-new-tracker").onclick = () => {
                 showModal(`
       <div class="text-base font-bold mb-4">新建 Tracker</div>
-      <input id="new-tracker-name" class="w-full bg-surface border border-bord rounded-lg px-3 py-2 text-sm outline-none focus:border-accent mb-3" placeholder="Tracker 名称">
+      <input id="new-tracker-name" class="w-full bg-surface border border-bord rounded-control px-3 py-2 text-sm outline-none focus:border-accent mb-3" placeholder="Tracker 名称">
       <div class="flex gap-2">
-        <button onclick="closeModal(this.closest('.fixed'))" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>
-        <button id="btn-create-tracker" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">创建</button>
+        <button onclick="closeModal(this.closest('.fixed'))" class="flex-1 px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>
+        <button id="btn-create-tracker" class="flex-1 px-4 py-2 rounded-control bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">创建</button>
       </div>`);
                 document.getElementById("btn-create-tracker").onclick =
                     async () => {
@@ -322,7 +322,7 @@
                                     ? `<span class="shrink-0 text-xs text-warn">(${t.updated}/${t.count})</span>`
                                     : `<span class="shrink-0 text-xs text-sub">(${t.count})</span>`;
                         }
-                        return `<button onclick="selectTracker(this.dataset.id)" data-id="${escapeAttr(t.id)}" class="text-left flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-r-md transition-colors ${active}"><span class="flex-1 min-w-0 truncate">${escapeHtml(t.display_name || t.id)}</span>${badge}</button>`;
+                        return `<button onclick="selectTracker(this.dataset.id)" data-id="${escapeAttr(t.id)}" class="text-left flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-r-chip transition-colors ${active}"><span class="flex-1 min-w-0 truncate">${escapeHtml(t.display_name || t.id)}</span>${badge}</button>`;
                     })
                     .join("");
             }
@@ -335,7 +335,7 @@
                 var mv = document.getElementById("multi-view");
                 if (multiSelect) {
                     btn.className =
-                        "text-xs text-accent font-semibold cursor-pointer border border-accent rounded-md bg-transparent px-2 py-0.5 transition-colors";
+                        "text-xs text-accent font-semibold cursor-pointer border border-accent rounded-chip bg-transparent px-2 py-0.5 transition-colors";
                     document
                         .getElementById("placeholder")
                         .classList.add("hidden");
@@ -346,7 +346,7 @@
                     renderMultiList();
                 } else {
                     btn.className =
-                        "text-xs text-sub hover:text-text cursor-pointer border border-bord rounded-md bg-transparent px-2 py-0.5 transition-colors";
+                        "text-xs text-sub hover:text-text cursor-pointer border border-bord rounded-chip bg-transparent px-2 py-0.5 transition-colors";
                     mv.classList.add("hidden");
                     if (!skipRestore) {
                         if (currentTracker) loadTrackerDetail(currentTracker);
@@ -754,7 +754,7 @@
                 rightIcons += `<span onclick="event.stopPropagation(); refreshApp(this.dataset.appid)" data-appid="${escapeAttr(d.app_id)}" ${tipAttr("检查更新")}>${iconImg("refresh", "检查更新", "w-5 h-5")}</span>`;
                 rightIcons += `</span>`;
 
-                return `<div data-appid="${escapeAttr(d.app_id)}" class="flex items-center bg-surface-alt border border-bord-mid rounded-lg pl-2 pr-4 h-16 hover:border-bord transition-colors mb-2 overflow-hidden">
+                return `<div data-appid="${escapeAttr(d.app_id)}" class="flex items-center bg-surface-alt border border-bord-mid rounded-control pl-2 pr-4 h-16 hover:border-bord transition-colors mb-2 overflow-hidden">
       <div class="flex-1 min-w-0 pr-4 flex flex-col justify-center">
         <div class="text-base font-semibold truncate pl-1"><span class="select-text${st && st.nameClass ? " " + st.nameClass : ""}" ${tipAttr(escapeHtml(d.app_id || "") + (d.description ? "<br>" + escapeHtml(d.description) : "") + (st ? "<br>状态：" + escapeHtml(st.message) : ""))}>${escapeHtml(d.name || d.app_id)}</span>${timeHTML}${st ? " " + st.dotHTML : ""}</div>
         <div class="mt-0.5">${versionHTML}</div>
@@ -800,8 +800,8 @@
       <div class="text-base font-bold mb-4">编辑版本 — ${escapeHtml(appId)}</div>
       <div id="edit-platforms" class="flex flex-col gap-2 mb-4"></div>
       <div class="flex gap-2">
-        <button onclick="closeModal(this.closest('.fixed'))" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>
-        <button id="btn-save-version" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">保存</button>
+        <button onclick="closeModal(this.closest('.fixed'))" class="flex-1 px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>
+        <button id="btn-save-version" class="flex-1 px-4 py-2 rounded-control bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">保存</button>
       </div>`);
                 const detail = await api("/api/tracker/list/" + currentTracker);
                 const entry = (detail || []).find((e) => e.app_id === appId);
@@ -816,7 +816,7 @@
                                 entry.current_version &&
                                 entry.current_version[os]) ||
                             "";
-                        return `<div class="flex items-center gap-2"><span class="text-xs text-sub w-16">${escapeHtml(os)}</span><input class="flex-1 bg-surface border border-bord rounded-lg px-3 py-1.5 text-sm outline-none focus:border-accent" value="${escapeAttr(cur)}" data-os="${escapeAttr(os)}"></div>`;
+                        return `<div class="flex items-center gap-2"><span class="text-xs text-sub w-16">${escapeHtml(os)}</span><input class="flex-1 bg-surface border border-bord rounded-control px-3 py-1.5 text-sm outline-none focus:border-accent" value="${escapeAttr(cur)}" data-os="${escapeAttr(os)}"></div>`;
                     })
                     .join("");
                 document.getElementById("btn-save-version").onclick =

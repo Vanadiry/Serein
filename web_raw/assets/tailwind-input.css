@@ -71,6 +71,15 @@ html.light {
     --color-toast-warn-bg: var(--c-toast-warn-bg);
     --color-toast-ok-bg: var(--c-toast-ok-bg);
     --color-toast-err-bg: var(--c-toast-err-bg);
+
+    /* 圆角：card 卡片/弹窗/多选行 | control 按钮/输入/列表行 | chip 小徽章 | pill 药丸 */
+    --radius-card: 0.75rem;
+    --radius-control: 0.5rem;
+    --radius-chip: 0.375rem;
+    --radius-pill: 9999px;
+
+    /* 阴影：仅弹窗 / toast / tooltip 等浮层使用 */
+    --shadow-overlay: 0 25px 50px -12px rgb(0 0 0 / 0.25);
 }
 
 body {

@@ -195,7 +195,7 @@ function statusInfo(status) {
         level: level,
         nameClass: nameClass,
         dotHTML:
-            '<span class="inline-block w-2 h-2 rounded-full ' +
+            '<span class="inline-block w-2 h-2 rounded-pill ' +
             dot +
             ' align-middle"></span>'
     };
@@ -239,24 +239,24 @@ function renderTopbar(current) {
       <div class="max-w-[1200px] mx-auto px-5 flex items-center gap-3 h-12 relative">
         <h1 class="text-lg font-bold cursor-pointer shrink-0" onclick="location.href='/'">Serein</h1>
         <nav class="flex gap-1 ml-2 items-center">
-          <a href="/" class="no-underline px-3 py-1.5 rounded-lg text-sm ${navCls("/")}">应用</a>
-          <a href="/rules" class="no-underline px-3 py-1.5 rounded-lg text-sm ${navCls("/rules")}">规则</a>
-          <a href="/search" class="no-underline px-3 py-1.5 rounded-lg text-sm ${navCls("/search")}">搜索</a>
-          <a href="/settings" class="no-underline px-3 py-1.5 rounded-lg text-sm ${navCls("/settings")}">设置</a>
+          <a href="/" class="no-underline px-3 py-1.5 rounded-control text-sm ${navCls("/")}">应用</a>
+          <a href="/rules" class="no-underline px-3 py-1.5 rounded-control text-sm ${navCls("/rules")}">规则</a>
+          <a href="/search" class="no-underline px-3 py-1.5 rounded-control text-sm ${navCls("/search")}">搜索</a>
+          <a href="/settings" class="no-underline px-3 py-1.5 rounded-control text-sm ${navCls("/settings")}">设置</a>
         </nav>
         <div class="flex-1"></div>
         <nav class="flex gap-1 items-center">
           ${
               isIndex
                   ? `
-          <button id="btn-check-all" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">检查全部</button>
-          <button id="btn-tracker-check" style="display:none" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">检查当前 Tracker</button>
+          <button id="btn-check-all" class="no-underline px-3 py-1.5 rounded-control text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">检查全部</button>
+          <button id="btn-tracker-check" style="display:none" class="no-underline px-3 py-1.5 rounded-control text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">检查当前 Tracker</button>
           `
                   : isRules
                     ? `
-          <button id="btn-rule-check" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">检查错误</button>
-          <button id="btn-sync-profile" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">拉取动态配置</button>
-          <button id="btn-sync" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">拉取规则</button>
+          <button id="btn-rule-check" class="no-underline px-3 py-1.5 rounded-control text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">检查错误</button>
+          <button id="btn-sync-profile" class="no-underline px-3 py-1.5 rounded-control text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">拉取动态配置</button>
+          <button id="btn-sync" class="no-underline px-3 py-1.5 rounded-control text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">拉取规则</button>
           `
                     : ""
           }
@@ -405,7 +405,7 @@ function iconImgRaw(file, alt, sz) {
 
 // 工具
 function badge(text, bg, fg) {
-    return `<span class="${bg} ${fg} px-1.5 py-px rounded text-[10px] font-semibold">${text}</span>`;
+    return `<span class="${bg} ${fg} px-1.5 py-px rounded-chip text-[10px] font-semibold">${text}</span>`;
 }
 
 function formatURL(u) {
@@ -433,7 +433,7 @@ function _repositionToasts() {
 function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
     var el = document.createElement("div");
     el.className =
-        "fixed left-4 right-4 z-[200] rounded-lg shadow-xl text-sm transition-all duration-300";
+        "fixed left-4 right-4 z-[200] rounded-control shadow-overlay text-sm transition-all duration-300";
     el.style.bottom = "16px";
     el.style.opacity = "0";
     el.style.transform = "translateY(8px)";
@@ -442,7 +442,7 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
     el.innerHTML =
         '<div class="' +
         titleBg +
-        ' text-white font-semibold px-4 py-2 rounded-t-lg flex items-center justify-between">' +
+        ' text-white font-semibold px-4 py-2 rounded-t-control flex items-center justify-between">' +
         "<span>" +
         escapeHtml(title) +
         "</span>" +
@@ -450,7 +450,7 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
         "</div>" +
         '<div class="' +
         bodyBg +
-        " text-white px-4 py-2 rounded-b-lg" +
+        " text-white px-4 py-2 rounded-b-control" +
         (titleBg === "bg-ok" ? "" : " select-text") +
         '">' +
         (body || "") +
@@ -517,11 +517,11 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
             var tt = titleText || (isError ? "错误" : "成功");
             el.querySelector("div:first-child").className =
                 tb +
-                " text-white font-semibold px-4 py-2 rounded-t-lg flex items-center justify-between";
+                " text-white font-semibold px-4 py-2 rounded-t-control flex items-center justify-between";
             el.querySelector("span:first-child").textContent = tt;
             el.querySelector("div:last-child").className =
                 bb +
-                " text-white px-4 py-2 rounded-b-lg" +
+                " text-white px-4 py-2 rounded-b-control" +
                 (isError ? " select-text" : "");
             el.querySelector("div:last-child").innerHTML = okBody || "";
             if (isError) {
@@ -552,7 +552,7 @@ function _ensureTooltip() {
     if (!_tooltipEl) {
         _tooltipEl = document.createElement("div");
         _tooltipEl.className =
-            "fixed bg-surface-raised border border-bord-strong text-xs text-sub rounded-lg px-3 py-2 shadow-xl pointer-events-none z-[200] transition-opacity duration-150";
+            "fixed bg-surface-raised border border-bord-strong text-xs text-sub rounded-control px-3 py-2 shadow-overlay pointer-events-none z-[200] transition-opacity duration-150";
         _tooltipEl.style.display = "none";
         _tooltipEl.style.opacity = "0";
         _tooltipEl.style.lineHeight = "1.4";
@@ -764,7 +764,7 @@ function openLinksModal(appId, site) {
     showModal(
         '<div class="flex items-center justify-between mb-3">' +
             '<div class="text-base font-bold">官网/下载地址</div>' +
-            '<button onclick="closeModal(this.closest(\'.fixed\'))" class="w-7 h-7 flex items-center justify-center rounded-lg border border-bord bg-transparent text-sub cursor-pointer hover:bg-active hover:text-text">&times;</button>' +
+            '<button onclick="closeModal(this.closest(\'.fixed\'))" class="w-7 h-7 flex items-center justify-center rounded-control border border-bord bg-transparent text-sub cursor-pointer hover:bg-active hover:text-text">&times;</button>' +
             "</div>" +
             '<div class="max-h-[70vh] overflow-y-auto -mr-2 pr-2">' +
             body +
@@ -776,7 +776,7 @@ function openLinksModal(appId, site) {
 function linkItem(it) {
     var abs = escapeAttr(absoluteUrl(it.url));
     var cls =
-        'class="px-2.5 py-1 rounded-md border border-bord bg-transparent text-sub text-xs cursor-pointer hover:bg-active hover:text-text"';
+        'class="px-2.5 py-1 rounded-chip border border-bord bg-transparent text-sub text-xs cursor-pointer hover:bg-active hover:text-text"';
     return (
         '<div class="mb-5">' +
         '<div class="flex items-center justify-between mb-1.5">' +
@@ -798,7 +798,7 @@ function linkItem(it) {
         "</div>" +
         '<input value="' +
         abs +
-        '" spellcheck="false" class="w-full bg-bg border border-bord-mid rounded-lg px-3 py-2.5 text-sm text-text outline-none focus:border-accent overflow-x-auto whitespace-nowrap">' +
+        '" spellcheck="false" class="w-full bg-bg border border-bord-mid rounded-control px-3 py-2.5 text-sm text-text outline-none focus:border-accent overflow-x-auto whitespace-nowrap">' +
         "</div>"
     );
 }
@@ -832,22 +832,22 @@ function openDownloadPage(url) {
     var hasDL = isLocalAccess() && hasDownloader();
     var urlAttr = escapeAttr(url);
     var row1 =
-        '<button onclick="closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>' +
+        '<button onclick="closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>' +
         '<button data-url="' +
         urlAttr +
-        '" onclick="var s=this;navigator.clipboard.writeText(this.dataset.url);s.textContent=\'已复制\';setTimeout(function(){s.textContent=\'复制链接\'},1500)" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">复制链接</button>' +
+        '" onclick="var s=this;navigator.clipboard.writeText(this.dataset.url);s.textContent=\'已复制\';setTimeout(function(){s.textContent=\'复制链接\'},1500)" class="flex-1 px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">复制链接</button>' +
         '<button data-url="' +
         urlAttr +
-        '" onclick="openUrl(this.dataset.url);closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">打开</button>';
+        '" onclick="openUrl(this.dataset.url);closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-control bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">打开</button>';
     var row2 = hasDL
         ? '<button data-url="' +
           urlAttr +
-          '" onclick="downloadFile(this.dataset.url);closeModal(this.closest(\'.fixed\'))" class="w-full px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">仍然发送到下载器</button>'
+          '" onclick="downloadFile(this.dataset.url);closeModal(this.closest(\'.fixed\'))" class="w-full px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">仍然发送到下载器</button>'
         : "";
     showModal(
         '<div class="text-base font-bold mb-3">外部地址</div>' +
             '<p class="text-text text-sm mb-3 leading-relaxed">此链接看起来不是一个常见的文件，或许是一个网页而非安装包。<br />是否要在外部浏览器打开？</p>' +
-            '<p class="select-text text-text text-xs break-all bg-bg rounded-lg px-3 py-2 border border-bord-mid mb-4 leading-relaxed">' +
+            '<p class="select-text text-text text-xs break-all bg-bg rounded-control px-3 py-2 border border-bord-mid mb-4 leading-relaxed">' +
             escapeHtml(url) +
             "</p>" +
             '<div class="flex gap-2 mb-2">' +
@@ -862,17 +862,17 @@ function openExternalUrl(url) {
     showModal(
         '<div class="text-base font-bold mb-3">外部地址</div>' +
             '<p class="text-text text-sm mb-3 leading-relaxed">将会在浏览器中打开此链接。</p>' +
-            '<p class="select-text text-text text-xs break-all bg-bg rounded-lg px-3 py-2 border border-bord-mid mb-4 leading-relaxed">' +
+            '<p class="select-text text-text text-xs break-all bg-bg rounded-control px-3 py-2 border border-bord-mid mb-4 leading-relaxed">' +
             escapeHtml(url) +
             "</p>" +
             '<div class="flex gap-2">' +
-            '<button onclick="closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>' +
+            '<button onclick="closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>' +
             '<button data-url="' +
             urlAttr +
-            '" onclick="var s=this;navigator.clipboard.writeText(this.dataset.url);s.textContent=\'已复制\';setTimeout(function(){s.textContent=\'复制链接\'},1500)" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">复制链接</button>' +
+            '" onclick="var s=this;navigator.clipboard.writeText(this.dataset.url);s.textContent=\'已复制\';setTimeout(function(){s.textContent=\'复制链接\'},1500)" class="flex-1 px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">复制链接</button>' +
             '<button data-url="' +
             urlAttr +
-            '" onclick="openUrl(this.dataset.url);closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">打开</button>' +
+            '" onclick="openUrl(this.dataset.url);closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-control bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">打开</button>' +
             "</div>"
     );
 }
@@ -884,8 +884,8 @@ function confirmDialog(msg, cb) {
             escapeHtml(msg) +
             "</p>" +
             '<div class="flex gap-2">' +
-            '<button onclick="closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>' +
-            '<button id="btn-confirm-exec" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">确认</button>' +
+            '<button onclick="closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>' +
+            '<button id="btn-confirm-exec" class="flex-1 px-4 py-2 rounded-control bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">确认</button>' +
             "</div>"
     );
     document.getElementById("btn-confirm-exec").onclick = function () {
@@ -906,7 +906,7 @@ function showModal(html, wide) {
     const size = wide
         ? "min-w-[560px] max-w-[780px]"
         : "min-w-[400px] max-w-[520px]";
-    el.innerHTML = `<div class="bg-surface-alt border border-bord rounded-xl p-6 ${size} shadow-2xl transition-all duration-200" style="opacity:0;transform:scale(.95)">${html}</div>`;
+    el.innerHTML = `<div class="bg-surface-alt border border-bord rounded-card p-6 ${size} shadow-overlay transition-all duration-200" style="opacity:0;transform:scale(.95)">${html}</div>`;
     document.body.appendChild(el);
     requestAnimationFrame(function () {
         el.style.opacity = "1";
@@ -988,7 +988,7 @@ function showProgressModal(title, cancel) {
 
     var card = document.createElement("div");
     card.className =
-        "bg-surface-alt border border-bord rounded-xl p-6 w-[440px] max-w-[90vw] shadow-2xl transition-all duration-200";
+        "bg-surface-alt border border-bord rounded-card p-6 w-[440px] max-w-[90vw] shadow-overlay transition-all duration-200";
     card.style.opacity = "0";
     card.style.transform = "scale(.95)";
     card.innerHTML =
@@ -996,10 +996,10 @@ function showProgressModal(title, cancel) {
         '<h3 id="prog-title" class="text-base font-bold text-text">' +
         escapeHtml(title) +
         "</h3>" +
-        '<button id="prog-cancel" class="px-3 py-1 rounded-lg border border-[rgba(255,0,0,.3)] bg-transparent text-[#dc2626] text-xs cursor-pointer hover:bg-[rgba(255,0,0,.1)]">终止</button>' +
+        '<button id="prog-cancel" class="px-3 py-1 rounded-control border border-[rgba(255,0,0,.3)] bg-transparent text-[#dc2626] text-xs cursor-pointer hover:bg-[rgba(255,0,0,.1)]">终止</button>' +
         "</div>" +
-        '<div class="bg-bg rounded-full h-2 mb-3 overflow-hidden">' +
-        '<div id="prog-bar" class="bg-accent h-full rounded-full transition-all duration-300" style="width:0%"></div>' +
+        '<div class="bg-bg rounded-pill h-2 mb-3 overflow-hidden">' +
+        '<div id="prog-bar" class="bg-accent h-full rounded-pill transition-all duration-300" style="width:0%"></div>' +
         "</div>" +
         '<p id="prog-status" class="text-sub text-sm">准备中...</p>';
     overlay.appendChild(card);

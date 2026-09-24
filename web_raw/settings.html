@@ -47,7 +47,7 @@
             function sectionTitle(title) {
                 return (
                     '<div class="flex items-center gap-2 mt-6 mb-3 first:mt-0">' +
-                    '<span class="w-[3px] h-[18px] bg-accent rounded-sm"></span>' +
+                    '<span class="w-[3px] h-[18px] bg-accent rounded-chip"></span>' +
                     '<span class="font-bold text-sm">' +
                     title +
                     "</span></div>"
@@ -81,7 +81,7 @@
                         var d = sections[sec][i];
                         var val = prefs[d.key];
                         html +=
-                            '<div class="flex items-center gap-3 py-1.5 px-2 -mx-2 rounded-lg transition-colors duration-200 hover:bg-active">';
+                            '<div class="flex items-center gap-3 py-1.5 px-2 -mx-2 rounded-control transition-colors duration-200 hover:bg-active">';
                         html +=
                             '<div class="flex-1 min-w-0"><div class="text-sm text-text truncate">' +
                             d.label +
@@ -96,7 +96,7 @@
                                 d.key +
                                 '" onchange="onPrefChange(\'' +
                                 d.key +
-                                '\', this.value)" class="w-[140px] shrink-0 px-3 py-2 rounded-lg border border-bord bg-input text-sm outline-none">';
+                                '\', this.value)" class="w-[140px] shrink-0 px-3 py-2 rounded-control border border-bord bg-input text-sm outline-none">';
                             for (var j = 0; j < d.choices.length; j++) {
                                 html +=
                                     '<option value="' +
@@ -116,15 +116,15 @@
                                 d.key +
                                 '" value="' +
                                 escapeAttr(val) +
-                                '" class="w-[200px] shrink-0 px-3 py-2 rounded-lg border border-bord bg-input text-sm outline-none">';
+                                '" class="w-[200px] shrink-0 px-3 py-2 rounded-control border border-bord bg-input text-sm outline-none">';
                         }
                         html += "</div>";
                     }
                 }
                 html +=
-                    '<button onclick="saveSettings()" class="w-full mt-6 px-4 py-2.5 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer border-0 hover:opacity-90 transition-all active:scale-[0.98]">保存设置</button>';
+                    '<button onclick="saveSettings()" class="w-full mt-6 px-4 py-2.5 rounded-control bg-accent text-white text-sm font-semibold cursor-pointer border-0 hover:opacity-90 transition-all active:scale-[0.98]">保存设置</button>';
                 html +=
-                    '<button onclick="resetFirstRun()" class="w-full mt-3 px-4 py-2.5 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">重置起始页指引</button>';
+                    '<button onclick="resetFirstRun()" class="w-full mt-3 px-4 py-2.5 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">重置起始页指引</button>';
                 document.getElementById("settings-form").innerHTML = html;
             }
 
@@ -143,7 +143,7 @@
                                 ? escapeHtml(v).replace(/\n/g, "<br>")
                                 : escapeHtml(v);
                         html +=
-                            '<div class="flex items-start gap-3 py-1.5 px-2 -mx-2 rounded-lg transition-colors duration-200 hover:bg-active">' +
+                            '<div class="flex items-start gap-3 py-1.5 px-2 -mx-2 rounded-control transition-colors duration-200 hover:bg-active">' +
                             '<div class="flex-1 min-w-0"><div class="text-sm text-text truncate">' +
                             k +
                             "</div></div>" +
