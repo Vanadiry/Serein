@@ -94,7 +94,9 @@
                             html +=
                                 '<select id="f-' +
                                 d.key +
-                                '" class="w-[140px] shrink-0 px-3 py-2 rounded-lg border border-bord bg-input text-sm outline-none">';
+                                '" onchange="onPrefChange(\'' +
+                                d.key +
+                                '\', this.value)" class="w-[140px] shrink-0 px-3 py-2 rounded-lg border border-bord bg-input text-sm outline-none">';
                             for (var j = 0; j < d.choices.length; j++) {
                                 html +=
                                     '<option value="' +
@@ -157,6 +159,21 @@
             function resetFirstRun() {
                 localStorage.removeItem("first_run_done");
                 location.href = "/";
+            }
+
+            function onPrefChange(key, value) {
+                if (key === "theme") {
+                    setThemePreference(value);
+                } else {
+                    localStorage.setItem(key, value);
+                }
+            }
+
+            function saveSettings() {
+                for (var i = 0; i < _prefDefs.length; i++) {
+                    var el = document.getElementById("f-" + _prefDefs[i].key);
+                    if (el) onPrefChange(_prefDefs[i].key, el.value);
+                }
             }
 
             renderLeft();
