@@ -116,15 +116,17 @@ paths:
   /api/check/tracker:
     post:
       tags: [Check]
-      summary: 检查指定 tracker（异步，返回 task_id）
+      summary: 检查指定 tracker（数组，按顺序串行；异步，返回 task_id）
       requestBody:
         content:
           application/json:
             schema:
               type: object
-              required: [tracker_id]
+              required: [tracker_ids]
               properties:
-                tracker_id: { type: string }
+                tracker_ids:
+                  type: array
+                  items: { type: string }
       responses:
         "200":
           description: OK

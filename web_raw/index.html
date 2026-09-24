@@ -771,7 +771,7 @@
                 console.log("[check] tracker:", currentTracker);
                 asyncCheck(
                     "/api/check/tracker",
-                    { tracker_id: currentTracker },
+                    { tracker_ids: [currentTracker] },
                     finishCheckTracker
                 );
             }

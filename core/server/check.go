@@ -104,42 +104,40 @@ func (s *Server) handleCheckIDs(w http.ResponseWriter, r *http.Request) {
 }
 
 // POST /api/check/tracker
-
+// body: {"tracker_ids": ["a","b"]}（按传入顺序串行检查，数组可任意长度）
 func (s *Server) handleCheckTracker(w http.ResponseWriter, r *http.Request) {
 	limitBody(w, r)
 	var body struct {
-		TrackerID string `json:"tracker_id"`
+		TrackerIDs []string `json:"tracker_ids"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.TrackerID == "" {
-		writeError(w, http.StatusBadRequest, "missing tracker_id")
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || len(body.TrackerIDs) == 0 {
+		writeError(w, http.StatusBadRequest, "missing tracker_ids")
 		return
 	}
-	if !store.ValidTrackerName(body.TrackerID) {
-		writeError(w, http.StatusBadRequest, "invalid tracker_id")
+	for _, id := range body.TrackerIDs {
+		if !store.ValidTrackerName(id) {
+			writeError(w, http.StatusBadRequest, "invalid tracker_id: "+id)
+			return
+		}
+	}
+	s.startCheckList(w, s.buildCheckList(body.TrackerIDs), true)
+}
+
+// startCheckList 为一个 tracker 列表启动异步检查任务（total 为条目数）
+func (s *Server) startCheckList(w http.ResponseWriter, list []checkAllTracker, savePartial bool) {
+	total := 0
+	for _, t := range list {
+		total += len(t.entries)
+	}
+	if total == 0 {
+		writeJSON(w, http.StatusOK, map[string]string{"task_id": "", "total": "0"})
 		return
 	}
-	entries, err := store.LoadTrackerFile(s.home, body.TrackerID)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	if len(entries) == 0 {
-		writeJSON(w, http.StatusOK, map[string]string{"task_id": ""})
-		return
-	}
-	if store.GetTrackerType(s.home, body.TrackerID) == "msvsix" {
-		s.handleDirectCheck(w, entries, "msvsix")
-		return
-	}
-	if store.GetTrackerType(s.home, body.TrackerID) == "openvsx" {
-		s.handleDirectCheck(w, entries, "openvsx")
-		return
-	}
-	log.Logf("[check/tracker] %s", body.TrackerID)
+	log.Logf("[check] %d trackers, %d apps (savePartial=%v)", len(list), total, savePartial)
 	httpx.ClearURLCache()
-	p := progress.NewProgress(len(entries))
-	go s.runTrackerChecksAsync(entries, p, body.TrackerID)
-	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(len(entries))})
+	p := progress.NewProgress(total)
+	go s.runCheckAllAsync(list, p, savePartial)
+	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(total)})
 }
 
 // POST /api/check/confirm
@@ -395,30 +393,6 @@ func (s *Server) runDirectEntries(ctx context.Context, entries []store.TrackerEn
 	return results
 }
 
-func (s *Server) runTrackerChecksAsync(entries []store.TrackerEntry, p *progress.Progress, trackerID string) {
-	defer p.Close()
-
-	ctx := p.Context()
-	jobs, conc := s.buildCheckJobs(ctx, entries)
-	total := len(jobs)
-	if total == 0 {
-		return
-	}
-
-	var mu sync.Mutex
-	var done int
-	record := func(_, name string) {
-		mu.Lock()
-		done++
-		d := done
-		mu.Unlock()
-		p.Send("app", name, d, total)
-	}
-
-	results := s.runAppJobs(ctx, jobs, conc, record)
-	s.setCheckResults(trackerID, mergeResults(results))
-}
-
 func mergeResults(results []checker.CheckResponse) []checker.CheckResponse {
 	merged := make(map[string]*checker.CheckResponse)
 	for i := range results {
@@ -487,14 +461,6 @@ func (s *Server) getCheckResults(key string) []checker.CheckResponse {
 	return out
 }
 
-func (s *Server) handleDirectCheck(w http.ResponseWriter, entries []store.TrackerEntry, typ string) {
-	log.Logf("[check/%s] %d entries", typ, len(entries))
-	httpx.ClearURLCache()
-	p := progress.NewProgress(len(entries))
-	go s.runDirectChecksAsync(entries, p, typ)
-	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(len(entries))})
-}
-
 func (s *Server) handleDirectCheckIDs(ctx context.Context, w http.ResponseWriter, ids []string, typ string) {
 	checkFn := selectDirectCheckFn(typ)
 	client := httpx.NewClient()
@@ -520,25 +486,6 @@ func (s *Server) handleDirectCheckIDs(ctx context.Context, w http.ResponseWriter
 	writeJSON(w, http.StatusOK, results)
 }
 
-func (s *Server) runDirectChecksAsync(entries []store.TrackerEntry, p *progress.Progress, typ string) {
-	defer p.Close()
-
-	ctx := p.Context()
-	total := len(entries)
-	var mu sync.Mutex
-	var done int
-	record := func(_, name string) {
-		mu.Lock()
-		done++
-		d := done
-		mu.Unlock()
-		p.Send("app", name, d, total)
-	}
-
-	results := s.runDirectEntries(ctx, entries, typ, 4, record)
-	s.setCheckResults(typ, mergeResults(results))
-}
-
 // POST /api/check/all：一次性检查所有 Tracker
 
 type checkAllTracker struct {
@@ -550,15 +497,41 @@ type checkAllTracker struct {
 
 func (s *Server) handleCheckAll(w http.ResponseWriter, r *http.Request) {
 	limitBody(w, r)
+	s.startCheckList(w, s.buildCheckList(nil), false)
+}
+
+// buildCheckList 按给定 tracker id 列表构造检查列表；ids 为空表示全部
+// 保持给定顺序并去重，跳过不存在或空的 Tracker
+func (s *Server) buildCheckList(ids []string) []checkAllTracker {
 	infos, err := store.LoadAllTrackerInfo(s.home)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
+		return nil
+	}
+	byID := make(map[string]store.TrackerInfo, len(infos))
+	for _, ti := range infos {
+		byID[ti.ID] = ti
+	}
+	var order []string
+	if len(ids) > 0 {
+		seen := make(map[string]bool, len(ids))
+		for _, id := range ids {
+			if !seen[id] {
+				seen[id] = true
+				order = append(order, id)
+			}
+		}
+	} else {
+		for _, ti := range infos {
+			order = append(order, ti.ID)
+		}
 	}
 	var list []checkAllTracker
-	total := 0
-	for _, ti := range infos {
-		entries, err := store.LoadTrackerFile(s.home, ti.ID)
+	for _, id := range order {
+		ti, ok := byID[id]
+		if !ok {
+			continue
+		}
+		entries, err := store.LoadTrackerFile(s.home, id)
 		if err != nil || len(entries) == 0 {
 			continue
 		}
@@ -567,20 +540,11 @@ func (s *Server) handleCheckAll(w http.ResponseWriter, r *http.Request) {
 			typ = "app"
 		}
 		list = append(list, checkAllTracker{id: ti.ID, name: ti.DisplayName, typ: typ, entries: entries})
-		total += len(entries)
 	}
-	if total == 0 {
-		writeJSON(w, http.StatusOK, map[string]string{"task_id": "", "total": "0"})
-		return
-	}
-	log.Logf("[check/all] %d trackers, %d apps", len(list), total)
-	httpx.ClearURLCache()
-	p := progress.NewProgress(total)
-	go s.runCheckAllAsync(list, p)
-	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(total)})
+	return list
 }
 
-func (s *Server) runCheckAllAsync(list []checkAllTracker, p *progress.Progress) {
+func (s *Server) runCheckAllAsync(list []checkAllTracker, p *progress.Progress, savePartial bool) {
 	defer p.Close()
 	ctx := p.Context()
 	conc := s.config.Download.Concurrency
@@ -615,10 +579,13 @@ func (s *Server) runCheckAllAsync(list []checkAllTracker, p *progress.Progress) 
 			results = s.runAppJobs(ctx, jobs, conc, record)
 		}
 
+		// savePartial：单个/指定 Tracker 检查时，取消也保留已完成的部分
+		// 全部检查时不覆盖未完成的桶
+		if ctx.Err() == nil || savePartial {
+			s.setCheckResults(t.id, mergeResults(results))
+		}
 		if ctx.Err() != nil {
-			// 取消：只写已完成的桶，不覆盖未完成桶
 			break
 		}
-		s.setCheckResults(t.id, mergeResults(results))
 	}
 }

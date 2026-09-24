@@ -10,6 +10,7 @@
 
 #### Changed
 
+- `/api/check/tracker` 改为接收 `tracker_ids` 数组。按顺序串行检查，可一次检查任意数量
 - 检查结果缓存改为按 Tracker 的内存缓存：切换 Tracker 自动读取，退出程序即释放、不落盘
 - 单条检查的结果并入所属 Tracker 的缓存
 
