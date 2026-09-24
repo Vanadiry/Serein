@@ -22,7 +22,7 @@
                 >
                     <input
                         id="q"
-                        placeholder="搜索应用或规则…"
+                        placeholder="搜索应用或规则..."
                         class="flex-1 px-4 py-3 bg-transparent text-base outline-none border-0 min-w-0"
                         autofocus
                     />
@@ -83,7 +83,7 @@
                 }
                 document.getElementById("search-area").style.marginTop = "0";
                 res.innerHTML =
-                    '<div class="text-center py-10 text-sub">搜索中…</div>';
+                    '<div class="text-center py-10 text-sub">搜索中...</div>';
                 var d =
                     (await api("/api/search?q=" + encodeURIComponent(q))) || {};
                 renderResults(d.apps || [], d.rules || []);

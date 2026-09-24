@@ -1096,7 +1096,7 @@ function startSyncProgress(taskId) {
                     );
                 }
                 if (failures.length > 20)
-                    lines.push("…还有 " + (failures.length - 20) + " 条");
+                    lines.push("...还有 " + (failures.length - 20) + " 条");
                 parts.push(
                     failedSources + " 个源更新失败：<br>" + lines.join("<br>")
                 );
