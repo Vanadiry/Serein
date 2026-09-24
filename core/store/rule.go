@@ -68,6 +68,7 @@ type PlatConfig struct {
 	Owner           string            `toml:"owner,omitempty"`
 	Repo            string            `toml:"repo,omitempty"`
 	PerPage         int               `toml:"per_page,omitempty"`
+	AllowPrerelease bool              `toml:"allow_prerelease,omitempty"`
 	VURL            string            `toml:"v_url,omitempty"`
 	VType           string            `toml:"v_type,omitempty"`
 	DURL            string            `toml:"d_url,omitempty"`
@@ -436,6 +437,9 @@ func mergePlatConfig(base, plat PlatConfig) PlatConfig {
 	}
 	if plat.ForceDownloader {
 		base.ForceDownloader = true
+	}
+	if plat.AllowPrerelease {
+		base.AllowPrerelease = true
 	}
 	return base
 }

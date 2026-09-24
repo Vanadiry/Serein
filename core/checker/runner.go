@@ -45,6 +45,7 @@ type PlatformCheckConfig struct {
 	DJoin           string
 	CurrentVersion  string
 	ForceDownloader bool
+	AllowPrerelease bool
 	Label           string // 事件标题里的标识
 }
 
@@ -124,6 +125,7 @@ func runGitHubCheck(ctx context.Context, req CheckRequest, client *http.Client) 
 	if len(req.Platforms) > 0 {
 		cfg.UA = req.Platforms[0].UA
 		cfg.Headers = req.Platforms[0].Headers
+		cfg.AllowPrerelease = req.Platforms[0].AllowPrerelease
 	}
 
 	for _, pc := range req.Platforms {

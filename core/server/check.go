@@ -202,6 +202,7 @@ func (s *Server) buildCheckJobs(ctx context.Context, entries []store.TrackerEntr
 				DJoin:           platCfg.DJoin,
 				CurrentVersion:  currentVer,
 				ForceDownloader: platCfg.ForceDownloader,
+				AllowPrerelease: platCfg.AllowPrerelease,
 				Label:           jobName,
 			})
 		}

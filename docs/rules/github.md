@@ -13,6 +13,7 @@ type = "github"
 owner = "Vanadiry"
 repo = "Seshat"
 per_page = 10 # 不写此项，默认为 3
+allow_prerelease = true # 可选，为 true 时不过滤 prerelease
 
 [config.macos]
 d_position = "darwin-arm64"
@@ -50,3 +51,4 @@ d_position = [0, "assets", "name~exe", "browser_download_url"]
 - 同平台匹配多个 asset 时全部返回
 - 不需要 `url`，由 `owner/repo` 自动拼接
 - `per_page` 可选，拼接为 `/releases?per_page=N`
+- `allow_prerelease` 可选，默认 `false`。Serein 在此 type 下默认过滤预发布版，设为 `true` 则不过滤

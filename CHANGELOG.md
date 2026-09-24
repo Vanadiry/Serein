@@ -4,6 +4,10 @@
 
 ### [v2.0.0-beta.6] - 2026-09-24
 
+#### Added
+
+- GitHub 规则支持 `allow_prerelease`：开启后不过滤 prerelease，直接取最新一条
+
 #### Changed
 
 - 检查入口合并为 `POST /api/check`：以 `scope` 区分范围

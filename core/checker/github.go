@@ -21,13 +21,14 @@ const (
 
 // GitHubConfig GitHub Release 检查参数
 type GitHubConfig struct {
-	Owner     string
-	Repo      string
-	PerPage   int
-	UA        string
-	Headers   map[string]string
-	DPosition any
-	Label     string // 事件标题里的标识（通常是软件名），为空时回退 owner/repo
+	Owner           string
+	Repo            string
+	PerPage         int
+	UA              string
+	Headers         map[string]string
+	DPosition       any
+	AllowPrerelease bool   // true 时不过滤 prerelease，直接取最新一条
+	Label           string // 事件标题里的标识，为空时回退 owner/repo
 }
 
 // eventContext 事件标题
@@ -76,7 +77,7 @@ func CheckGitHub(ctx context.Context, cfg GitHubConfig, client *http.Client) (Pl
 		if err != nil {
 			continue
 		}
-		if isGitHubPrerelease(root, i, cfg.eventContext()) {
+		if !cfg.AllowPrerelease && isGitHubPrerelease(root, i, cfg.eventContext()) {
 			continue
 		}
 		latest = PlatformResult{
@@ -87,7 +88,7 @@ func CheckGitHub(ctx context.Context, cfg GitHubConfig, client *http.Client) (Pl
 		break
 	}
 
-	if !latestFound && len(arr) > 0 {
+	if !latestFound && len(arr) > 0 && !cfg.AllowPrerelease {
 		events.Emit("warn", cfg.eventContext(), fmt.Sprintf("未在前 %d 个 release 中找到非预发布版本，可增大 per_page", perPage))
 	}
 
