@@ -22,6 +22,45 @@ function escapeAttr(s) {
 window.escapeHtml = escapeHtml;
 window.escapeAttr = escapeAttr;
 
+// 桌面壳（Tauri）由初始化脚本注入；浏览器访问则无
+function isDesktop() {
+    return (
+        typeof window.__SEREIN_DESKTOP__ !== "undefined" &&
+        !!window.__SEREIN_DESKTOP__
+    );
+}
+// 是否从本机访问（回环地址）
+function isLocalAccess() {
+    var h = location.hostname;
+    return (
+        h === "127.0.0.1" || h === "localhost" || h === "::1" || h === "[::1]"
+    );
+}
+// 是否配置了外部下载器（ndm / 自定义命令）
+function hasDownloader() {
+    return (
+        SEREIN_DOWNLOADER_TYPE === "ndm" || SEREIN_DOWNLOADER_TYPE === "custom"
+    );
+}
+// 补全相对路径为绝对 URL（proxy_url 为相对路径，端点只认绝对地址）
+function absoluteUrl(u) {
+    try {
+        return new URL(u, location.origin).href;
+    } catch (e) {
+        return u;
+    }
+}
+// 打开链接：桌面壳经服务端拉起系统浏览器；浏览器里直接开新标签
+function openUrl(url) {
+    if (!url) return;
+    url = absoluteUrl(url);
+    if (isDesktop()) {
+        apiPost("/api/open-url", { url: url });
+    } else {
+        window.open(url, "_blank");
+    }
+}
+
 // 主题：localStorage > 系统偏好
 (function () {
     var saved = localStorage.getItem("theme");
@@ -584,6 +623,7 @@ function isDirectDownload(href) {
 }
 
 async function downloadFile(url) {
+    url = absoluteUrl(url);
     var ld = showLoading("下载", "正在发送到下载器...");
     try {
         var res = await apiPost("/api/download", { url: url });
@@ -597,48 +637,8 @@ async function downloadFile(url) {
     }
 }
 
-function openDownloadWindow(url, id, title) {
-    title = title || "下载";
-    var isLight = document.documentElement.classList.contains("light");
-    var themeParam = isLight ? "&theme=light" : "&theme=dark";
-    var nameParam = id ? "&name=" + encodeURIComponent(id + ".vsix") : "";
-    var modal = showModal(
-        '<div class="flex items-center justify-between mb-3">' +
-            '<div class="text-base font-bold">' +
-            escapeHtml(title) +
-            "</div>" +
-            '<button onclick="closeModal(this.closest(\'.fixed\'))" class="w-7 h-7 flex items-center justify-center rounded-lg border border-bord bg-transparent text-sub cursor-pointer hover:bg-active hover:text-text">&times;</button>' +
-            "</div>" +
-            '<iframe id="dl-iframe" src="/downloader?url=' +
-            encodeURIComponent(url) +
-            themeParam +
-            nameParam +
-            '" class="w-full h-[180px] border-0 rounded-lg bg-bg"></iframe>'
-    );
-    window.addEventListener("message", function handler(e) {
-        if (e.data === "serein-dl-done") {
-            window.removeEventListener("message", handler);
-            closeModal(modal);
-        }
-        if (
-            typeof e.data === "string" &&
-            e.data.startsWith("serein-dl-error:")
-        ) {
-            window.removeEventListener("message", handler);
-        }
-        if (e.data === "serein-dl-theme") {
-            var iframe = document.getElementById("dl-iframe");
-            if (iframe && iframe.contentWindow) {
-                iframe.contentWindow.postMessage(
-                    { theme: isLight ? "light" : "dark" },
-                    "*"
-                );
-            }
-        }
-    });
-}
-
-function linkWithTooltip(href, innerHTML, os, downloadMethod) {
+function linkWithTooltip(href, innerHTML, os, opts) {
+    opts = opts || {};
     var parts = href.split("/");
     var filename = parts[parts.length - 1];
     var tipHTML =
@@ -648,64 +648,39 @@ function linkWithTooltip(href, innerHTML, os, downloadMethod) {
         escapeHtml(filename) +
         "</span>";
     var hrefAttr = escapeAttr(href);
+    var dl = opts.proxy || href;
     var attrs =
         ' href="' +
         hrefAttr +
-        '" class="no-underline" data-url="' +
+        '" data-url="' +
         hrefAttr +
-        '" data-tip="' +
+        '" data-dl="' +
+        escapeAttr(dl) +
+        '" class="no-underline" data-tip="' +
         escapeAttr(tipHTML) +
         '" onmouseenter="showTooltip(event)" onmouseleave="hideTooltip()"';
-    if (os === "msvsix" || os === "openvsx") {
-        var m = href.match(
-            /\/publishers\/([^/]+)\/vsextensions\/([^/]+)\/([^/]+)\//
-        );
-        if (!m) m = href.match(/\/api\/([^/]+)\/([^/]+)\/([^/]+)\//);
-        var vsixName = m ? m[1] + "." + m[2] + "[" + m[3] + "]" : "";
-        if (
-            downloadMethod === "browser" ||
-            SEREIN_DOWNLOADER_TYPE === "browser"
-        ) {
-            return (
-                "<a" +
-                attrs +
-                ' onclick="event.stopPropagation();event.preventDefault();openExternalUrl(this.dataset.url)">' +
-                innerHTML +
-                "</a>"
-            );
-        }
-        return (
-            "<a" +
-            attrs +
-            ' data-name="' +
-            escapeAttr(vsixName) +
-            '" onclick="event.stopPropagation();event.preventDefault();openDownloadWindow(this.dataset.url,this.dataset.name,\'下载 VSIX\')">' +
-            innerHTML +
-            "</a>"
-        );
-    }
-    if (downloadMethod === "browser") {
-        return (
-            "<a" +
-            attrs +
-            ' onclick="event.stopPropagation();event.preventDefault();openExternalUrl(this.dataset.url)">' +
-            innerHTML +
-            "</a>"
-        );
-    }
-    if (downloadMethod === "downloader" || isDirectDownload(href)) {
-        return (
-            "<a" +
-            attrs +
-            ' onclick="event.stopPropagation();event.preventDefault();downloadFile(this.dataset.url)">' +
-            innerHTML +
-            "</a>"
-        );
+    var method = opts.method || "";
+    var canDownload = isLocalAccess() && hasDownloader();
+    var action;
+    if (method === "browser") {
+        action = "openUrl(this.dataset.dl)";
+    } else if (method === "downloader") {
+        action = canDownload
+            ? "downloadFile(this.dataset.dl)"
+            : "openUrl(this.dataset.dl)";
+    } else if (os === "msvsix" || os === "openvsx" || isDirectDownload(href)) {
+        action = canDownload
+            ? "downloadFile(this.dataset.dl)"
+            : "openUrl(this.dataset.dl)";
+    } else {
+        action = "openDownloadPage(this.dataset.dl)";
     }
     return (
         "<a" +
         attrs +
-        ' onclick="event.stopPropagation();event.preventDefault();openDownloadPage(this.dataset.url)">' +
+        ' onclick="event.stopPropagation();event.preventDefault();' +
+        action +
+        '">' +
         innerHTML +
         "</a>"
     );
@@ -736,8 +711,7 @@ function tipAttr(html) {
 // 外部链接弹窗（桌面壳内无法拉起浏览器时展示）
 // 非白名单下载链接弹窗
 function openDownloadPage(url) {
-    var hasDL =
-        typeof SEREIN_DOWNLOADER !== "undefined" && SEREIN_DOWNLOADER !== "无";
+    var hasDL = isLocalAccess() && hasDownloader();
     var urlAttr = escapeAttr(url);
     var row1 =
         '<button onclick="closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>' +
@@ -746,7 +720,7 @@ function openDownloadPage(url) {
         '" onclick="var s=this;navigator.clipboard.writeText(this.dataset.url);s.textContent=\'已复制\';setTimeout(function(){s.textContent=\'复制链接\'},1500)" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">复制链接</button>' +
         '<button data-url="' +
         urlAttr +
-        '" onclick="apiPost(\'/api/open-url\',{url:this.dataset.url});closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">打开</button>';
+        '" onclick="openUrl(this.dataset.url);closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">打开</button>';
     var row2 = hasDL
         ? '<button data-url="' +
           urlAttr +
@@ -780,7 +754,7 @@ function openExternalUrl(url) {
             '" onclick="var s=this;navigator.clipboard.writeText(this.dataset.url);s.textContent=\'已复制\';setTimeout(function(){s.textContent=\'复制链接\'},1500)" class="flex-1 px-4 py-2 rounded-lg border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">复制链接</button>' +
             '<button data-url="' +
             urlAttr +
-            '" onclick="apiPost(\'/api/open-url\',{url:this.dataset.url});closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">打开</button>' +
+            '" onclick="openUrl(this.dataset.url);closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-lg bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">打开</button>' +
             "</div>"
     );
 }

@@ -548,12 +548,19 @@
                                 typeof p.url === "string"
                                     ? [p.url]
                                     : p.url || [];
-                            urls.forEach((url) => {
+                            const proxies =
+                                typeof p.proxy_url === "string"
+                                    ? [p.proxy_url]
+                                    : p.proxy_url || [];
+                            urls.forEach((url, i) => {
                                 rightIcons += linkWithTooltip(
                                     url,
                                     platformIcon(os, "w-5 h-5"),
                                     os,
-                                    p.download_method
+                                    {
+                                        method: p.download_method,
+                                        proxy: proxies[i]
+                                    }
                                 );
                             });
                         }

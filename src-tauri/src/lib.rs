@@ -76,6 +76,7 @@ fn setup_desktop(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
         .center()
         .resizable(true)
         .fullscreen(false)
+        .initialization_script("window.__SEREIN_DESKTOP__ = true;")
         .build()?;
 
     let ext = if cfg!(target_os = "windows") {
