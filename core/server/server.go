@@ -311,3 +311,13 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 func limitBody(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 }
+
+// isLoopback 判断请求是否来自本机（127.0.0.0/8 或 ::1）
+func isLoopback(r *http.Request) bool {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}

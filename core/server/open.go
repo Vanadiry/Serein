@@ -32,6 +32,10 @@ func OpenBrowser(url string) {
 }
 
 func (s *Server) handleOpenURL(w http.ResponseWriter, r *http.Request) {
+	if !isLoopback(r) {
+		writeError(w, http.StatusForbidden, "仅本机可用")
+		return
+	}
 	limitBody(w, r)
 	var body struct {
 		URL string `json:"url"`
