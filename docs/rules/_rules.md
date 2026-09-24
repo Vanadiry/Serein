@@ -8,14 +8,14 @@
 规则支持多种解析方式，并支持前置请求功能。  
 首先，请阅读 [rules/toml](_toml.md) 来查看规则文件格式。
 
-规则支持如下匹配方式，请前往对应的文档查看：
+规则支持如下解析器类型，请前往对应的文档查看：
 
-- [JSON](json.md)
-- [XML](xml.md)
-- [正则表达式](regex.md)
-- [HTML 选择器](html_selector.md)
-- [GitHub Release](github.md)
-- [直通](direct.md)（仅用于 `v_type` / `d_type`）
+- [JSON 规则](json.md)
+- [XML 规则](xml.md)
+- [正则表达式规则](regex.md)
+- [HTML 选择器规则](html_selector.md)
+- [GitHub 规则](github.md)
+- [直通模式](direct.md)（仅用于 `v_type` / `d_type`）
 
 内置规则，无须规则表：
 

@@ -236,7 +236,7 @@ paths:
                 properties:
                   config:
                     type: object
-                    description: 键值对，包括监听地址、下载器、并发数、默认平台、起始页、规则源、动态配置源
+                    description: 键值对，包括监听地址、下载器、并发数、默认平台、起始页、规则源、动态配置
                   profile:
                     type: object
                     properties:

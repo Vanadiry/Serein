@@ -122,7 +122,7 @@ Tracker 文件存放在主目录的 `tracker` 目录下，每个 `.toml` 文件�
 ```toml
 display_name = "Tracker Name"  # 可选，仅供前端展示
 order = 1                      # 可选，排序（数字小的在前）
-type = "app"                   # 可选，类型（默认为 app，表示普通应用，或 msvsix / openvsx）
+type = "app"                   # 可选，Tracker 类型（默认为 app，或 msvsix / openvsx）
 
 [[tracker]]
 app_id = "vanadiry-seshat"

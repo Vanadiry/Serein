@@ -100,7 +100,7 @@ func safeRelPath(base, rel string) (string, bool) {
 	return cleaned, true
 }
 
-// readLeafFile 读取叶子源的一个文件内容：web 源走网络，本地源读文件
+// readLeafFile 读取子规则源的一个文件内容：web 源走网络，本地源读文件
 func readLeafFile(ctx context.Context, l leafSrc, rel string) ([]byte, error) {
 	if !l.isWeb {
 		return os.ReadFile(filepath.Join(l.baseURL, rel))
@@ -145,7 +145,7 @@ type syncFailure struct {
 }
 
 // SyncAllSourcesAsync 两阶段同步：
-// 1. 遍历源树，收集所有叶子源 → 发 list 事件
+// 1. 遍历源树，收集所有子规则源 → 发 list 事件
 // 2. 并发下载所有规则文件 → 发 file 事件（done/total）
 // onDone 在同步完成后（进度关闭后）调用，可用于重载规则缓存
 func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *progress.Progress, onDone func()) {
@@ -165,7 +165,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 
 	sourcesTotal := len(leaves)
 
-	// 过滤版本未变的叶子源
+	// 过滤版本未变的子规则源
 	var fresh []leafSrc
 	var skipped []leafSrc
 	for _, l := range leaves {
@@ -210,7 +210,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 		var done int
 		var wg sync.WaitGroup
 
-		// 内存暂存：每个叶子源的文件内容，仅当该源全部文件成功时才提交
+		// 内存暂存：每个子规则源的文件内容，仅当该源全部文件成功时才提交
 		contents := make([]map[string][]byte, len(leaves))
 		leafFailed := make([]bool, len(leaves))
 		for i := range leaves {

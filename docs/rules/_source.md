@@ -1,6 +1,6 @@
 # 规则源
 
-规则源是一个 JSON 文件，文件名统一为 `_source.json`。记录规则集的元信息和获取方式。  
+规则源是一个 JSON 文件，文件名统一为 `_source.json`。记录规则源的元信息和获取方式。  
 
 ## 格式
 
@@ -10,7 +10,7 @@
   "name": "显示名称（可选）",
   "version": 1,
   "description": "简介（可选）",
-  "type": "解析模式：rules | list",
+  "type": "源类型：rules | list",
   "baseurl": "基路径（可选）",
   "files": ["文件1", "文件2..."]
 }
@@ -28,9 +28,12 @@ Serein 在拉取规则时，将会通过版本号判断这个源是否需要更�
 
 ## 递归解析
 
-解析模式使用 `type` 设置，允许为 `rules`（默认）或 `list`。
+源类型使用 `type` 设置，允许为 `rules`（默认）或 `list`，**两者不可混用**：
 
-当设置为 `list` 时，会将 `files` 中的文件视为子源，递归处理。子源的 json 名称依然需要是 `_source.json`。
+- `rules`：`files` 中为规则表（`.toml`），不能再嵌套规则源；
+- `list`：`files` 中为子规则源的 `_source.json`，不能声明规则表。
+
+当设置为 `list` 时，该源即为**父规则源**，其下嵌套**子规则源**，递归处理；子规则源的 json 名称依然是 `_source.json`。
 
 ```text
 ├── _source.json      # { "type": "list", "files": ["001/_source.json", "002/_source.json"] }
@@ -44,9 +47,9 @@ Serein 在拉取规则时，将会通过版本号判断这个源是否需要更�
 
 递归解析需要注意下面几点：
 
-- 子源的 `source_id` 必须等于所在目录名。
+- 子规则源的 `source_id` 必须等于所在目录名。
 - `baseurl` 继承父级。
-- API 只展示 `type = "rules"` 的叶子源（`001`、`002`），跳过 `type = "list"` 的 json 数据。
+- API 只展示 `type = "rules"` 的子规则源（`001`、`002`），跳过 `type = "list"` 的父规则源。
 
 ## ID 冲突
 

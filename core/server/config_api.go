@@ -59,9 +59,9 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if cfg.Profile.URL != "" {
-		kv["动态配置源"] = formatSourceURL(cfg.Profile.URL)
+		kv["动态配置"] = formatSourceURL(cfg.Profile.URL)
 	} else {
-		kv["动态配置源"] = "未配置"
+		kv["动态配置"] = "未配置"
 	}
 
 	if cfg.Proxy.Host != "" && cfg.Proxy.Port > 0 {

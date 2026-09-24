@@ -448,7 +448,7 @@ func findSourceJSON(home, sourceID string) string {
 	if err != nil {
 		return ""
 	}
-	// 先查 rules/{source_id}/_source.json（子源位于 list 源之下）
+	// 先查 rules/{source_id}/_source.json（子规则源位于父规则源之下）
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
@@ -467,7 +467,7 @@ func findSourceJSON(home, sourceID string) string {
 }
 
 // ListAllSourceInfos 遍历 rules/ 下所有 _source.json，跳过 type=list。
-// 返回叶子源（type=rules）的元信息。
+// 返回子规则源（type=rules）的元信息。
 func ListAllSourceInfos(home string) ([]SourceWithID, error) {
 	ruleDir := filepath.Join(home, "rules")
 	var result []SourceWithID
