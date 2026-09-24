@@ -328,7 +328,7 @@
             }
 
             // —— 多选模式 ——
-            function toggleMultiSelect() {
+            function toggleMultiSelect(skipRestore) {
                 multiSelect = !multiSelect;
                 selectedTrackers = [];
                 var btn = document.getElementById("btn-multi");
@@ -348,11 +348,13 @@
                     btn.className =
                         "text-xs text-sub hover:text-text cursor-pointer border border-bord rounded-md bg-transparent px-2 py-0.5 transition-colors";
                     mv.classList.add("hidden");
-                    if (currentTracker) loadTrackerDetail(currentTracker);
-                    else
-                        document
-                            .getElementById("placeholder")
-                            .classList.remove("hidden");
+                    if (!skipRestore) {
+                        if (currentTracker) loadTrackerDetail(currentTracker);
+                        else
+                            document
+                                .getElementById("placeholder")
+                                .classList.remove("hidden");
+                    }
                 }
                 loadTrackers();
                 updateCheckButtons();
@@ -405,16 +407,47 @@
                 }
             }
 
+            // 检查完成后：退出多选并跳到按顺序第一个有更新的 Tracker
+            async function afterCheckJump(orderIds) {
+                await loadTrackers();
+                var order =
+                    orderIds && orderIds.length
+                        ? orderIds
+                        : _trackerList.map(function (t) {
+                              return t.id;
+                          });
+                var target = null;
+                for (var i = 0; i < order.length; i++) {
+                    var t = _trackerList.find(function (x) {
+                        return x.id === order[i];
+                    });
+                    if (t && t.updated > 0) {
+                        target = order[i];
+                        break;
+                    }
+                }
+                if (target) {
+                    if (multiSelect) toggleMultiSelect(true);
+                    selectTracker(target);
+                } else {
+                    if (multiSelect) toggleMultiSelect();
+                    else if (currentTracker) selectTracker(currentTracker);
+                }
+            }
+
             function checkSelected() {
                 if (!selectedTrackers.length) return;
                 var ids = selectedTrackers.slice();
                 runCheck(
                     { scope: "trackers", tracker_ids: ids },
                     function (cancelled) {
-                        loadTrackers();
-                        if (multiSelect) renderMultiList();
-                        if (cancelled) return;
+                        if (cancelled) {
+                            loadTrackers();
+                            if (multiSelect) renderMultiList();
+                            return;
+                        }
                         showCheckDone([]);
+                        afterCheckJump(ids);
                     },
                     "将检查选定的 " + ids.length + " 个 Tracker"
                 );
@@ -924,11 +957,11 @@
                 runCheck(
                     { scope: "all" },
                     function (cancelled) {
-                        // 完成后刷新侧栏计数；非多选时按需刷新当前视图
-                        loadTrackers();
-                        if (!multiSelect && currentTracker)
-                            selectTracker(currentTracker);
-                        if (cancelled) return;
+                        if (cancelled) {
+                            loadTrackers();
+                            return;
+                        }
+                        afterCheckJump(null);
                     },
                     "将检查所有 Tracker 中所有软件的更新"
                 );
