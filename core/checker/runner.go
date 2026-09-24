@@ -26,27 +26,29 @@ type CheckRequest struct {
 
 // PlatformCheckConfig 单个平台的检查配置（已合并）
 type PlatformCheckConfig struct {
-	OS              string
-	Type            string
-	URL             string
-	UA              string
-	Headers         map[string]string
-	BaseURL         string
-	Owner           string
-	Repo            string
-	PerPage         int
-	VURL            string
-	VType           string
-	DURL            string
-	DType           string
-	VPosition       any
-	DPosition       any
-	VJoin           string
-	DJoin           string
-	CurrentVersion  string
-	ForceDownloader bool
-	AllowPrerelease bool
-	Label           string // 事件标题里的标识
+	OS               string
+	Type             string
+	URL              string
+	UA               string
+	Headers          map[string]string
+	BaseURL          string
+	Owner            string
+	Repo             string
+	PerPage          int
+	VURL             string
+	VType            string
+	DURL             string
+	DType            string
+	VPosition        any
+	DPosition        any
+	VJoin            string
+	DJoin            string
+	CurrentVersion   string
+	DownloadMethod   string
+	DownloadViaProxy bool
+	DownloadName     string
+	AllowPrerelease  bool
+	Label            string // 事件标题里的标识
 }
 
 // CheckResponse API 返回的检查结果
@@ -59,11 +61,13 @@ type CheckResponse struct {
 
 // CheckPlatform 检查结果中单个平台的数据
 type CheckPlatform struct {
-	CurrentVersion  string `json:"current_version,omitempty"`
-	LatestVersion   string `json:"latest_version,omitempty"`
-	URL             any    `json:"url,omitempty"`
-	Error           string `json:"error,omitempty"`
-	ForceDownloader bool   `json:"force_downloader"`
+	CurrentVersion   string `json:"current_version,omitempty"`
+	LatestVersion    string `json:"latest_version,omitempty"`
+	URL              any    `json:"url,omitempty"`
+	Error            string `json:"error,omitempty"`
+	DownloadMethod   string `json:"download_method,omitempty"`
+	DownloadViaProxy bool   `json:"download_via_proxy,omitempty"`
+	DownloadName     string `json:"download_name,omitempty"`
 }
 
 // RunCheck 对一个软件执行检查，返回统一的 CheckResponse。
@@ -85,8 +89,10 @@ func RunCheck(ctx context.Context, req CheckRequest) (CheckResponse, error) {
 		pr, err := RunPlatformCheck(ctx, pc, client)
 		if err != nil {
 			cp := CheckPlatform{
-				CurrentVersion:  pc.CurrentVersion,
-				ForceDownloader: pc.ForceDownloader,
+				CurrentVersion:   pc.CurrentVersion,
+				DownloadMethod:   pc.DownloadMethod,
+				DownloadViaProxy: pc.DownloadViaProxy,
+				DownloadName:     pc.DownloadName,
 			}
 			if !isCanceled(err) {
 				cp.Error = err.Error()
@@ -95,10 +101,12 @@ func RunCheck(ctx context.Context, req CheckRequest) (CheckResponse, error) {
 			continue
 		}
 		resp.Platforms[pc.OS] = CheckPlatform{
-			CurrentVersion:  pc.CurrentVersion,
-			LatestVersion:   pr.LatestVersion,
-			URL:             pr.URL,
-			ForceDownloader: pc.ForceDownloader,
+			CurrentVersion:   pc.CurrentVersion,
+			LatestVersion:    pr.LatestVersion,
+			URL:              pr.URL,
+			DownloadMethod:   pc.DownloadMethod,
+			DownloadViaProxy: pc.DownloadViaProxy,
+			DownloadName:     pc.DownloadName,
 		}
 	}
 	return resp, nil
@@ -130,8 +138,10 @@ func runGitHubCheck(ctx context.Context, req CheckRequest, client *http.Client) 
 		pr, err := CheckGitHub(ctx, cfg, client)
 		if err != nil {
 			cp := CheckPlatform{
-				CurrentVersion:  pc.CurrentVersion,
-				ForceDownloader: pc.ForceDownloader,
+				CurrentVersion:   pc.CurrentVersion,
+				DownloadMethod:   pc.DownloadMethod,
+				DownloadViaProxy: pc.DownloadViaProxy,
+				DownloadName:     pc.DownloadName,
 			}
 			if !isCanceled(err) {
 				cp.Error = err.Error()
@@ -144,10 +154,12 @@ func runGitHubCheck(ctx context.Context, req CheckRequest, client *http.Client) 
 			if strings.Contains(dl, "{version}") {
 				if pr.LatestVersion == "" {
 					resp.Platforms[pc.OS] = CheckPlatform{
-						CurrentVersion:  pc.CurrentVersion,
-						LatestVersion:   pr.LatestVersion,
-						Error:           "d_url 包含 {version} 但未能获取到版本号",
-						ForceDownloader: pc.ForceDownloader,
+						CurrentVersion:   pc.CurrentVersion,
+						LatestVersion:    pr.LatestVersion,
+						Error:            "d_url 包含 {version} 但未能获取到版本号",
+						DownloadMethod:   pc.DownloadMethod,
+						DownloadViaProxy: pc.DownloadViaProxy,
+						DownloadName:     pc.DownloadName,
 					}
 					continue
 				}
@@ -156,10 +168,12 @@ func runGitHubCheck(ctx context.Context, req CheckRequest, client *http.Client) 
 			pr.URL = dl
 		}
 		resp.Platforms[pc.OS] = CheckPlatform{
-			CurrentVersion:  pc.CurrentVersion,
-			LatestVersion:   pr.LatestVersion,
-			URL:             pr.URL,
-			ForceDownloader: pc.ForceDownloader,
+			CurrentVersion:   pc.CurrentVersion,
+			LatestVersion:    pr.LatestVersion,
+			URL:              pr.URL,
+			DownloadMethod:   pc.DownloadMethod,
+			DownloadViaProxy: pc.DownloadViaProxy,
+			DownloadName:     pc.DownloadName,
 		}
 	}
 	return resp, nil

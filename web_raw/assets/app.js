@@ -638,7 +638,7 @@ function openDownloadWindow(url, id, title) {
     });
 }
 
-function linkWithTooltip(href, innerHTML, os, forceDownloader) {
+function linkWithTooltip(href, innerHTML, os, downloadMethod) {
     var parts = href.split("/");
     var filename = parts[parts.length - 1];
     var tipHTML =
@@ -662,7 +662,10 @@ function linkWithTooltip(href, innerHTML, os, forceDownloader) {
         );
         if (!m) m = href.match(/\/api\/([^/]+)\/([^/]+)\/([^/]+)\//);
         var vsixName = m ? m[1] + "." + m[2] + "[" + m[3] + "]" : "";
-        if (SEREIN_DOWNLOADER_TYPE === "browser") {
+        if (
+            downloadMethod === "browser" ||
+            SEREIN_DOWNLOADER_TYPE === "browser"
+        ) {
             return (
                 "<a" +
                 attrs +
@@ -681,7 +684,16 @@ function linkWithTooltip(href, innerHTML, os, forceDownloader) {
             "</a>"
         );
     }
-    if (forceDownloader || isDirectDownload(href)) {
+    if (downloadMethod === "browser") {
+        return (
+            "<a" +
+            attrs +
+            ' onclick="event.stopPropagation();event.preventDefault();openExternalUrl(this.dataset.url)">' +
+            innerHTML +
+            "</a>"
+        );
+    }
+    if (downloadMethod === "downloader" || isDirectDownload(href)) {
         return (
             "<a" +
             attrs +

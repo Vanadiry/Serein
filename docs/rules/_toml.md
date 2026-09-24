@@ -24,7 +24,7 @@ v_position = "..."
 # 只要在 config.os 中声明的配置，都会替换 config 中的同名项，即使字段值为空或 false
 [config.macos]
 d_position = "..."
-force_downloader = true
+download_method = "downloader"
 
 [config.windows]
 d_position = "..."
@@ -88,10 +88,24 @@ app_id.value_name = "xxx"
 | `v_type` | 版本号独立解析器类型，覆盖 `type`（可选） |
 | `d_url` | 下载链接独立请求地址，覆盖 `url`（可选） |
 | `d_type` | 下载链接独立解析器类型，覆盖 `type`（可选） |
-| `force_downloader` | 强制使用下载器（可选） |
+| `download_method` | 下载方式，`browser / downloader`，不写则自动（可选） |
+| `download_via_proxy` | 强制通过下载代理（可选） |
+| `download_name` | 下载代理落盘文件名，仅 `download_via_proxy`（可选） |
 
-当获取到的下载地址为带有重定向的链接，而非直链，且重定向链接能被下载器正确处理时，可以加入 `force_downloader = true`。  
-前端对于此类规则表，将不弹“可能不是一个下载链接”提示窗，而直接拉起可用的下载器。
+### 下载方式和下载代理
+
+`download_method` 决定下载链接的打开方式。不写此项，将交由程序决定。  
+`browser` 将强制使用浏览器，`downloader` 会强制使用下载器，而无视程序配置。  
+当使用 `downloader` 时，若下载器没有配置或者启动失败，会回退到 `browser`。  
+
+当下载链接是非直链的、含重定向的，且下载器能够处理时，可以配置 `download_method` 为 `downloader`，以强制拉起下载器。
+
+对于一些需要修改文件名的规则，可以开启 `download_via_proxy = true`。  
+Serein 会经下载代理，流式转发上游数据，并支持通过 `download_name` 来指定落盘文件名（若不写此项，则会沿用上游文件名）。  
+`download_name` 中支持使用 `{version}` 来自动填入获取到的版本。  
+（这与 [config/proxy](../guide.md#代理) 不是同一个功能）
+
+对于内置的 `vsix` 类型，会默认通过下载代理，无须配置。
 
 ### 分开请求版本号与下载链接
 

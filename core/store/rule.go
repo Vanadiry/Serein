@@ -60,24 +60,26 @@ type Position = any
 
 // PlatConfig 单个平台的最终配置
 type PlatConfig struct {
-	URL             string            `toml:"url,omitempty"`
-	Type            string            `toml:"type,omitempty"`
-	UA              string            `toml:"ua,omitempty"`
-	Headers         map[string]string `toml:"headers,omitempty"`
-	BaseURL         string            `toml:"baseurl,omitempty"`
-	Owner           string            `toml:"owner,omitempty"`
-	Repo            string            `toml:"repo,omitempty"`
-	PerPage         int               `toml:"per_page,omitempty"`
-	AllowPrerelease bool              `toml:"allow_prerelease,omitempty"`
-	VURL            string            `toml:"v_url,omitempty"`
-	VType           string            `toml:"v_type,omitempty"`
-	DURL            string            `toml:"d_url,omitempty"`
-	DType           string            `toml:"d_type,omitempty"`
-	VPosition       Position          `toml:"v_position,omitempty"`
-	DPosition       Position          `toml:"d_position,omitempty"`
-	VJoin           string            `toml:"v_join,omitempty"`
-	DJoin           string            `toml:"d_join,omitempty"`
-	ForceDownloader bool              `toml:"force_downloader,omitempty"`
+	URL              string            `toml:"url,omitempty"`
+	Type             string            `toml:"type,omitempty"`
+	UA               string            `toml:"ua,omitempty"`
+	Headers          map[string]string `toml:"headers,omitempty"`
+	BaseURL          string            `toml:"baseurl,omitempty"`
+	Owner            string            `toml:"owner,omitempty"`
+	Repo             string            `toml:"repo,omitempty"`
+	PerPage          int               `toml:"per_page,omitempty"`
+	AllowPrerelease  bool              `toml:"allow_prerelease,omitempty"`
+	VURL             string            `toml:"v_url,omitempty"`
+	VType            string            `toml:"v_type,omitempty"`
+	DURL             string            `toml:"d_url,omitempty"`
+	DType            string            `toml:"d_type,omitempty"`
+	VPosition        Position          `toml:"v_position,omitempty"`
+	DPosition        Position          `toml:"d_position,omitempty"`
+	VJoin            string            `toml:"v_join,omitempty"`
+	DJoin            string            `toml:"d_join,omitempty"`
+	DownloadMethod   string            `toml:"download_method,omitempty"`
+	DownloadViaProxy bool              `toml:"download_via_proxy,omitempty"`
+	DownloadName     string            `toml:"download_name,omitempty"`
 }
 
 // PreRequestStep 一个前置请求步骤（TOML 解析与运行时共用）

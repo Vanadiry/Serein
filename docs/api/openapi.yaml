@@ -401,7 +401,9 @@ components:
                   - type: array
                     items: { type: string }
               error: { type: string }
-              force_downloader: { type: boolean }
+              download_method: { type: string, enum: [browser, downloader] }
+              download_via_proxy: { type: boolean }
+              download_name: { type: string }
     RuleItem:
       type: object
       properties:
