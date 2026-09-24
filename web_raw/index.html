@@ -327,33 +327,50 @@
                     .join("");
             }
 
-            // —— 多选模式 ——
+            // 多选模式
+            var _prevMainView = "placeholder";
+            function showMain(id) {
+                ["placeholder", "software-list", "multi-view"].forEach(
+                    function (x) {
+                        var el = document.getElementById(x);
+                        if (!el) return;
+                        el.style.opacity = "";
+                        el.style.transition = "";
+                        el.style.animation = "";
+                        el.classList.toggle("hidden", x !== id);
+                    }
+                );
+            }
+
             function toggleMultiSelect(skipRestore) {
                 multiSelect = !multiSelect;
                 selectedTrackers = [];
                 var btn = document.getElementById("btn-multi");
-                var mv = document.getElementById("multi-view");
                 if (multiSelect) {
+                    _prevMainView = document
+                        .getElementById("software-list")
+                        .classList.contains("hidden")
+                        ? "placeholder"
+                        : "software-list";
                     btn.className =
                         "text-xs text-accent font-semibold cursor-pointer border border-accent rounded-chip bg-transparent px-2 py-0.5 transition-colors";
-                    document
-                        .getElementById("placeholder")
-                        .classList.add("hidden");
-                    document
-                        .getElementById("software-list")
-                        .classList.add("hidden");
-                    mv.classList.remove("hidden");
+                    showMain("multi-view");
                     renderMultiList();
                 } else {
                     btn.className =
                         "text-xs text-sub hover:text-text cursor-pointer border border-bord rounded-chip bg-transparent px-2 py-0.5 transition-colors";
-                    mv.classList.add("hidden");
-                    if (!skipRestore) {
-                        if (currentTracker) loadTrackerDetail(currentTracker);
-                        else
-                            document
-                                .getElementById("placeholder")
-                                .classList.remove("hidden");
+                    if (skipRestore) {
+                        document
+                            .getElementById("multi-view")
+                            .classList.add("hidden");
+                    } else if (
+                        currentTracker &&
+                        _prevMainView === "software-list"
+                    ) {
+                        showMain("software-list");
+                        loadTrackerDetail(currentTracker);
+                    } else {
+                        showMain("placeholder");
                     }
                 }
                 loadTrackers();
