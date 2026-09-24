@@ -249,6 +249,7 @@ function renderTopbar(current) {
           ${
               isIndex
                   ? `
+          <button id="btn-check-all" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">检查全部</button>
           <button id="btn-tracker-check" style="display:none" class="no-underline px-3 py-1.5 rounded-lg text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">检查当前 Tracker</button>
           `
                   : isRules

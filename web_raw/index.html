@@ -20,11 +20,11 @@
                             Tracker
                         </div>
                         <button
-                            id="btn-check-all"
-                            class="text-xs text-sub hover:text-text cursor-pointer border-0 bg-transparent px-1"
-                            title="检查所有 Tracker"
+                            id="btn-multi"
+                            class="text-xs text-sub hover:text-text cursor-pointer border border-bord rounded-md bg-transparent px-2 py-0.5 transition-colors"
+                            title="多选 Tracker"
                         >
-                            检查全部
+                            多选
                         </button>
                     </div>
                     <nav id="tracker-nav" class="flex flex-col gap-0.5"></nav>
@@ -38,6 +38,22 @@
             </aside>
 
             <main class="flex-1 min-w-0">
+                <div
+                    id="multi-view"
+                    class="hidden text-sub text-sm max-w-[600px] pt-[25vh] pl-2"
+                >
+                    <h2 class="text-lg font-semibold text-text mb-3">
+                        多选模式
+                    </h2>
+                    <p class="mb-4">
+                        点击左侧 Tracker
+                        进行选择，再点取消；顶栏「检查已选定」执行检查。
+                    </p>
+                    <div
+                        id="multi-list"
+                        class="flex flex-col gap-1 max-w-[320px]"
+                    ></div>
+                </div>
                 <div
                     id="placeholder"
                     class="text-sub text-sm max-w-[600px] pt-[25vh] pl-2"
@@ -110,6 +126,9 @@
             var currentTrackerType = "app";
             var checkResults = {};
             var _trackerTypes = {};
+            var _trackerList = [];
+            var multiSelect = false;
+            var selectedTrackers = [];
 
             renderTopbar("应用");
             loadTrackers();
@@ -253,8 +272,13 @@
                     ? SEREIN_DOWNLOADER
                     : "无");
 
-            document.getElementById("btn-tracker-check").onclick = checkTracker;
+            document.getElementById("btn-tracker-check").onclick = function () {
+                if (multiSelect) checkSelected();
+                else checkTracker();
+            };
             document.getElementById("btn-check-all").onclick = checkAll;
+            document.getElementById("btn-multi").onclick = toggleMultiSelect;
+            updateCheckButtons();
             document.getElementById("btn-new-tracker").onclick = () => {
                 showModal(`
       <div class="text-base font-bold mb-4">新建 Tracker</div>
@@ -277,6 +301,7 @@
 
             async function loadTrackers() {
                 const list = (await api("/api/tracker/list/all")) || [];
+                _trackerList = list;
                 _trackerTypes = {};
                 list.forEach(function (t) {
                     _trackerTypes[t.id] = t.type || "app";
@@ -284,10 +309,12 @@
                 const nav = document.getElementById("tracker-nav");
                 nav.innerHTML = list
                     .map((t) => {
-                        const active =
-                            t.id === currentTracker && currentTracker
-                                ? "text-text bg-surface border-l-[2px] border-l-accent"
-                                : "text-sub hover:text-text border-l-[2px] border-l-transparent hover:bg-surface hover:border-l-bord";
+                        const on = multiSelect
+                            ? selectedTrackers.indexOf(t.id) >= 0
+                            : !!currentTracker && t.id === currentTracker;
+                        const active = on
+                            ? "text-text bg-surface border-l-[2px] border-l-accent"
+                            : "text-sub hover:text-text border-l-[2px] border-l-transparent hover:bg-surface hover:border-l-bord";
                         var badge = "";
                         if (t.count > 0) {
                             badge =
@@ -300,7 +327,104 @@
                     .join("");
             }
 
+            // —— 多选模式 ——
+            function toggleMultiSelect() {
+                multiSelect = !multiSelect;
+                selectedTrackers = [];
+                var btn = document.getElementById("btn-multi");
+                var mv = document.getElementById("multi-view");
+                if (multiSelect) {
+                    btn.className =
+                        "text-xs text-accent font-semibold cursor-pointer border border-accent rounded-md bg-transparent px-2 py-0.5 transition-colors";
+                    document
+                        .getElementById("placeholder")
+                        .classList.add("hidden");
+                    document
+                        .getElementById("software-list")
+                        .classList.add("hidden");
+                    mv.classList.remove("hidden");
+                    renderMultiList();
+                } else {
+                    btn.className =
+                        "text-xs text-sub hover:text-text cursor-pointer border border-bord rounded-md bg-transparent px-2 py-0.5 transition-colors";
+                    mv.classList.add("hidden");
+                    if (currentTracker) loadTrackerDetail(currentTracker);
+                    else
+                        document
+                            .getElementById("placeholder")
+                            .classList.remove("hidden");
+                }
+                loadTrackers();
+                updateCheckButtons();
+            }
+
+            function renderMultiList() {
+                var el = document.getElementById("multi-list");
+                if (!selectedTrackers.length) {
+                    el.innerHTML =
+                        '<div class="text-sub">尚未选择任何 Tracker</div>';
+                    return;
+                }
+                el.innerHTML =
+                    '<ul class="list-disc pl-5 space-y-0.5">' +
+                    selectedTrackers
+                        .map(function (id) {
+                            var t = _trackerList.find(function (x) {
+                                return x.id === id;
+                            });
+                            var name = t ? t.display_name || t.id : id;
+                            return "<li>" + escapeHtml(name) + "</li>";
+                        })
+                        .join("") +
+                    "</ul>";
+            }
+
+            function toggleTrackerSel(id) {
+                var i = selectedTrackers.indexOf(id);
+                if (i >= 0) selectedTrackers.splice(i, 1);
+                else selectedTrackers.push(id);
+                loadTrackers();
+                renderMultiList();
+                updateCheckButtons();
+            }
+
+            function updateCheckButtons() {
+                var btn = document.getElementById("btn-tracker-check");
+                if (!btn) return;
+                if (multiSelect) {
+                    var n = selectedTrackers.length;
+                    btn.style.display = "";
+                    btn.textContent = "检查已选定 (" + n + ")";
+                    btn.disabled = n === 0;
+                    btn.classList.toggle("opacity-50", n === 0);
+                } else {
+                    btn.textContent = "检查当前 Tracker";
+                    btn.disabled = false;
+                    btn.classList.remove("opacity-50");
+                    btn.style.display = currentTracker ? "" : "none";
+                }
+            }
+
+            function checkSelected() {
+                if (!selectedTrackers.length) return;
+                var ids = selectedTrackers.slice();
+                runCheck(
+                    { scope: "trackers", tracker_ids: ids },
+                    function (cancelled) {
+                        loadTrackers();
+                        if (multiSelect) renderMultiList();
+                        if (cancelled) return;
+                        showCheckDone([]);
+                    },
+                    "将检查选定的 " + ids.length + " 个 Tracker"
+                );
+            }
+
             async function selectTracker(id) {
+                if (multiSelect) {
+                    toggleTrackerSel(id);
+                    return;
+                }
                 currentTracker = id;
                 currentTrackerType = _trackerTypes[id] || "app";
                 checkResults = {};
@@ -800,9 +924,10 @@
                 runCheck(
                     { scope: "all" },
                     function (cancelled) {
-                        // 完成后刷新当前视图与侧栏计数
-                        if (currentTracker) selectTracker(currentTracker);
-                        else loadTrackers();
+                        // 完成后刷新侧栏计数；非多选时按需刷新当前视图
+                        loadTrackers();
+                        if (!multiSelect && currentTracker)
+                            selectTracker(currentTracker);
                         if (cancelled) return;
                     },
                     "将检查所有 Tracker 中所有软件的更新"
