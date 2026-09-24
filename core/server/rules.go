@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"sort"
 	"strings"
@@ -48,9 +49,28 @@ func (s *Server) handleRules(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, list)
 }
 
-// POST /api/rules/check 手动触发一次规则错误检查
+// POST /api/rules/check 手动触发一次规则错误检查；body {dev:true} 则校验本地开发规则源
 func (s *Server) handleRulesCheck(w http.ResponseWriter, r *http.Request) {
 	limitBody(w, r)
+	var body struct {
+		Dev bool `json:"dev"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+
+	if body.Dev {
+		if s.config.Serein.RuleSourceDev == "" {
+			writeError(w, http.StatusBadRequest, "未配置 rule_source_dev")
+			return
+		}
+		issues, err := store.ValidateDevSource(s.config.Serein.RuleSourceDev, s.config.RuleValues)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"issues": issues})
+		return
+	}
+
 	issues := s.loadRules(false)
 	if issues == nil {
 		issues = []store.RuleIssue{}

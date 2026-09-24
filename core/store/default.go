@@ -6,6 +6,9 @@ host = "127.0.0.1"                # 监听地址，设为 0.0.0.0 则允许局�
 port = 12510                      # 监听端口
 first_run = true                  # 首次运行时展示欢迎指引，设为 false 可永久关闭
 
+# 可选：本地开发规则源，规则页提供校验。若你不是开发者，无须配置此项。
+# rule_source_dev = "~/Project/SereinRulesList/_source.json" 
+
 [tracker]
 platforms = ["macos", "windows"]  # 全局平台偏好，可被 Tracker 中的记录覆盖
 

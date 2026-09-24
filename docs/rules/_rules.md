@@ -35,3 +35,22 @@
 动态配置通过 `profile.json` 实现，允许远端或本地来源。  
 请查看[动态配置](_profile.md)来了解 `profile.json` 格式。  
 推荐与规则源放在同一仓库中。
+
+## 本地开发校验
+
+规则编写期间，可以在 `config.toml` 中，配置指向你开发目录的 `_source.json` 文件。
+
+```toml
+[serein]
+rule_source_dev = "~/Project/SereinRulesList/_source.json"
+# 路径支持 ~ 展开，仅支持本地路径
+```
+
+配置后，可以在规则页面顶栏，点击「检查规则 [Dev]」按钮，来方便的检查规则是否编写错误。  
+此功能仅作规则表的检查，不会与已有的规则源合并，也不会展示在规则列表中。
+
+这会检查：
+
+1. `_source.json` 的 `files` 中列出的文件是否存在
+2. 是否有未列入 `files` 的多余 `.toml`
+3. 每个规则表的结构与语义问题。

@@ -85,8 +85,9 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"config":    kv,
-		"profile":   profileData,
-		"first_run": cfg.Serein.FirstRunEnabled(),
+		"config":          kv,
+		"profile":         profileData,
+		"first_run":       cfg.Serein.FirstRunEnabled(),
+		"rule_source_dev": cfg.Serein.RuleSourceDev,
 	})
 }

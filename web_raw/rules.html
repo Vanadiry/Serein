@@ -62,6 +62,15 @@
 
             renderTopbar("规则");
             loadSources();
+            api("/api/config").then(function (d) {
+                if (d && d.rule_source_dev) {
+                    var b = document.getElementById("btn-rule-check-dev");
+                    if (b) {
+                        b.style.display = "";
+                        b.title = d.rule_source_dev;
+                    }
+                }
+            });
 
             async function loadSources() {
                 const sources = (await api("/api/rules")) || [];
