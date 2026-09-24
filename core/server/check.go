@@ -36,6 +36,7 @@ func (s *Server) handleCheck(w http.ResponseWriter, r *http.Request) {
 
 	var list []checkAllTracker
 	savePartial := true // 指定范围检查时，取消也保留已完成部分
+	replace := true     // 整表检查：整桶替换；单条/按 id 检查改为 upsert
 	switch body.Scope {
 	case "all":
 		list = s.buildCheckList(nil, nil)
@@ -64,15 +65,16 @@ func (s *Server) handleCheck(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		list = s.buildCheckList(nil, body.IDs)
+		replace = false // 只 upsert，保留该桶里其它 app 的结果
 	default:
 		writeError(w, http.StatusBadRequest, "invalid scope: must be all|trackers|ids")
 		return
 	}
-	s.startCheckList(w, list, savePartial)
+	s.startCheckList(w, list, savePartial, replace)
 }
 
 // startCheckList 为一个 tracker 列表启动异步检查任务（total 为条目数）
-func (s *Server) startCheckList(w http.ResponseWriter, list []checkAllTracker, savePartial bool) {
+func (s *Server) startCheckList(w http.ResponseWriter, list []checkAllTracker, savePartial, replace bool) {
 	total := 0
 	for _, t := range list {
 		total += len(t.entries)
@@ -81,10 +83,10 @@ func (s *Server) startCheckList(w http.ResponseWriter, list []checkAllTracker, s
 		writeJSON(w, http.StatusOK, map[string]string{"task_id": "", "total": "0"})
 		return
 	}
-	log.Logf("[check] %d trackers, %d apps (savePartial=%v)", len(list), total, savePartial)
+	log.Logf("[check] %d trackers, %d apps (savePartial=%v, replace=%v)", len(list), total, savePartial, replace)
 	httpx.ClearURLCache()
 	p := progress.NewProgress(total)
-	go s.runCheckAllAsync(list, p, savePartial)
+	go s.runCheckAllAsync(list, p, savePartial, replace)
 	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(total)})
 }
 
@@ -526,7 +528,7 @@ func (s *Server) buildCheckList(trackerIDs []string, idFilter map[string][]strin
 	return list
 }
 
-func (s *Server) runCheckAllAsync(list []checkAllTracker, p *progress.Progress, savePartial bool) {
+func (s *Server) runCheckAllAsync(list []checkAllTracker, p *progress.Progress, savePartial, replace bool) {
 	defer p.Close()
 	ctx := p.Context()
 	conc := s.config.Download.Concurrency
@@ -561,10 +563,17 @@ func (s *Server) runCheckAllAsync(list []checkAllTracker, p *progress.Progress, 
 			results = s.runAppJobs(ctx, jobs, conc, record)
 		}
 
-		// savePartial：单个/指定 Tracker 检查时，取消也保留已完成的部分
-		// 全部检查时不覆盖未完成的桶
+		// savePartial：指定范围检查时，取消也保留已完成的部分；全部检查时不覆盖未完成的桶
+		// replace：整表检查整桶替换；单条/按 id 检查只 upsert（保留该桶其它 app 的结果）
 		if ctx.Err() == nil || savePartial {
-			s.setCheckResults(t.id, mergeResults(results))
+			merged := mergeResults(results)
+			if replace {
+				s.setCheckResults(t.id, merged)
+			} else {
+				for _, r := range merged {
+					s.setCheckResult(t.id, r)
+				}
+			}
 		}
 		if ctx.Err() != nil {
 			break
