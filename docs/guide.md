@@ -138,13 +138,13 @@ Tracker 中的 `platforms` 优先级高于配置文件中的 `platforms`。
 当在配置文件中设置了追踪 A 和 B 平台，但 Tracker 中仅设置了 A，则最终只会检查 A 平台的更新。  
 不写此字段，将继承 `[tracker]` 节中的 `platforms` 设置。
 
-可以从规则页面搜索规则并添加到默认 Tracker。  
-推荐你根据 Tracker 格式，手动创建和管理。
+可以从搜索页面搜索规则，并添加到默认 Tracker。  
+但是，推荐你根据 Tracker 格式，手动创建和管理。
 
 对于 VSCode 使用的 VSIX 扩展，Serein 内置了一套规则。  
 这使得无须规则表即可追踪来自“VS 插件市场”和“OpenVSX”的内容。
 
-如何编写 Tracker，请查看[rules/vsix](rules/vsix.md)
+如何编写 Tracker，请查看 [rules/vsix](rules/vsix.md)
 
 ## 备份
 
