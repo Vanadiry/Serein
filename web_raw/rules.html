@@ -127,7 +127,7 @@
                             s.source_id === currentSource
                                 ? "text-text bg-surface border-l-[2px] border-l-accent"
                                 : "text-sub hover:text-text border-l-[2px] border-l-transparent hover:bg-surface hover:border-l-bord";
-                        return `<button onclick="selectSource(this.dataset.sourceid)" data-sourceid="${escapeAttr(s.source_id)}" class="text-left px-3 py-2 text-sm rounded-r-md transition-colors ${active}">${escapeHtml(s.name || s.source_id)} <span class="text-sub">(${escapeHtml(s.app_count)})</span></button>`;
+                        return `<button onclick="selectSource(this.dataset.sourceid)" data-sourceid="${escapeAttr(s.source_id)}" class="text-left flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-r-md transition-colors ${active}"><span class="flex-1 min-w-0 truncate">${escapeHtml(s.name || s.source_id)}</span><span class="shrink-0 text-xs text-sub">(${escapeHtml(s.app_count)})</span></button>`;
                     })
                     .join("");
             }

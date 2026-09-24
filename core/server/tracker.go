@@ -17,10 +17,32 @@ func (s *Server) handleTrackerListAll(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if list == nil {
-		list = []store.TrackerInfo{}
+
+	// 附带缓存里的检查状态：checked = 是否检查过；updated = 有更新的条目数
+	type item struct {
+		store.TrackerInfo
+		Updated int  `json:"updated"`
+		Checked bool `json:"checked"`
 	}
-	writeJSON(w, http.StatusOK, list)
+	out := make([]item, 0, len(list))
+	s.resultsMu.RLock()
+	for _, ti := range list {
+		it := item{TrackerInfo: ti}
+		if bucket, ok := s.results[ti.ID]; ok {
+			it.Checked = true
+			for _, resp := range bucket {
+				for _, p := range resp.Platforms {
+					if p.LatestVersion != "" && p.LatestVersion != p.CurrentVersion {
+						it.Updated++
+						break
+					}
+				}
+			}
+		}
+		out = append(out, it)
+	}
+	s.resultsMu.RUnlock()
+	writeJSON(w, http.StatusOK, out)
 }
 
 // GET /api/tracker/list/{id}

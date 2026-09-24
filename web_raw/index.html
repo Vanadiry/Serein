@@ -285,7 +285,14 @@
                             t.id === currentTracker && currentTracker
                                 ? "text-text bg-surface border-l-[2px] border-l-accent"
                                 : "text-sub hover:text-text border-l-[2px] border-l-transparent hover:bg-surface hover:border-l-bord";
-                        return `<button onclick="selectTracker(this.dataset.id)" data-id="${escapeAttr(t.id)}" class="text-left px-3 py-2 text-sm rounded-r-md transition-colors ${active}">${escapeHtml(t.display_name || t.id)}</button>`;
+                        var badge = "";
+                        if (t.count > 0) {
+                            badge =
+                                t.checked && t.updated > 0
+                                    ? `<span class="shrink-0 text-xs text-warn">(${t.updated}/${t.count})</span>`
+                                    : `<span class="shrink-0 text-xs text-sub">(${t.count})</span>`;
+                        }
+                        return `<button onclick="selectTracker(this.dataset.id)" data-id="${escapeAttr(t.id)}" class="text-left flex items-center justify-between gap-2 px-3 py-2 text-sm rounded-r-md transition-colors ${active}"><span class="flex-1 min-w-0 truncate">${escapeHtml(t.display_name || t.id)}</span>${badge}</button>`;
                     })
                     .join("");
             }
@@ -623,6 +630,7 @@
                         .map((d) => renderSoftwareRow(d))
                         .join("");
                 }
+                loadTrackers();
             }
 
             async function editVersion(appId) {
@@ -670,6 +678,7 @@
                                 .map((d) => renderSoftwareRow(d))
                                 .join("");
                         }
+                        loadTrackers();
                     };
             }
 
@@ -753,6 +762,7 @@
                 var results = (data && data.results) || [];
                 mergeCheckResults(results);
                 var detail = (await loadTrackerDetail(currentTracker)) || [];
+                loadTrackers();
                 // 取消时已由 asyncCheck 弹出"已终止"，不再弹"检查完成"
                 if (cancelled) return;
                 showStatusToasts(detail);
@@ -785,8 +795,9 @@
                 runCheck(
                     { scope: "all" },
                     function (cancelled) {
-                        // 完成后刷新当前视图（若已选中 Tracker）
+                        // 完成后刷新当前视图与侧栏计数
                         if (currentTracker) selectTracker(currentTracker);
+                        else loadTrackers();
                         if (cancelled) return;
                     },
                     "将检查所有 Tracker 中所有软件的更新"

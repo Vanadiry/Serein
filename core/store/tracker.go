@@ -20,6 +20,7 @@ type TrackerInfo struct {
 	DisplayName string `json:"display_name"`
 	Order       int    `json:"order"`
 	Type        string `json:"type"`
+	Count       int    `json:"count"` // 条目数
 }
 
 // trackerFile 一个 tracker 文件，可含多条 [[tracker]]
@@ -60,7 +61,7 @@ func LoadAllTrackerInfo(home string) ([]TrackerInfo, error) {
 		if trackerType == "" {
 			trackerType = "app"
 		}
-		list = append(list, TrackerInfo{ID: id, DisplayName: name, Order: tf.Order, Type: trackerType})
+		list = append(list, TrackerInfo{ID: id, DisplayName: name, Order: tf.Order, Type: trackerType, Count: len(tf.Trackers)})
 	}
 	sort.Slice(list, func(i, j int) bool {
 		if list[i].Order != list[j].Order {
