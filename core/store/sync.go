@@ -31,12 +31,9 @@ type SourceInfo struct {
 	Files       []string `json:"files"`
 }
 
-// readURLOrFile 读取内容：http(s) 走网络（带 ctx / 状态码校验 / 大小上限），否则读本地文件
-func readURLOrFile(ctx context.Context, rawURL string, limit int64) ([]byte, error) {
-	if !strings.HasPrefix(rawURL, "http://") && !strings.HasPrefix(rawURL, "https://") {
-		return os.ReadFile(rawURL)
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+// getHTTP GET 一个 URL，校验状态码并限长读取
+func getHTTP(ctx context.Context, url string, limit int64) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -49,6 +46,14 @@ func readURLOrFile(ctx context.Context, rawURL string, limit int64) ([]byte, err
 		return nil, err
 	}
 	return io.ReadAll(io.LimitReader(resp.Body, limit))
+}
+
+// readURLOrFile 读取内容：http(s) 走网络（带 ctx / 状态码校验 / 大小上限），否则读本地文件
+func readURLOrFile(ctx context.Context, rawURL string, limit int64) ([]byte, error) {
+	if !strings.HasPrefix(rawURL, "http://") && !strings.HasPrefix(rawURL, "https://") {
+		return os.ReadFile(rawURL)
+	}
+	return getHTTP(ctx, rawURL, limit)
 }
 
 func fetchSourceInfo(ctx context.Context, url string) (*SourceInfo, []byte, error) {
@@ -108,21 +113,9 @@ func readLeafFile(ctx context.Context, l leafSrc, rel string) ([]byte, error) {
 		return os.ReadFile(filepath.Join(l.baseURL, rel))
 	}
 	url := strings.TrimSuffix(l.baseURL, "/") + "/" + filepath.ToSlash(rel)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	body, err := getHTTP(ctx, url, maxFetchBytes)
 	if err != nil {
 		return nil, fmt.Errorf("下载 %s: %w", url, err)
-	}
-	resp, err := httpx.DefaultClient().Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("下载 %s: %w", url, err)
-	}
-	defer resp.Body.Close()
-	if err := httpx.CheckStatus(resp); err != nil {
-		return nil, fmt.Errorf("下载 %s: %w", url, err)
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxFetchBytes))
-	if err != nil {
-		return nil, err
 	}
 	return body, nil
 }
