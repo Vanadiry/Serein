@@ -84,6 +84,7 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var result []detail
+	sourceNames := store.SourceNames(s.home)
 	for _, entry := range entries {
 		d := detail{
 			AppID:          entry.AppID,
@@ -107,9 +108,7 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 				d.OfficialWebsite = rule.Info.OfficialWebsite
 				d.Status = rule.Status
 				d.SourceID = rule.SourceID
-				if si, err := store.LoadSourceInfo(s.home, rule.SourceID); err == nil && si != nil {
-					d.SourceName = si.Name
-				}
+				d.SourceName = sourceNames[rule.SourceID]
 			}
 		}
 		platforms := entry.Platforms

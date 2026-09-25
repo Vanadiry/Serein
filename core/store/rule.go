@@ -554,46 +554,17 @@ func (r Rule) PreRequestChain(os string) []PreRequestStep {
 	return chain
 }
 
-// LoadSourceInfo 读取 rules 下 _source.json，返回源元信息。
-func LoadSourceInfo(home, sourceID string) (*SourceInfo, error) {
-	path := findSourceInfo(home, sourceID)
-	if path == "" {
-		return nil, fmt.Errorf("_source.json not found for %s", sourceID)
-	}
-	data, err := os.ReadFile(path)
+// SourceNames 返回 rules/ 下子规则源的 source_id → 名称映射（一次遍历）
+func SourceNames(home string) map[string]string {
+	summaries, err := ListSourceInfos(home)
 	if err != nil {
-		return nil, err
+		return map[string]string{}
 	}
-	var s SourceInfo
-	if err := json.Unmarshal(data, &s); err != nil {
-		return nil, err
+	m := make(map[string]string, len(summaries))
+	for _, s := range summaries {
+		m[s.SourceID] = s.Name
 	}
-	return &s, nil
-}
-
-// findSourceInfo 在 rules/ 下查找指定 source_id 的 _source.json
-func findSourceInfo(home, sourceID string) string {
-	ruleDir := filepath.Join(home, "rules")
-	entries, err := os.ReadDir(ruleDir)
-	if err != nil {
-		return ""
-	}
-	// 先查 rules/{source_id}/_source.json（子规则源位于父规则源之下）
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		candidate := filepath.Join(ruleDir, e.Name(), sourceID, "_source.json")
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
-		}
-	}
-	// 再查 rules/{source_id}/_source.json（顶层源）
-	candidate := filepath.Join(ruleDir, sourceID, "_source.json")
-	if _, err := os.Stat(candidate); err == nil {
-		return candidate
-	}
-	return ""
+	return m
 }
 
 // ListSourceInfos 遍历 rules/ 下所有 _source.json，跳过 type=list。

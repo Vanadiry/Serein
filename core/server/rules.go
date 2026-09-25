@@ -94,6 +94,7 @@ func formatRuleList(home string, rules []store.Rule) []ruleListItem {
 		return strings.ToLower(rules[i].Info.Name) < strings.ToLower(rules[j].Info.Name)
 	})
 	var result []ruleListItem
+	names := store.SourceNames(home)
 	for _, rule := range rules {
 		item := ruleListItem{
 			AppID:           rule.Info.AppID,
@@ -103,9 +104,7 @@ func formatRuleList(home string, rules []store.Rule) []ruleListItem {
 			Status:          rule.Status,
 			Platforms:       rule.Info.Platforms,
 			SourceID:        rule.SourceID,
-		}
-		if si, err := store.LoadSourceInfo(home, rule.SourceID); err == nil && si != nil {
-			item.SourceName = si.Name
+			SourceName:      names[rule.SourceID],
 		}
 		result = append(result, item)
 	}
