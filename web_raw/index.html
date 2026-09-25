@@ -568,34 +568,11 @@
                 );
             }
 
-            function renderSoftwareRow(d) {
-                const checked = checkResults[d.app_id];
-                const st = statusInfo(d.status);
-                const hasUpdate =
-                    checked &&
-                    Object.values(checked.platforms || {}).some(
-                        (p) =>
-                            p.latest_version &&
-                            p.latest_version !== p.current_version
-                    );
-                const checkedAny =
-                    checked &&
-                    Object.values(checked.platforms || {}).some(
-                        (p) => !p.error && p.latest_version
-                    );
-                var timeHTML = "";
-                if (d.confirmed_at) {
-                    timeHTML =
-                        ' <span class="text-sub text-xs ml-1" ' +
-                        tipAttr("确认于 " + formatUTCTime(d.confirmed_at)) +
-                        ">(" +
-                        formatRelativeTime(d.confirmed_at) +
-                        ")</span>";
-                }
-                let versionHTML = "";
+            function buildVersionHTML(d, checked, hasUpdate, checkedAny) {
                 if (d.rule_missing) {
-                    versionHTML = `<span class="text-yellow-500 text-sm">⚠ 规则缺失</span>`;
-                } else if (hasUpdate) {
+                    return `<span class="text-yellow-500 text-sm">⚠ 规则缺失</span>`;
+                }
+                if (hasUpdate) {
                     const parts = [];
                     var sortedOS = Object.keys(checked.platforms).sort(
                         cmpPlatform
@@ -650,8 +627,9 @@
                             );
                         }
                     }
-                    versionHTML = `<span class="select-text text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
-                } else if (checkedAny) {
+                    return `<span class="select-text text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
+                }
+                if (checkedAny) {
                     const parts = [];
                     var sortedOS = Object.keys(checked.platforms).sort(
                         cmpPlatform
@@ -691,38 +669,38 @@
                             );
                         }
                     }
-                    versionHTML = `<span class="select-text text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
-                } else {
-                    const parts = [];
-                    var sortedOS2 = Object.keys(d.current_version || {}).sort(
-                        cmpPlatform
-                    );
-                    var groups3 = {};
-                    var groupOrder3 = [];
-                    for (var si2 = 0; si2 < sortedOS2.length; si2++) {
-                        var os = sortedOS2[si2];
-                        var v = (d.current_version || {})[os] || "-";
-                        if (!groups3[v]) {
-                            groups3[v] = [];
-                            groupOrder3.push(v);
-                        }
-                        groups3[v].push(os);
-                    }
-                    for (var gi = 0; gi < groupOrder3.length; gi++) {
-                        var v3 = groupOrder3[gi];
-                        var icons = '<span class="inline-flex gap-px">';
-                        for (var ii = 0; ii < groups3[v3].length; ii++) {
-                            icons += platformIcon(groups3[v3][ii], "w-4 h-4");
-                        }
-                        icons += "</span>";
-                        parts.push(
-                            `<span class="opacity-50">${icons}</span> ${escapeHtml(v3)}`
-                        );
-                    }
-                    versionHTML = `<span class="select-text text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;") || "未记录版本"}</span>`;
+                    return `<span class="select-text text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;")}</span>`;
                 }
+                const parts = [];
+                var sortedOS2 = Object.keys(d.current_version || {}).sort(
+                    cmpPlatform
+                );
+                var groups3 = {};
+                var groupOrder3 = [];
+                for (var si2 = 0; si2 < sortedOS2.length; si2++) {
+                    var os = sortedOS2[si2];
+                    var v = (d.current_version || {})[os] || "-";
+                    if (!groups3[v]) {
+                        groups3[v] = [];
+                        groupOrder3.push(v);
+                    }
+                    groups3[v].push(os);
+                }
+                for (var gi = 0; gi < groupOrder3.length; gi++) {
+                    var v3 = groupOrder3[gi];
+                    var icons = '<span class="inline-flex gap-px">';
+                    for (var ii = 0; ii < groups3[v3].length; ii++) {
+                        icons += platformIcon(groups3[v3][ii], "w-4 h-4");
+                    }
+                    icons += "</span>";
+                    parts.push(
+                        `<span class="opacity-50">${icons}</span> ${escapeHtml(v3)}`
+                    );
+                }
+                return `<span class="select-text text-sm text-sub inline-flex items-center gap-1">${parts.join(" &nbsp;&nbsp;") || "未记录版本"}</span>`;
+            }
 
-                // 右侧：[平台]  |  [yes]  |  [编辑] [地球] [刷新]
+            function buildRightIcons(d, checked, checkedAny) {
                 let rightIcons = `<span class="flex items-center gap-2 shrink-0">`;
                 // 平台下载图标（检查后有数据才显示）
                 if (
@@ -759,11 +737,45 @@
                         rightIcons += `<span onclick="event.stopPropagation(); confirmUpdate(this.dataset.appid)" data-appid="${escapeAttr(d.app_id)}" class="mx-3" ${tipAttr("确认这个更新")}>${iconYes("应用更新", "w-5 h-5")}</span>`;
                     }
                 }
-                // 常驻按钮：编辑、地球、刷新，粉色背景
+                // 常驻按钮：编辑、地球、刷新
                 rightIcons += `<span onclick="event.stopPropagation(); editVersion(this.dataset.appid)" data-appid="${escapeAttr(d.app_id)}" ${tipAttr("修改已记录的版本号")}>${iconImg("edit", "修改已记录的版本号", "w-5 h-5")}</span>`;
                 rightIcons += `<span class="cursor-pointer hover:opacity-80 transition-opacity" data-appid="${escapeAttr(d.app_id)}" data-site="${escapeAttr(d.official_website || "")}" ${tipAttr("官网/下载地址")} onclick="event.stopPropagation(); openLinksModal(this.dataset.appid, this.dataset.site)">${iconImg("earth", "官网/下载地址", "w-5 h-5")}</span>`;
                 rightIcons += `<span onclick="event.stopPropagation(); refreshApp(this.dataset.appid)" data-appid="${escapeAttr(d.app_id)}" ${tipAttr("检查更新")}>${iconImg("refresh", "检查更新", "w-5 h-5")}</span>`;
                 rightIcons += `</span>`;
+                return rightIcons;
+            }
+
+            function renderSoftwareRow(d) {
+                const checked = checkResults[d.app_id];
+                const st = statusInfo(d.status);
+                const hasUpdate =
+                    checked &&
+                    Object.values(checked.platforms || {}).some(
+                        (p) =>
+                            p.latest_version &&
+                            p.latest_version !== p.current_version
+                    );
+                const checkedAny =
+                    checked &&
+                    Object.values(checked.platforms || {}).some(
+                        (p) => !p.error && p.latest_version
+                    );
+                var timeHTML = "";
+                if (d.confirmed_at) {
+                    timeHTML =
+                        ' <span class="text-sub text-xs ml-1" ' +
+                        tipAttr("确认于 " + formatUTCTime(d.confirmed_at)) +
+                        ">(" +
+                        formatRelativeTime(d.confirmed_at) +
+                        ")</span>";
+                }
+                var versionHTML = buildVersionHTML(
+                    d,
+                    checked,
+                    hasUpdate,
+                    checkedAny
+                );
+                var rightIcons = buildRightIcons(d, checked, checkedAny);
 
                 return `<div data-appid="${escapeAttr(d.app_id)}" class="flex items-center bg-surface-alt border border-bord-mid rounded-control pl-2 pr-4 h-16 hover:border-bord transition-colors mb-2 overflow-hidden">
       <div class="flex-1 min-w-0 pr-4 flex flex-col justify-center">
