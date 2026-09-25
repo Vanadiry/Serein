@@ -14,7 +14,7 @@ platforms = ["macos", "windows"]  # 全局平台偏好，可被 Tracker 中的�
 
 [download]
 concurrency = 8                   # 检查更新时的并发数
-# downloader = "browser"          # 下载器：browser（默认/空）| ndm | 自定义命令（{url}替换为链接）
+# downloader = "browser"          # 下载器：browser（默认/空）| ndm | 自定义命令（{url}替换为链接，路径勿含空格）
 
 [access]
 # github_token = "github_xxx"     # GitHub 令牌，用于提升请求限制，对所有发往 api.github.com 的请求生效

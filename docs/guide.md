@@ -67,7 +67,7 @@ Serein 不会收集你的 Token，请勿将 Token 外泄。
 
 - `browser`（默认）：在浏览器中打开下载链接，调用浏览器下载
 - `ndm`：Neat Download Manager
-- 自定义命令：如 `"aria2c {url}"`、`"IDMan.exe /d {url}"`，`{url}` 会被 Serein 替换为下载链接
+- 自定义命令：如 `"aria2c {url}"`、`"IDMan.exe /d {url}"`，`{url}` 会被 Serein 替换为下载链接（程序路径请勿含空格）
 
 远程访问（非本机）时，为避免在服务器上触发下载，仅支持在浏览器中下载。  
 发送到下载器与拉起浏览器仅在运行 Serein 的本机可用。
