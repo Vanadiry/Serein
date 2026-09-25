@@ -219,122 +219,14 @@ func ParseRuleFile(path string, ruleValues map[string]map[string]string) (Rule, 
 		PreRequests:   make(map[string]map[string]PreRequestStep),
 	}
 
-	// info
-	if infoRaw, ok := raw["info"]; ok {
-		infoMap, ok := infoRaw.(map[string]any)
-		if !ok {
-			return Rule{}, issues, fmt.Errorf("%s: info: 期望表结构", label)
-		}
-		issues = append(issues, validateSection("info", label+": info", infoMap)...)
-		info, _, err := decodeSection[RuleInfo](infoMap, label+": info")
-		if err != nil {
-			return Rule{}, issues, err
-		}
-		rule.Info = info
-		st, badLevel := ParseRuleStatus(info.Status)
-		rule.Status = st
-		if badLevel {
-			issues = append(issues, RuleIssue{Level: "warn", Message: fmt.Sprintf("%s: info: 未知状态等级 %q，按 warn 处理", label, info.Status[1])})
-		}
+	if err := parseInfo(&rule, raw, label, &issues); err != nil {
+		return Rule{}, issues, err
 	}
-
-	// config + config.{os}
-	// 解析时即合并：config.{os} 在共享 [config] 之上按 key 覆盖（写 0/false/"" 也会覆盖）
-	if cfgRaw, ok := raw["config"]; ok {
-		cfgMap, ok := cfgRaw.(map[string]any)
-		if !ok {
-			return Rule{}, issues, fmt.Errorf("%s: config: 期望表结构", label)
-		}
-		// 共享基字段（排除平台子表）
-		base := make(map[string]any, len(cfgMap))
-		for k, v := range cfgMap {
-			if isPlatformKey(k, rule.Info.Platforms) {
-				continue
-			}
-			base[k] = v
-		}
-		issues = append(issues, validateSection("plat", label+": config", base)...)
-		cfg, _, err := decodeSection[PlatConfig](base, label+": config")
-		if err != nil {
-			return Rule{}, issues, err
-		}
-		rule.Config = cfg
-
-		for key, val := range cfgMap {
-			if !isPlatformKey(key, rule.Info.Platforms) {
-				continue
-			}
-			vm, ok := val.(map[string]any)
-			if !ok {
-				return Rule{}, issues, fmt.Errorf("%s: config.%s: 期望表结构", label, key)
-			}
-			merged := make(map[string]any, len(base)+len(vm))
-			for k, v := range base {
-				merged[k] = v
-			}
-			for k, v := range vm {
-				merged[k] = v
-			}
-			issues = append(issues, validateSection("plat", label+": config."+key, merged)...)
-			pc, _, err := decodeSection[PlatConfig](merged, label+": config."+key)
-			if err != nil {
-				return Rule{}, issues, err
-			}
-			rule.Platforms[key] = pc
-		}
+	if err := parseConfig(&rule, raw, label, &issues); err != nil {
+		return Rule{}, issues, err
 	}
-
-	// pre_request.{id} + pre_request.{id}.{os}
-	if prRaw, ok := raw["pre_request"]; ok {
-		prMap, ok := prRaw.(map[string]any)
-		if !ok {
-			return Rule{}, issues, fmt.Errorf("%s: pre_request: 期望表结构", label)
-		}
-		for id, val := range prMap {
-			steps := make(map[string]PreRequestStep)
-			stepMap, ok := val.(map[string]any)
-			if !ok {
-				return Rule{}, issues, fmt.Errorf("%s: pre_request.%s: 期望表结构", label, id)
-			}
-			hasPlatform := false
-			for k := range stepMap {
-				if isPlatformKey(k, rule.Info.Platforms) {
-					hasPlatform = true
-					break
-				}
-			}
-			if hasPlatform {
-				var stray []string
-				for k, v := range stepMap {
-					if !isPlatformKey(k, rule.Info.Platforms) {
-						stray = append(stray, k)
-						continue
-					}
-					vm, ok := v.(map[string]any)
-					if !ok {
-						return Rule{}, issues, fmt.Errorf("%s: pre_request.%s.%s: 期望表结构", label, id, k)
-					}
-					issues = append(issues, validateSection("pre_step", label+": pre_request."+id+"."+k, vm)...)
-					rs, _, err := decodeSection[PreRequestStep](vm, label+": pre_request."+id+"."+k)
-					if err != nil {
-						return Rule{}, issues, err
-					}
-					steps[k] = rs
-				}
-				if len(stray) > 0 {
-					sort.Strings(stray)
-					issues = append(issues, RuleIssue{Level: "warn", Message: fmt.Sprintf("%s: pre_request.%s: 未知字段 %s", label, id, strings.Join(stray, ", "))})
-				}
-			} else {
-				issues = append(issues, validateSection("pre_step", label+": pre_request."+id, stepMap)...)
-				rs, _, err := decodeSection[PreRequestStep](stepMap, label+": pre_request."+id)
-				if err != nil {
-					return Rule{}, issues, err
-				}
-				steps[""] = rs
-			}
-			rule.PreRequests[id] = steps
-		}
+	if err := parsePreRequests(&rule, raw, label, &issues); err != nil {
+		return Rule{}, issues, err
 	}
 
 	for _, is := range rule.Validate() {
@@ -342,6 +234,138 @@ func ParseRuleFile(path string, ruleValues map[string]map[string]string) (Rule, 
 		issues = append(issues, is)
 	}
 	return rule, issues, nil
+}
+
+// parseInfo 解析 [info]
+func parseInfo(rule *Rule, raw map[string]any, label string, issues *[]RuleIssue) error {
+	infoRaw, ok := raw["info"]
+	if !ok {
+		return nil
+	}
+	infoMap, ok := infoRaw.(map[string]any)
+	if !ok {
+		return fmt.Errorf("%s: info: 期望表结构", label)
+	}
+	*issues = append(*issues, validateSection("info", label+": info", infoMap)...)
+	info, _, err := decodeSection[RuleInfo](infoMap, label+": info")
+	if err != nil {
+		return err
+	}
+	rule.Info = info
+	st, badLevel := ParseRuleStatus(info.Status)
+	rule.Status = st
+	if badLevel {
+		*issues = append(*issues, RuleIssue{Level: "warn", Message: fmt.Sprintf("%s: info: 未知状态等级 %q，按 warn 处理", label, info.Status[1])})
+	}
+	return nil
+}
+
+// parseConfig 解析 [config] + [config.{os}]，解析时即合并（平台按 key 覆盖共享）
+func parseConfig(rule *Rule, raw map[string]any, label string, issues *[]RuleIssue) error {
+	cfgRaw, ok := raw["config"]
+	if !ok {
+		return nil
+	}
+	cfgMap, ok := cfgRaw.(map[string]any)
+	if !ok {
+		return fmt.Errorf("%s: config: 期望表结构", label)
+	}
+	// 共享基字段（排除平台子表）
+	base := make(map[string]any, len(cfgMap))
+	for k, v := range cfgMap {
+		if isPlatformKey(k, rule.Info.Platforms) {
+			continue
+		}
+		base[k] = v
+	}
+	*issues = append(*issues, validateSection("plat", label+": config", base)...)
+	cfg, _, err := decodeSection[PlatConfig](base, label+": config")
+	if err != nil {
+		return err
+	}
+	rule.Config = cfg
+
+	for key, val := range cfgMap {
+		if !isPlatformKey(key, rule.Info.Platforms) {
+			continue
+		}
+		vm, ok := val.(map[string]any)
+		if !ok {
+			return fmt.Errorf("%s: config.%s: 期望表结构", label, key)
+		}
+		merged := make(map[string]any, len(base)+len(vm))
+		for k, v := range base {
+			merged[k] = v
+		}
+		for k, v := range vm {
+			merged[k] = v
+		}
+		*issues = append(*issues, validateSection("plat", label+": config."+key, merged)...)
+		pc, _, err := decodeSection[PlatConfig](merged, label+": config."+key)
+		if err != nil {
+			return err
+		}
+		rule.Platforms[key] = pc
+	}
+	return nil
+}
+
+// parsePreRequests 解析 [pre_request.{id}] + [pre_request.{id}.{os}]
+func parsePreRequests(rule *Rule, raw map[string]any, label string, issues *[]RuleIssue) error {
+	prRaw, ok := raw["pre_request"]
+	if !ok {
+		return nil
+	}
+	prMap, ok := prRaw.(map[string]any)
+	if !ok {
+		return fmt.Errorf("%s: pre_request: 期望表结构", label)
+	}
+	for id, val := range prMap {
+		steps := make(map[string]PreRequestStep)
+		stepMap, ok := val.(map[string]any)
+		if !ok {
+			return fmt.Errorf("%s: pre_request.%s: 期望表结构", label, id)
+		}
+		hasPlatform := false
+		for k := range stepMap {
+			if isPlatformKey(k, rule.Info.Platforms) {
+				hasPlatform = true
+				break
+			}
+		}
+		if hasPlatform {
+			var stray []string
+			for k, v := range stepMap {
+				if !isPlatformKey(k, rule.Info.Platforms) {
+					stray = append(stray, k)
+					continue
+				}
+				vm, ok := v.(map[string]any)
+				if !ok {
+					return fmt.Errorf("%s: pre_request.%s.%s: 期望表结构", label, id, k)
+				}
+				*issues = append(*issues, validateSection("pre_step", label+": pre_request."+id+"."+k, vm)...)
+				rs, _, err := decodeSection[PreRequestStep](vm, label+": pre_request."+id+"."+k)
+				if err != nil {
+					return err
+				}
+				steps[k] = rs
+			}
+			if len(stray) > 0 {
+				sort.Strings(stray)
+				*issues = append(*issues, RuleIssue{Level: "warn", Message: fmt.Sprintf("%s: pre_request.%s: 未知字段 %s", label, id, strings.Join(stray, ", "))})
+			}
+		} else {
+			*issues = append(*issues, validateSection("pre_step", label+": pre_request."+id, stepMap)...)
+			rs, _, err := decodeSection[PreRequestStep](stepMap, label+": pre_request."+id)
+			if err != nil {
+				return err
+			}
+			steps[""] = rs
+		}
+		rule.PreRequests[id] = steps
+	}
+	return nil
 }
 
 // decodeSection 校验未知字段并解码为强类型。未知字段随返回值交给调用方决定如何处理；
