@@ -598,16 +598,7 @@
                 } else if (hasUpdate) {
                     const parts = [];
                     var sortedOS = Object.keys(checked.platforms).sort(
-                        function (a, b) {
-                            var order = [
-                                "macos",
-                                "windows",
-                                "linux",
-                                "ios",
-                                "android"
-                            ];
-                            return order.indexOf(a) - order.indexOf(b);
-                        }
+                        cmpPlatform
                     );
                     var groups = {};
                     var groupOrder = [];
@@ -663,16 +654,7 @@
                 } else if (checkedAny) {
                     const parts = [];
                     var sortedOS = Object.keys(checked.platforms).sort(
-                        function (a, b) {
-                            var order = [
-                                "macos",
-                                "windows",
-                                "linux",
-                                "ios",
-                                "android"
-                            ];
-                            return order.indexOf(a) - order.indexOf(b);
-                        }
+                        cmpPlatform
                     );
                     var groups2 = {};
                     var groupOrder2 = [];
@@ -713,16 +695,7 @@
                 } else {
                     const parts = [];
                     var sortedOS2 = Object.keys(d.current_version || {}).sort(
-                        function (a, b) {
-                            var order = [
-                                "macos",
-                                "windows",
-                                "linux",
-                                "ios",
-                                "android"
-                            ];
-                            return order.indexOf(a) - order.indexOf(b);
-                        }
+                        cmpPlatform
                     );
                     var groups3 = {};
                     var groupOrder3 = [];
@@ -756,18 +729,7 @@
                     checked &&
                     Object.keys(checked.platforms || {}).length > 0
                 ) {
-                    var dlOS = Object.keys(checked.platforms).sort(
-                        function (a, b) {
-                            var order = [
-                                "macos",
-                                "windows",
-                                "linux",
-                                "ios",
-                                "android"
-                            ];
-                            return order.indexOf(a) - order.indexOf(b);
-                        }
-                    );
+                    var dlOS = Object.keys(checked.platforms).sort(cmpPlatform);
                     for (var di = 0; di < dlOS.length; di++) {
                         var os = dlOS[di];
                         var p = checked.platforms[os];

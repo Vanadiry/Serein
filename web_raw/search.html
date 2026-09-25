@@ -70,7 +70,7 @@
             function renderResultsHint() {
                 document.getElementById("results").innerHTML = emptyState(
                     "搜索应用与规则",
-                    '输入关键词搜索，在任意页面按 / 可唤起搜索框。',
+                    "输入关键词搜索，在任意页面按 / 可唤起搜索框。",
                     "center"
                 );
             }
@@ -122,12 +122,9 @@
             }
 
             function versionText(cv) {
-                var order = ["macos", "windows", "linux", "ios", "android"];
                 var parts = [];
                 Object.keys(cv || {})
-                    .sort(function (a, b) {
-                        return order.indexOf(a) - order.indexOf(b);
-                    })
+                    .sort(cmpPlatform)
                     .forEach(function (os) {
                         parts.push(os + " " + cv[os]);
                     });

@@ -4,6 +4,23 @@ var SEREIN_DOWNLOADER_TYPE = "__DL_TYPE__";
 var DOWNLOAD_EXTS = /(?!)/;
 const API = window.location.origin;
 
+// 平台展示顺序+比较器
+var PLATFORM_ORDER = ["macos", "windows", "linux", "ios", "android"];
+function cmpPlatform(a, b) {
+    return PLATFORM_ORDER.indexOf(a) - PLATFORM_ORDER.indexOf(b);
+}
+
+// 由动态配置的 known_extensions 构建下载链接白名单正则
+function setDownloadExts(exts) {
+    if (!exts || !exts.length) return;
+    var escaped = exts.map(function (e) {
+        return e.replace(/[.*+?^${}()|[\]\\]/g, function (m) {
+            return "\\" + m;
+        });
+    });
+    DOWNLOAD_EXTS = new RegExp("\\.(" + escaped.join("|") + ")$", "i");
+}
+
 // HTML 文本转义：把动态文本安全地拼进 innerHTML
 function escapeHtml(s) {
     if (s == null) return "";
@@ -113,18 +130,7 @@ fetch(API + "/api/config")
         return r.json();
     })
     .then(function (d) {
-        if (
-            d.profile &&
-            d.profile.known_extensions &&
-            d.profile.known_extensions.length
-        ) {
-            var escaped = d.profile.known_extensions.map(function (e) {
-                return e.replace(/[.*+?^${}()|[\]\\]/g, function (m) {
-                    return "\\" + m;
-                });
-            });
-            DOWNLOAD_EXTS = new RegExp("\\.(" + escaped.join("|") + ")$", "i");
-        }
+        if (d.profile) setDownloadExts(d.profile.known_extensions);
     })
     .catch(function () {});
 
@@ -345,14 +351,7 @@ async function syncProfile() {
         );
         pm.close();
         if (!res || res.error) return;
-        if (res.known_extensions && res.known_extensions.length) {
-            var escaped = res.known_extensions.map(function (e) {
-                return e.replace(/[.*+?^${}()|[\]\\]/g, function (m) {
-                    return "\\" + m;
-                });
-            });
-            DOWNLOAD_EXTS = new RegExp("\\.(" + escaped.join("|") + ")$", "i");
-        }
+        setDownloadExts(res.known_extensions);
         var msg = res.updated ? "动态配置已更新" : "动态配置已是最新";
         _makeToast("动态配置", msg, "bg-ok", "bg-ok/80", 5);
     } catch (e) {
@@ -716,10 +715,7 @@ function openLinksModal(appId, site) {
     if (!r || !r.platforms || Object.keys(r.platforms).length === 0) {
         notes.push("尚未检查更新，暂无下载地址");
     } else {
-        var order = ["macos", "windows", "linux", "ios", "android"];
-        var oses = Object.keys(r.platforms).sort(function (a, b) {
-            return order.indexOf(a) - order.indexOf(b);
-        });
+        var oses = Object.keys(r.platforms).sort(cmpPlatform);
         var noLink = [];
         var any = false;
         oses.forEach(function (os) {
