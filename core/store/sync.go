@@ -214,94 +214,17 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 	failures := append([]syncFailure(nil), gatherFailures...)
 
 	if totalFiles > 0 {
-		sem := make(chan struct{}, concurrency)
-		var mu sync.Mutex
-		var done int
-		var wg sync.WaitGroup
-
-		// 内存暂存：每个子规则源的文件内容，仅当该源全部文件成功时才提交
-		contents := make([]map[string][]byte, len(leaves))
-		leafFailed := make([]bool, len(leaves))
-		for i := range leaves {
-			contents[i] = make(map[string][]byte)
-		}
-
-		for i := range leaves {
-			l := leaves[i]
-			base := filepath.Join(rulesDir, l.destDir)
-			for _, f := range l.files {
-				rel, ok := safeRelPath(base, f)
-				if !ok {
-					events.Emit("warn", "[sync]", fmt.Sprintf("跳过非法文件路径 %q（源 %s）", f, l.id))
-					mu.Lock()
-					leafFailed[i] = true
-					fileErrors++
-					failures = append(failures, syncFailure{Source: l.id, File: f, Error: "非法文件路径"})
-					mu.Unlock()
-					continue
-				}
-				wg.Add(1)
-				go func(i int, l leafSrc, rel string) {
-					defer wg.Done()
-					sem <- struct{}{}
-					defer func() { <-sem }()
-
-					body, err := readLeafFile(ctx, l, rel)
-					mu.Lock()
-					done++
-					name := rel
-					if err != nil {
-						leafFailed[i] = true
-						fileErrors++
-						failures = append(failures, syncFailure{Source: l.id, File: rel, Error: err.Error()})
-						name += " (失败)"
-					} else {
-						contents[i][rel] = body
-					}
-					p.Send("file", name, done, totalFiles)
-					mu.Unlock()
-				}(i, l, rel)
-			}
-		}
-		wg.Wait()
-
+		contents, leafFailed, dlFailures, dlErrors := downloadLeaves(ctx, rulesDir, leaves, concurrency, p, totalFiles)
+		failures = append(failures, dlFailures...)
+		fileErrors += dlErrors
 		for i := range leaves {
 			if leafFailed[i] {
 				sourcesFailed++
 			}
 		}
-
-		// 提交：仅整体替换全部文件成功的源；取消时不提交
+		// 取消时不提交
 		if ctx.Err() == nil {
-			for i := range leaves {
-				if leafFailed[i] {
-					continue
-				}
-				l := leaves[i]
-				dest := filepath.Join(rulesDir, l.destDir)
-				if err := os.RemoveAll(dest); err != nil {
-					events.Emit("error", "[sync]", fmt.Sprintf("清理目录失败 %s: %v", dest, err))
-					continue
-				}
-				if err := os.MkdirAll(dest, 0755); err != nil {
-					events.Emit("error", "[sync]", fmt.Sprintf("创建目录失败 %s: %v", dest, err))
-					continue
-				}
-				for rel, body := range contents[i] {
-					target := filepath.Join(dest, rel)
-					if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
-						events.Emit("error", "[sync]", fmt.Sprintf("创建目录失败 %s: %v", filepath.Dir(target), err))
-						continue
-					}
-					if err := os.WriteFile(target, body, 0644); err != nil {
-						events.Emit("error", "[sync]", fmt.Sprintf("写入文件失败 %s: %v", target, err))
-					}
-				}
-				if err := os.WriteFile(filepath.Join(dest, "_source.json"), l.rawBody, 0644); err != nil {
-					events.Emit("error", "[sync]", fmt.Sprintf("写入 _source.json 失败 %s: %v", l.destDir, err))
-				}
-				sourcesUpdated++
-			}
+			sourcesUpdated = commitLeaves(rulesDir, leaves, contents, leafFailed)
 		}
 	}
 
@@ -319,6 +242,98 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 		"failures":        failures,
 		"cancelled":       ctx.Err() != nil,
 	})
+}
+
+// downloadLeaves 并发下载各子规则源的文件（内存暂存）；返回失败标记、失败明细与文件错误数
+func downloadLeaves(ctx context.Context, rulesDir string, leaves []leafSrc, concurrency int, p *progress.Progress, totalFiles int) ([]map[string][]byte, []bool, []syncFailure, int) {
+	sem := make(chan struct{}, concurrency)
+	var mu sync.Mutex
+	var done int
+	var wg sync.WaitGroup
+
+	contents := make([]map[string][]byte, len(leaves))
+	leafFailed := make([]bool, len(leaves))
+	for i := range leaves {
+		contents[i] = make(map[string][]byte)
+	}
+
+	fileErrors := 0
+	var failures []syncFailure
+
+	for i := range leaves {
+		l := leaves[i]
+		base := filepath.Join(rulesDir, l.destDir)
+		for _, f := range l.files {
+			rel, ok := safeRelPath(base, f)
+			if !ok {
+				events.Emit("warn", "[sync]", fmt.Sprintf("跳过非法文件路径 %q（源 %s）", f, l.id))
+				mu.Lock()
+				leafFailed[i] = true
+				fileErrors++
+				failures = append(failures, syncFailure{Source: l.id, File: f, Error: "非法文件路径"})
+				mu.Unlock()
+				continue
+			}
+			wg.Add(1)
+			go func(i int, l leafSrc, rel string) {
+				defer wg.Done()
+				sem <- struct{}{}
+				defer func() { <-sem }()
+
+				body, err := readLeafFile(ctx, l, rel)
+				mu.Lock()
+				done++
+				name := rel
+				if err != nil {
+					leafFailed[i] = true
+					fileErrors++
+					failures = append(failures, syncFailure{Source: l.id, File: rel, Error: err.Error()})
+					name += " (失败)"
+				} else {
+					contents[i][rel] = body
+				}
+				p.Send("file", name, done, totalFiles)
+				mu.Unlock()
+			}(i, l, rel)
+		}
+	}
+	wg.Wait()
+	return contents, leafFailed, failures, fileErrors
+}
+
+// commitLeaves 原子提交：仅整体替换“全部文件成功”的子规则源，返回更新数
+func commitLeaves(rulesDir string, leaves []leafSrc, contents []map[string][]byte, leafFailed []bool) int {
+	updated := 0
+	for i := range leaves {
+		if leafFailed[i] {
+			continue
+		}
+		l := leaves[i]
+		dest := filepath.Join(rulesDir, l.destDir)
+		if err := os.RemoveAll(dest); err != nil {
+			events.Emit("error", "[sync]", fmt.Sprintf("清理目录失败 %s: %v", dest, err))
+			continue
+		}
+		if err := os.MkdirAll(dest, 0755); err != nil {
+			events.Emit("error", "[sync]", fmt.Sprintf("创建目录失败 %s: %v", dest, err))
+			continue
+		}
+		for rel, body := range contents[i] {
+			target := filepath.Join(dest, rel)
+			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+				events.Emit("error", "[sync]", fmt.Sprintf("创建目录失败 %s: %v", filepath.Dir(target), err))
+				continue
+			}
+			if err := os.WriteFile(target, body, 0644); err != nil {
+				events.Emit("error", "[sync]", fmt.Sprintf("写入文件失败 %s: %v", target, err))
+			}
+		}
+		if err := os.WriteFile(filepath.Join(dest, "_source.json"), l.rawBody, 0644); err != nil {
+			events.Emit("error", "[sync]", fmt.Sprintf("写入 _source.json 失败 %s: %v", l.destDir, err))
+		}
+		updated++
+	}
+	return updated
 }
 
 func gatherLeaves(sources []RuleSource, concurrency int, p *progress.Progress) ([]leafSrc, []syncFailure) {
