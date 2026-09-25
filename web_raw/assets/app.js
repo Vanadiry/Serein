@@ -411,19 +411,6 @@ function iconImgRaw(file, alt, sz) {
     return `<img src="/assets/${file}.svg" class="${sz} inline-block" alt="${alt}" draggable="false">`;
 }
 
-// 工具
-function badge(text, bg, fg) {
-    return `<span class="${bg} ${fg} px-1.5 py-px rounded-chip text-[10px] font-semibold">${text}</span>`;
-}
-
-function formatURL(u) {
-    if (!u) return "";
-    if (typeof u === "string") return u;
-    if (Array.isArray(u))
-        return u.length > 1 ? `${u[0]} (+${u.length - 1})` : u[0];
-    return "";
-}
-
 // 通知组件
 var _toastStack = [];
 

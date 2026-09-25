@@ -122,8 +122,7 @@ input,
 textarea,
 .select-text,
 .select-text *,
-#prog-status,
-#search-placeholder {
+#prog-status {
     user-select: text;
 }
 

@@ -226,7 +226,7 @@ func ParseRuleFile(path string, ruleValues map[string]map[string]string) (Rule, 
 			return Rule{}, issues, fmt.Errorf("%s: info: 期望表结构", label)
 		}
 		issues = append(issues, validateSection("info", label+": info", infoMap)...)
-		info, _, err := decodeSection[RuleInfo](infoMap, label+": info", nil)
+		info, _, err := decodeSection[RuleInfo](infoMap, label+": info")
 		if err != nil {
 			return Rule{}, issues, err
 		}
@@ -254,7 +254,7 @@ func ParseRuleFile(path string, ruleValues map[string]map[string]string) (Rule, 
 			base[k] = v
 		}
 		issues = append(issues, validateSection("plat", label+": config", base)...)
-		cfg, _, err := decodeSection[PlatConfig](base, label+": config", nil)
+		cfg, _, err := decodeSection[PlatConfig](base, label+": config")
 		if err != nil {
 			return Rule{}, issues, err
 		}
@@ -276,7 +276,7 @@ func ParseRuleFile(path string, ruleValues map[string]map[string]string) (Rule, 
 				merged[k] = v
 			}
 			issues = append(issues, validateSection("plat", label+": config."+key, merged)...)
-			pc, _, err := decodeSection[PlatConfig](merged, label+": config."+key, nil)
+			pc, _, err := decodeSection[PlatConfig](merged, label+": config."+key)
 			if err != nil {
 				return Rule{}, issues, err
 			}
@@ -315,7 +315,7 @@ func ParseRuleFile(path string, ruleValues map[string]map[string]string) (Rule, 
 						return Rule{}, issues, fmt.Errorf("%s: pre_request.%s.%s: 期望表结构", label, id, k)
 					}
 					issues = append(issues, validateSection("pre_step", label+": pre_request."+id+"."+k, vm)...)
-					rs, _, err := decodeSection[PreRequestStep](vm, label+": pre_request."+id+"."+k, nil)
+					rs, _, err := decodeSection[PreRequestStep](vm, label+": pre_request."+id+"."+k)
 					if err != nil {
 						return Rule{}, issues, err
 					}
@@ -327,7 +327,7 @@ func ParseRuleFile(path string, ruleValues map[string]map[string]string) (Rule, 
 				}
 			} else {
 				issues = append(issues, validateSection("pre_step", label+": pre_request."+id, stepMap)...)
-				rs, _, err := decodeSection[PreRequestStep](stepMap, label+": pre_request."+id, nil)
+				rs, _, err := decodeSection[PreRequestStep](stepMap, label+": pre_request."+id)
 				if err != nil {
 					return Rule{}, issues, err
 				}
@@ -345,10 +345,10 @@ func ParseRuleFile(path string, ruleValues map[string]map[string]string) (Rule, 
 }
 
 // decodeSection 校验未知字段并解码为强类型。未知字段随返回值交给调用方决定如何处理；
-// 类型错误返回 error。extra 为额外允许的字段名。
-func decodeSection[T any](raw map[string]any, section string, extra []string) (T, []string, error) {
+// 类型错误返回 error。
+func decodeSection[T any](raw map[string]any, section string) (T, []string, error) {
 	var result T
-	unknown := unknownKeys(raw, reflect.TypeOf((*T)(nil)).Elem(), extra)
+	unknown := unknownKeys(raw, reflect.TypeOf((*T)(nil)).Elem())
 	var buf bytes.Buffer
 	if err := toml.NewEncoder(&buf).Encode(raw); err != nil {
 		return result, unknown, fmt.Errorf("%s: %w", section, err)
@@ -359,12 +359,9 @@ func decodeSection[T any](raw map[string]any, section string, extra []string) (T
 	return result, unknown, nil
 }
 
-// unknownKeys 返回 raw 中不在结构体 toml tag 内的字段名（含 extra）。
-func unknownKeys(raw map[string]any, typ reflect.Type, extra []string) []string {
+// unknownKeys 返回 raw 中不在结构体 toml tag 内的字段名。
+func unknownKeys(raw map[string]any, typ reflect.Type) []string {
 	known := knownTOMLFields(typ)
-	for _, e := range extra {
-		known[e] = true
-	}
 	var unknown []string
 	for k := range raw {
 		if !known[k] {
