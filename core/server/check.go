@@ -278,7 +278,16 @@ func directCheckResponse(ctx context.Context, checkFn func(context.Context, stri
 
 // runAppJobs 并发执行 app 检查任务；每完成一个（含失败）调用 record(appID, name)
 // 取消时返回已完成部分
-func (s *Server) runAppJobs(ctx context.Context, jobs []checkJob, conc int, record func(appID, name string)) []checker.CheckResponse {
+// runConcurrent 以并发上限 conc 执行 items：run 成功收集结果；失败（非取消）交 onError
+// 每个成功项交 record。ctx 取消则跳过未开始的任务
+func runConcurrent[T any](
+	ctx context.Context,
+	items []T,
+	conc int,
+	run func(context.Context, T) (checker.CheckResponse, error),
+	onError func(T, error),
+	record func(T, checker.CheckResponse),
+) []checker.CheckResponse {
 	if conc < 1 {
 		conc = 1
 	}
@@ -286,9 +295,9 @@ func (s *Server) runAppJobs(ctx context.Context, jobs []checkJob, conc int, reco
 	var mu sync.Mutex
 	var results []checker.CheckResponse
 	var wg sync.WaitGroup
-	for _, job := range jobs {
+	for _, it := range items {
 		wg.Add(1)
-		go func(j checkJob) {
+		go func(it T) {
 			defer wg.Done()
 			select {
 			case <-ctx.Done():
@@ -296,64 +305,57 @@ func (s *Server) runAppJobs(ctx context.Context, jobs []checkJob, conc int, reco
 			case sem <- struct{}{}:
 			}
 			defer func() { <-sem }()
-			resp, err := checker.RunCheck(ctx, j.req)
+			resp, err := run(ctx, it)
 			if err != nil {
 				if errors.Is(err, context.Canceled) {
 					return
 				}
-				events.Emit("error", "[check]", fmt.Sprintf("%s: %v", j.name, err))
-				record(j.req.AppID, j.name)
+				onError(it, err)
 				return
 			}
 			mu.Lock()
 			results = append(results, resp)
 			mu.Unlock()
-			record(resp.AppID, j.name)
-		}(job)
+			record(it, resp)
+		}(it)
 	}
 	wg.Wait()
 	return results
 }
 
+// runAppJobs 并发执行 app 检查任务；每完成一个（含失败）调用 record(appID, name)
+func (s *Server) runAppJobs(ctx context.Context, jobs []checkJob, conc int, record func(appID, name string)) []checker.CheckResponse {
+	return runConcurrent(ctx, jobs, conc,
+		func(ctx context.Context, j checkJob) (checker.CheckResponse, error) {
+			return checker.RunCheck(ctx, j.req)
+		},
+		func(j checkJob, err error) {
+			events.Emit("error", "[check]", fmt.Sprintf("%s: %v", j.name, err))
+			record(j.req.AppID, j.name)
+		},
+		func(j checkJob, resp checker.CheckResponse) {
+			record(resp.AppID, j.name)
+		},
+	)
+}
+
 // runDirectEntries 并发执行 direct（vsix）检查；每完成一个（含失败）调用 record(appID, name)
 func (s *Server) runDirectEntries(ctx context.Context, entries []store.TrackerEntry, typ string, conc int, record func(appID, name string)) []checker.CheckResponse {
-	if conc < 1 {
-		conc = 1
-	}
 	checkFn := selectDirectCheckFn(typ)
 	client := httpx.NewClient()
 	userData, _ := store.LoadUserData(s.home)
-	sem := make(chan struct{}, conc)
-	var mu sync.Mutex
-	var results []checker.CheckResponse
-	var wg sync.WaitGroup
-	for _, e := range entries {
-		wg.Add(1)
-		go func(e store.TrackerEntry) {
-			defer wg.Done()
-			select {
-			case <-ctx.Done():
-				return
-			case sem <- struct{}{}:
-			}
-			defer func() { <-sem }()
-			resp, err := directCheckResponse(ctx, checkFn, client, e.AppID, typ, userData)
-			if err != nil {
-				if errors.Is(err, context.Canceled) {
-					return
-				}
-				events.Emit("error", "["+typ+"]", fmt.Sprintf("%s: %v", e.AppID, err))
-				record(e.AppID, e.AppID)
-				return
-			}
-			mu.Lock()
-			results = append(results, resp)
-			mu.Unlock()
+	return runConcurrent(ctx, entries, conc,
+		func(ctx context.Context, e store.TrackerEntry) (checker.CheckResponse, error) {
+			return directCheckResponse(ctx, checkFn, client, e.AppID, typ, userData)
+		},
+		func(e store.TrackerEntry, err error) {
+			events.Emit("error", "["+typ+"]", fmt.Sprintf("%s: %v", e.AppID, err))
+			record(e.AppID, e.AppID)
+		},
+		func(e store.TrackerEntry, resp checker.CheckResponse) {
 			record(resp.AppID, e.AppID)
-		}(e)
-	}
-	wg.Wait()
-	return results
+		},
+	)
 }
 
 func mergeResults(results []checker.CheckResponse) []checker.CheckResponse {
