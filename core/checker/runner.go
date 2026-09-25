@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/vanadiry/serein/core/httpx"
 )
@@ -88,29 +87,28 @@ func RunCheck(ctx context.Context, req CheckRequest) (CheckResponse, error) {
 
 	for _, pc := range req.Platforms {
 		pr, err := RunPlatformCheck(ctx, pc, client)
-		if err != nil {
-			cp := CheckPlatform{
-				CurrentVersion:   pc.CurrentVersion,
-				DownloadMethod:   pc.DownloadMethod,
-				DownloadViaProxy: pc.DownloadViaProxy,
-				DownloadName:     pc.DownloadName,
-			}
-			if !isCanceled(err) {
-				cp.Error = err.Error()
-			}
-			resp.Platforms[pc.OS] = cp
-			continue
-		}
-		resp.Platforms[pc.OS] = CheckPlatform{
-			CurrentVersion:   pc.CurrentVersion,
-			LatestVersion:    pr.LatestVersion,
-			URL:              pr.URL,
-			DownloadMethod:   pc.DownloadMethod,
-			DownloadViaProxy: pc.DownloadViaProxy,
-			DownloadName:     pc.DownloadName,
-		}
+		resp.Platforms[pc.OS] = newCheckPlatform(pc, pr, err)
 	}
 	return resp, nil
+}
+
+// newCheckPlatform 组装单个平台的检查结果；err 非空时仅带错误（取消除外）
+func newCheckPlatform(pc PlatformCheckConfig, pr PlatformResult, err error) CheckPlatform {
+	cp := CheckPlatform{
+		CurrentVersion:   pc.CurrentVersion,
+		DownloadMethod:   pc.DownloadMethod,
+		DownloadViaProxy: pc.DownloadViaProxy,
+		DownloadName:     pc.DownloadName,
+	}
+	if err != nil {
+		if !isCanceled(err) {
+			cp.Error = err.Error()
+		}
+		return cp
+	}
+	cp.LatestVersion = pr.LatestVersion
+	cp.URL = pr.URL
+	return cp
 }
 
 func runGitHubCheck(ctx context.Context, req CheckRequest, client *http.Client) (CheckResponse, error) {
@@ -138,44 +136,18 @@ func runGitHubCheck(ctx context.Context, req CheckRequest, client *http.Client) 
 		}
 		pr, err := CheckGitHub(ctx, cfg, client)
 		if err != nil {
-			cp := CheckPlatform{
-				CurrentVersion:   pc.CurrentVersion,
-				DownloadMethod:   pc.DownloadMethod,
-				DownloadViaProxy: pc.DownloadViaProxy,
-				DownloadName:     pc.DownloadName,
-			}
-			if !isCanceled(err) {
-				cp.Error = err.Error()
-			}
-			resp.Platforms[pc.OS] = cp
+			resp.Platforms[pc.OS] = newCheckPlatform(pc, pr, err)
 			continue
 		}
 		if pc.DType == "direct" {
-			dl := pc.DURL
-			if strings.Contains(dl, "{version}") {
-				if pr.LatestVersion == "" {
-					resp.Platforms[pc.OS] = CheckPlatform{
-						CurrentVersion:   pc.CurrentVersion,
-						LatestVersion:    pr.LatestVersion,
-						Error:            "d_url 包含 {version} 但未能获取到版本号",
-						DownloadMethod:   pc.DownloadMethod,
-						DownloadViaProxy: pc.DownloadViaProxy,
-						DownloadName:     pc.DownloadName,
-					}
-					continue
-				}
-				dl = strings.ReplaceAll(dl, "{version}", pr.LatestVersion)
+			dl, err := resolveDirectURL(pc.DURL, pr.LatestVersion)
+			if err != nil {
+				resp.Platforms[pc.OS] = newCheckPlatform(pc, PlatformResult{}, err)
+				continue
 			}
 			pr.URL = dl
 		}
-		resp.Platforms[pc.OS] = CheckPlatform{
-			CurrentVersion:   pc.CurrentVersion,
-			LatestVersion:    pr.LatestVersion,
-			URL:              pr.URL,
-			DownloadMethod:   pc.DownloadMethod,
-			DownloadViaProxy: pc.DownloadViaProxy,
-			DownloadName:     pc.DownloadName,
-		}
+		resp.Platforms[pc.OS] = newCheckPlatform(pc, pr, nil)
 	}
 	return resp, nil
 }

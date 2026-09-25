@@ -90,12 +90,9 @@ func RunPlatformCheck(ctx context.Context, cfg PlatformCheckConfig, client *http
 	}
 
 	if dType == "direct" {
-		dl := dURL
-		if strings.Contains(dl, "{version}") {
-			if vr.LatestVersion == "" {
-				return vr, fmt.Errorf("d_url 包含 {version} 但未能获取到版本号")
-			}
-			dl = strings.ReplaceAll(dl, "{version}", vr.LatestVersion)
+		dl, err := resolveDirectURL(dURL, vr.LatestVersion)
+		if err != nil {
+			return vr, err
 		}
 		vr.URL = dl
 	} else if cfg.DPosition != nil {
@@ -111,6 +108,17 @@ func RunPlatformCheck(ctx context.Context, cfg PlatformCheckConfig, client *http
 	}
 
 	return vr, nil
+}
+
+// resolveDirectURL 直通模式：d_url 含 {version} 时替换；版本号为空则报错
+func resolveDirectURL(durl, version string) (string, error) {
+	if !strings.Contains(durl, "{version}") {
+		return durl, nil
+	}
+	if version == "" {
+		return "", fmt.Errorf("d_url 包含 {version} 但未能获取到版本号")
+	}
+	return strings.ReplaceAll(durl, "{version}", version), nil
 }
 
 // extractValue 根据 type 从响应体中提取一个值（版本号或下载链接）。
