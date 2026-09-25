@@ -111,8 +111,6 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("POST /api/rules/check", s.handleRulesCheck)
 	s.mux.HandleFunc("GET /api/search", s.handleSearch)
 
-	dlDesc := parseDownloaderDesc(s.config.Download.Downloader)
-	dlType := parseDownloaderType(s.config.Download.Downloader)
 	if s.webFS != nil {
 		fileServer := http.FileServer(http.FS(s.webFS))
 		s.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -122,31 +120,48 @@ func (s *Server) registerRoutes() {
 					r.URL.Path = htmlPath
 				}
 			}
-			if r.URL.Path == "/assets/app.min.js" {
-				data, err := fs.ReadFile(s.webFS, "assets/app.min.js")
-				if err == nil {
-					w.Header().Set("Content-Type", "application/javascript")
-					data = bytes.Replace(data, []byte(`"__DL__"`), []byte(dlDesc), 1)
-					data = bytes.Replace(data, []byte(`"__DL_TYPE__"`), []byte(`"`+dlType+`"`), 1)
-					w.Write(data)
-					return
-				}
-			}
-			if r.URL.Path == "/" || r.URL.Path == "/index.html" {
-				data, err := fs.ReadFile(s.webFS, "index.html")
-				if err == nil {
-					firstRun := "true"
-					if !s.config.Serein.FirstRunEnabled() {
-						firstRun = "false"
-					}
-					w.Header().Set("Content-Type", "text/html; charset=utf-8")
-					w.Write(bytes.Replace(data, []byte(`__FIRST_RUN__`), []byte(firstRun), 1))
-					return
-				}
+			if s.serveAppJS(w, r.URL.Path) || s.serveIndexWithFirstRun(w, r.URL.Path) {
+				return
 			}
 			fileServer.ServeHTTP(w, r)
 		})
 	}
+}
+
+// serveAppJS 处理 /assets/app.min.js：注入下载器描述与类型；返回是否已处理
+func (s *Server) serveAppJS(w http.ResponseWriter, path string) bool {
+	if path != "/assets/app.min.js" {
+		return false
+	}
+	data, err := fs.ReadFile(s.webFS, "assets/app.min.js")
+	if err != nil {
+		return false
+	}
+	dlDesc := parseDownloaderDesc(s.config.Download.Downloader)
+	dlType := parseDownloaderType(s.config.Download.Downloader)
+	w.Header().Set("Content-Type", "application/javascript")
+	data = bytes.Replace(data, []byte(`"__DL__"`), []byte(dlDesc), 1)
+	data = bytes.Replace(data, []byte(`"__DL_TYPE__"`), []byte(`"`+dlType+`"`), 1)
+	w.Write(data)
+	return true
+}
+
+// serveIndexWithFirstRun 处理 / 与 /index.html：注入 first_run；返回是否已处理
+func (s *Server) serveIndexWithFirstRun(w http.ResponseWriter, path string) bool {
+	if path != "/" && path != "/index.html" {
+		return false
+	}
+	data, err := fs.ReadFile(s.webFS, "index.html")
+	if err != nil {
+		return false
+	}
+	firstRun := "true"
+	if !s.config.Serein.FirstRunEnabled() {
+		firstRun = "false"
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(bytes.Replace(data, []byte(`__FIRST_RUN__`), []byte(firstRun), 1))
+	return true
 }
 
 // 下载器类型：单一判定来源
