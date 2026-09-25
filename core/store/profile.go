@@ -24,7 +24,7 @@ func LoadProfile(home string) (Profile, error) {
 
 	var p Profile
 	if err := json.Unmarshal(data, &p); err != nil {
-		return Profile{}, nil
+		return Profile{}, fmt.Errorf("解析 profile.json: %w", err)
 	}
 	return p, nil
 }

@@ -217,6 +217,8 @@ func New(home string, webFS fs.FS) (*Server, error) {
 	if p, err := store.LoadProfile(home); err == nil {
 		checker.SetVersionPrefixes(p.VersionPrefixes)
 		checker.SetVersionSuffixes(p.VersionSuffixes)
+	} else {
+		log.LogfWarn("[profile] %v", err)
 	}
 	s := &Server{home: home, config: cfg, mux: http.NewServeMux(), webFS: webFS, rules: make(map[string]store.Rule), results: make(map[string]map[string]checker.CheckResponse)}
 	secret, err := newProxySecret()
