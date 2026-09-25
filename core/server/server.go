@@ -149,31 +149,49 @@ func (s *Server) registerRoutes() {
 	}
 }
 
-func parseDownloaderType(dl string) string {
+// 下载器类型：单一判定来源
+const (
+	dlBrowser = "browser"
+	dlNDM     = "ndm"
+	dlCustom  = "custom"
+	dlUnknown = "unknown"
+)
+
+func downloaderKindOf(dl string) string {
 	dl = strings.TrimSpace(dl)
 	switch {
 	case dl == "" || dl == "browser":
-		return "browser"
+		return dlBrowser
 	case dl == "ndm":
-		return "ndm"
+		return dlNDM
 	case strings.Contains(dl, "{url}"):
-		return "custom"
+		return dlCustom
 	default:
+		return dlUnknown
+	}
+}
+
+func parseDownloaderType(dl string) string {
+	switch downloaderKindOf(dl) {
+	case dlNDM:
+		return "ndm"
+	case dlCustom:
+		return "custom"
+	default: // browser / unknown 均按浏览器处理
 		return "browser"
 	}
 }
 
 func parseDownloaderDesc(dl string) string {
-	dl = strings.TrimSpace(dl)
-	switch {
-	case dl == "" || dl == "browser":
-		return `"浏览器"`
-	case dl == "ndm":
+	switch downloaderKindOf(dl) {
+	case dlNDM:
 		return `"Neat Download Manager（内建）"`
-	case strings.Contains(dl, "{url}"):
+	case dlCustom:
 		return `"自定义命令"`
+	case dlUnknown:
+		return `"无（未识别）"`
 	default:
-		return `"无"`
+		return `"浏览器"`
 	}
 }
 

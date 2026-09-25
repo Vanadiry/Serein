@@ -35,12 +35,12 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 	dl := strings.TrimSpace(s.config.Download.Downloader)
 	log.Logf("[download] %s (downloader=%q)", body.URL, dl)
 
-	switch {
-	case dl == "":
+	switch downloaderKindOf(dl) {
+	case dlBrowser:
 		OpenBrowser(body.URL)
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "message": "已在浏览器中打开"})
 
-	case dl == "ndm":
+	case dlNDM:
 		err := sendToNDM(body.URL)
 		if err != nil {
 			log.LogfWarn("[download] ndm: %v, fallback to browser", err)
@@ -50,7 +50,7 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "message": "已发送到 Neat Download Manager"})
 
-	case strings.Contains(dl, "{url}"):
+	case dlCustom:
 		// 先按空白切分模板，再逐参数替换 {url}，避免 URL 中的空格被拆成额外参数
 		args := strings.Fields(dl)
 		if len(args) == 0 {

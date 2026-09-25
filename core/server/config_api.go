@@ -36,14 +36,13 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		"默认平台": strings.Join(cfg.Tracker.Platforms, ", "),
 	}
 
-	dl := cfg.Download.Downloader
-	switch {
-	case dl == "" || dl == "browser":
-		kv["下载器"] = "浏览器"
-	case dl == "ndm":
+	switch downloaderKindOf(cfg.Download.Downloader) {
+	case dlNDM:
 		kv["下载器"] = "Neat Download Manager"
-	case strings.Contains(dl, "{url}"):
+	case dlCustom:
 		kv["下载器"] = "自定义命令"
+	case dlUnknown:
+		kv["下载器"] = "无（未识别）"
 	default:
 		kv["下载器"] = "浏览器"
 	}
