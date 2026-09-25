@@ -101,7 +101,7 @@ func (s *Server) handleCheckConfirm(w http.ResponseWriter, r *http.Request) {
 	}
 	appID, ok := body["app_id"]
 	if !ok || appID == "" {
-		writeError(w, http.StatusBadRequest, "missing appID")
+		writeError(w, http.StatusBadRequest, "missing app_id")
 		return
 	}
 
@@ -439,7 +439,7 @@ func (s *Server) signURLs(u any, name string) any {
 // GET /api/check/temp/{tracker_id}
 
 func (s *Server) handleCheckTemp(w http.ResponseWriter, r *http.Request) {
-	trackerID := r.PathValue("type")
+	trackerID := r.PathValue("tracker_id")
 	if trackerID == "" {
 		writeError(w, http.StatusBadRequest, "missing tracker_id")
 		return

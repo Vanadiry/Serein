@@ -93,14 +93,14 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("GET /api/file", s.handleFile)
 
 	s.mux.HandleFunc("GET /api/tracker/list/all", s.handleTrackerListAll)
-	s.mux.HandleFunc("GET /api/tracker/list/", s.handleTrackerListByID)
+	s.mux.HandleFunc("GET /api/tracker/list/{tracker_id}", s.handleTrackerListByID)
 	s.mux.HandleFunc("POST /api/tracker/new", s.handleTrackerNew)
 	s.mux.HandleFunc("POST /api/tracker/add", s.handleTrackerAdd)
 	s.mux.HandleFunc("GET /api/tracker/apps", s.handleTrackerApps)
 
 	s.mux.HandleFunc("POST /api/check", s.handleCheck)
 	s.mux.HandleFunc("POST /api/check/confirm", s.handleCheckConfirm)
-	s.mux.HandleFunc("GET /api/check/temp/{type}", s.handleCheckTemp)
+	s.mux.HandleFunc("GET /api/check/temp/{tracker_id}", s.handleCheckTemp)
 	s.mux.HandleFunc("GET /api/progress/{task_id}", handleProgressSSE)
 	s.mux.HandleFunc("POST /api/check/cancel/{task_id}", handleProgressCancel)
 	s.mux.HandleFunc("GET /api/events", handleEvents)
@@ -217,9 +217,6 @@ func New(home string, webFS fs.FS) (*Server, error) {
 	}
 	if errs := cfg.Validate(); len(errs) > 0 {
 		return nil, &store.ValidationError{Errors: errs}
-	}
-	if err := log.InitLogger(home); err != nil {
-		return nil, err
 	}
 	proxy := cfg.ProxyURL()
 	httpx.SetProxy(proxy)

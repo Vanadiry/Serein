@@ -4,7 +4,6 @@ package server
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	"github.com/vanadiry/serein/core/store"
 )
@@ -48,9 +47,9 @@ func (s *Server) handleTrackerListAll(w http.ResponseWriter, r *http.Request) {
 // GET /api/tracker/list/{id}
 
 func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimPrefix(r.URL.Path, "/api/tracker/list/")
+	id := r.PathValue("tracker_id")
 	if id == "" {
-		writeError(w, http.StatusBadRequest, "missing tracker id")
+		writeError(w, http.StatusBadRequest, "missing tracker_id")
 		return
 	}
 

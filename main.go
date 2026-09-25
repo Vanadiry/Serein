@@ -34,7 +34,7 @@ func sereinHome() string {
 	return filepath.Join(dir, ".vSoft", "Serein")
 }
 
-func startServer(home string, openBrowser_ bool) {
+func startServer(home string, openBrowser bool) {
 	webFS, err := fs.Sub(webFiles, "web")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
@@ -58,7 +58,7 @@ func startServer(home string, openBrowser_ bool) {
 		fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
 		os.Exit(1)
 	}
-	if openBrowser_ {
+	if openBrowser {
 		go server.OpenBrowser("http://" + s.Addr())
 	}
 	if err := s.Serve(); err != nil {
