@@ -424,6 +424,21 @@ function _repositionToasts() {
     }
 }
 
+// updateToastEl 更新已存在 toast 的配色与内容（保留右上角关闭按钮）
+function updateToastEl(el, title, body, titleBg, bodyBg) {
+    var head = el.querySelector("div:first-child");
+    var bodyEl = el.querySelector("div:last-child");
+    head.className =
+        titleBg +
+        " text-white font-semibold px-4 py-2 rounded-t-control flex items-center justify-between";
+    head.querySelector("span:first-child").textContent = title;
+    bodyEl.className =
+        bodyBg +
+        " text-white px-4 py-2 rounded-b-control max-h-[60vh] overflow-y-auto" +
+        (titleBg === "bg-ok" ? "" : " select-text");
+    bodyEl.innerHTML = body || "";
+}
+
 function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
     var el = document.createElement("div");
     el.className =
@@ -434,21 +449,9 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
     el.style.width = "fit-content";
     el.style.marginLeft = "auto";
     el.innerHTML =
-        '<div class="' +
-        titleBg +
-        ' text-white font-semibold px-4 py-2 rounded-t-control flex items-center justify-between">' +
-        "<span>" +
-        escapeHtml(title) +
-        "</span>" +
-        '<span class="cursor-pointer text-white opacity-60 hover:opacity-100 text-base leading-none ml-3">✕</span>' +
-        "</div>" +
-        '<div class="' +
-        bodyBg +
-        " text-white px-4 py-2 rounded-b-lg max-h-[60vh] overflow-y-auto" +
-        (titleBg === "bg-ok" ? "" : " select-text") +
-        '">' +
-        (body || "") +
-        "</div>";
+        '<div><span></span><span class="cursor-pointer text-white opacity-60 hover:opacity-100 text-base leading-none ml-3">✕</span></div>' +
+        "<div></div>";
+    updateToastEl(el, title, body, titleBg, bodyBg);
     document.body.appendChild(el);
     requestAnimationFrame(function () {
         el.style.opacity = "1";
@@ -493,35 +496,18 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
         el: el,
         close: close,
         done: function (okBody, isError, titleText) {
-            if (closed) {
-                var t = _makeToast(
-                    isError ? "错误" : "成功",
-                    okBody,
-                    isError ? "bg-err" : "bg-ok",
-                    isError ? "bg-err/80" : "bg-ok/80",
-                    isError ? 0 : 5
-                );
-                if (titleText)
-                    t.el.querySelector("span:first-child").textContent =
-                        titleText;
-                return;
-            }
             var tb = isError ? "bg-err" : "bg-ok";
             var bb = isError ? "bg-err/80" : "bg-ok/80";
             var tt = titleText || (isError ? "错误" : "成功");
-            el.querySelector("div:first-child").className =
-                tb +
-                " text-white font-semibold px-4 py-2 rounded-t-control flex items-center justify-between";
-            el.querySelector("span:first-child").textContent = tt;
-            el.querySelector("div:last-child").className =
-                bb +
-                " text-white px-4 py-2 rounded-b-control" +
-                (isError ? " select-text" : "");
-            el.querySelector("div:last-child").innerHTML = okBody || "";
+            if (closed) {
+                _makeToast(tt, okBody, tb, bb, isError ? 0 : 5);
+                return;
+            }
+            updateToastEl(el, tt, okBody, tb, bb);
+            if (timer) clearTimeout(timer);
             if (isError) {
-                if (timer) clearTimeout(timer);
+                // 错误：常驻，可复制
             } else {
-                if (timer) clearTimeout(timer);
                 timer = setTimeout(close, 5000);
                 el.style.cursor = "pointer";
                 el.onclick = close;
