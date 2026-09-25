@@ -34,14 +34,29 @@ func LoadUserData(home string) (UserData, error) {
 	return ud, nil
 }
 
+// SaveUserData 原子写入：先写临时文件再 rename，避免写一半导致文件损坏
 func SaveUserData(home string, ud UserData) error {
 	path := filepath.Join(home, "user", "software.json")
-	f, err := os.Create(path)
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(ud, "", "  ")
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	enc := json.NewEncoder(f)
-	enc.SetIndent("", "  ")
-	return enc.Encode(ud)
+	tmp, err := os.CreateTemp(dir, "software-*.json.tmp")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName) // 成功后已 rename，删除为 no-op
+	if _, err := tmp.Write(data); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpName, path)
 }
