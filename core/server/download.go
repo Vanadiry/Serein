@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os/exec"
 	"strings"
 	"time"
@@ -26,12 +25,12 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "missing url")
 		return
 	}
-	body.URL = normalizeURL(body.URL)
-	u, err := url.Parse(body.URL)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		writeError(w, http.StatusBadRequest, "only http/https URLs are allowed")
+	u, err := parseHTTPURL(body.URL)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
+	body.URL = u
 	dl := strings.TrimSpace(s.config.Download.Downloader)
 	log.Logf("[download] %s (downloader=%q)", body.URL, dl)
 

@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os/exec"
@@ -16,6 +17,16 @@ func normalizeURL(raw string) string {
 		return "https:" + raw
 	}
 	return raw
+}
+
+// parseHTTPURL 补全 scheme 并校验为 http(s) 绝对地址，返回规范化后的字符串
+func parseHTTPURL(raw string) (string, error) {
+	raw = normalizeURL(raw)
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return "", fmt.Errorf("only http/https URLs are allowed")
+	}
+	return raw, nil
 }
 
 func OpenBrowser(url string) {
@@ -44,12 +55,11 @@ func (s *Server) handleOpenURL(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "missing url")
 		return
 	}
-	body.URL = normalizeURL(body.URL)
-	u, err := url.Parse(body.URL)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		writeError(w, http.StatusBadRequest, "only http/https URLs are allowed")
+	u, err := parseHTTPURL(body.URL)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	OpenBrowser(u.String())
+	OpenBrowser(u)
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }

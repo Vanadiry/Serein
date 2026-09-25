@@ -79,10 +79,9 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "invalid or expired signature")
 		return
 	}
-	rawURL = normalizeURL(rawURL)
-	u, err := url.Parse(rawURL)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		writeError(w, http.StatusBadRequest, "only http/https URLs are allowed")
+	rawURL, err := parseHTTPURL(rawURL)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	if err := httpx.BlockPrivate(rawURL); err != nil {
