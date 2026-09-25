@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/vanadiry/serein/core/progress"
@@ -31,25 +30,5 @@ func handleProgressSSE(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "task not found"})
 		return
 	}
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		return
-	}
-	ctx := r.Context()
-	for {
-		select {
-		case <-ctx.Done():
-			// 客户端断开，退出协程
-			return
-		case event, ok := <-p.Channel:
-			if !ok {
-				return
-			}
-			fmt.Fprintf(w, "data: %s\n\n", event)
-			flusher.Flush()
-		}
-	}
+	serveSSE(w, r, p.Channel)
 }

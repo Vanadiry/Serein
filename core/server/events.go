@@ -1,36 +1,13 @@
 package server
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/vanadiry/serein/core/events"
 )
 
 func handleEvents(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		return
-	}
-
 	ch := events.Subscribe()
 	defer events.Unsubscribe(ch)
-
-	ctx := r.Context()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case data, ok := <-ch:
-			if !ok {
-				return
-			}
-			fmt.Fprintf(w, "data: %s\n\n", data)
-			flusher.Flush()
-		}
-	}
+	serveSSE(w, r, ch)
 }
