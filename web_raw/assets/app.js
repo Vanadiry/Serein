@@ -1226,6 +1226,8 @@ function startSyncProgress(taskId) {
 // 全局 "/" 跳转到搜索页（搜索页内自行聚焦输入框）
 document.addEventListener("keydown", function (e) {
     if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey) return;
+    // 进度遮罩（检查更新 / 拉取）打开时，阻断跳转
+    if (document.getElementById("progress-overlay")) return;
     var t = e.target;
     if (t) {
         var tag = t.tagName;
