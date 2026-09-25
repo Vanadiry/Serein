@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/vanadiry/serein/core/httpx"
+	"github.com/vanadiry/serein/core/store"
 )
 
 // isCanceled 判断错误是否来自 context 取消，取消时不应作为检查错误上报
@@ -109,6 +110,35 @@ func newCheckPlatform(pc PlatformCheckConfig, pr PlatformResult, err error) Chec
 	cp.LatestVersion = pr.LatestVersion
 	cp.URL = pr.URL
 	return cp
+}
+
+// NewPlatformCheckConfig 由规则平台配置组装检查配置
+func NewPlatformCheckConfig(os, label, currentVer string, pc store.PlatConfig) PlatformCheckConfig {
+	return PlatformCheckConfig{
+		OS:               os,
+		Type:             pc.Type,
+		URL:              pc.URL,
+		UA:               pc.UA,
+		Headers:          pc.Headers,
+		BaseURL:          pc.BaseURL,
+		Owner:            pc.Owner,
+		Repo:             pc.Repo,
+		PerPage:          pc.PerPage,
+		VURL:             pc.VURL,
+		VType:            pc.VType,
+		DURL:             pc.DURL,
+		DType:            pc.DType,
+		VPosition:        pc.VPosition,
+		DPosition:        pc.DPosition,
+		VJoin:            pc.VJoin,
+		DJoin:            pc.DJoin,
+		CurrentVersion:   currentVer,
+		DownloadMethod:   pc.DownloadMethod,
+		DownloadViaProxy: pc.DownloadViaProxy,
+		DownloadName:     pc.DownloadName,
+		AllowPrerelease:  pc.AllowPrerelease,
+		Label:            label,
+	}
 }
 
 func runGitHubCheck(ctx context.Context, req CheckRequest, client *http.Client) (CheckResponse, error) {
