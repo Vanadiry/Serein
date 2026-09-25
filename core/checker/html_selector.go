@@ -4,6 +4,8 @@ package checker
 import (
 	"fmt"
 	"strings"
+
+	"github.com/vanadiry/serein/core/httpx"
 )
 
 func extractSelectorValue(body []byte, pos any, baseURL string) (any, error) {
@@ -39,5 +41,5 @@ func extractSelectorValue(body []byte, pos any, baseURL string) (any, error) {
 		}
 	}
 
-	return applyBaseURL(val, baseURL), nil
+	return httpx.JoinURL(baseURL, val), nil
 }
