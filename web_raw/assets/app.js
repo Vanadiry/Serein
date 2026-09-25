@@ -817,55 +817,55 @@ function tipAttr(html) {
     );
 }
 
-// 外部链接弹窗（桌面壳内无法拉起浏览器时展示）
-// 非白名单下载链接弹窗
-function openDownloadPage(url) {
-    var hasDL = isLocalAccess() && hasDownloader();
+// 外部地址弹窗（桌面壳内无法拉起浏览器时展示）
+function externalUrlModal(url, opts) {
+    opts = opts || {};
     var urlAttr = escapeAttr(url);
-    var row1 =
-        '<button onclick="closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>' +
+    var cancelBtn =
+        '<button onclick="closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>';
+    var copyBtn =
         '<button data-url="' +
         urlAttr +
-        '" onclick="var s=this;navigator.clipboard.writeText(this.dataset.url);s.textContent=\'已复制\';setTimeout(function(){s.textContent=\'复制链接\'},1500)" class="flex-1 px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">复制链接</button>' +
+        '" onclick="var s=this;navigator.clipboard.writeText(this.dataset.url);s.textContent=\'已复制\';setTimeout(function(){s.textContent=\'复制链接\'},1500)" class="flex-1 px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">复制链接</button>';
+    var openBtn =
         '<button data-url="' +
         urlAttr +
         '" onclick="openUrl(this.dataset.url);closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-control bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">打开</button>';
-    var row2 = hasDL
+    var extra = opts.showDownloader
         ? '<button data-url="' +
           urlAttr +
           '" onclick="downloadFile(this.dataset.url);closeModal(this.closest(\'.fixed\'))" class="w-full px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">仍然发送到下载器</button>'
         : "";
     showModal(
         '<div class="text-base font-bold mb-3">外部地址</div>' +
-            '<p class="text-text text-sm mb-3 leading-relaxed">此链接看起来不是一个常见的文件，或许是一个网页而非安装包。<br />是否要在外部浏览器打开？</p>' +
-            '<p class="select-text text-text text-xs break-all bg-bg rounded-control px-3 py-2 border border-bord-mid mb-4 leading-relaxed">' +
-            escapeHtml(url) +
+            '<p class="text-text text-sm mb-3 leading-relaxed">' +
+            opts.text +
             "</p>" +
-            '<div class="flex gap-2 mb-2">' +
-            row1 +
-            "</div>" +
-            (row2 ? row2 : "")
-    );
-}
-
-function openExternalUrl(url) {
-    var urlAttr = escapeAttr(url);
-    showModal(
-        '<div class="text-base font-bold mb-3">外部地址</div>' +
-            '<p class="text-text text-sm mb-3 leading-relaxed">将会在浏览器中打开此链接。</p>' +
             '<p class="select-text text-text text-xs break-all bg-bg rounded-control px-3 py-2 border border-bord-mid mb-4 leading-relaxed">' +
             escapeHtml(url) +
             "</p>" +
             '<div class="flex gap-2">' +
-            '<button onclick="closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>' +
-            '<button data-url="' +
-            urlAttr +
-            '" onclick="var s=this;navigator.clipboard.writeText(this.dataset.url);s.textContent=\'已复制\';setTimeout(function(){s.textContent=\'复制链接\'},1500)" class="flex-1 px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">复制链接</button>' +
-            '<button data-url="' +
-            urlAttr +
-            '" onclick="openUrl(this.dataset.url);closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-control bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">打开</button>' +
-            "</div>"
+            cancelBtn +
+            copyBtn +
+            openBtn +
+            "</div>" +
+            extra
     );
+}
+
+// 非白名单下载链接弹窗
+function openDownloadPage(url) {
+    externalUrlModal(url, {
+        text: "此链接看起来不是一个常见的文件，或许是一个网页而非安装包。<br />是否要在外部浏览器打开？",
+        showDownloader: isLocalAccess() && hasDownloader()
+    });
+}
+
+function openExternalUrl(url) {
+    externalUrlModal(url, {
+        text: "将会在浏览器中打开此链接。",
+        showDownloader: false
+    });
 }
 
 // 确认弹窗
