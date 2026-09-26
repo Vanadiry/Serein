@@ -6,7 +6,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"testing/fstest"
 
@@ -133,6 +135,85 @@ func TestCheckResultsCache(t *testing.T) {
 	if len(s.getCheckResults("nope")) != 0 {
 		t.Fatal("不存在的桶应为空")
 	}
+}
+
+// getCheckResults 必须返回 Platforms 的深拷贝：调用方会在锁外 JSON 编码这些表，
+// 而 syncCachedCurrent 会写回同一个 app，原地共享会触发不可 recover 的
+// fatal error: concurrent map read and map write
+func TestCheckResultsCacheIsolatesPlatforms(t *testing.T) {
+	s := newTestServer(t.TempDir())
+	s.setCheckResults("k", []checker.CheckResponse{{
+		AppID:     "x",
+		Platforms: map[string]checker.CheckPlatform{"macos": {LatestVersion: "2"}},
+	}})
+
+	got := s.getCheckResults("k")
+	if len(got) != 1 || len(got[0].Platforms) != 1 {
+		t.Fatalf("getCheckResults = %+v", got)
+	}
+
+	// 读方改动不应污染缓存
+	got[0].Platforms["macos"] = checker.CheckPlatform{LatestVersion: "改写"}
+	got[0].Platforms["windows"] = checker.CheckPlatform{LatestVersion: "新增"}
+	again := s.getCheckResults("k")
+	if len(again[0].Platforms) != 1 || again[0].Platforms["macos"].LatestVersion != "2" {
+		t.Fatalf("读方结果与缓存发生别名: %+v", again[0].Platforms)
+	}
+
+	// 写方改动不应污染此前已读出的切片
+	s.syncCachedCurrent("x", map[string]string{"macos": "1.5.0"})
+	latest := s.getCheckResults("k")
+	if latest[0].Platforms["macos"].CurrentVersion != "1.5.0" {
+		t.Fatalf("syncCachedCurrent 未写回: %+v", latest[0].Platforms["macos"])
+	}
+	if got[0].Platforms["macos"].LatestVersion != "改写" {
+		t.Fatalf("syncCachedCurrent 原地改动了已发布的表: %+v", got[0].Platforms["macos"])
+	}
+	if _, ok := got[0].Platforms["macos"]; !ok {
+		t.Fatal("已读出的表被整体换掉")
+	}
+}
+
+// 复现 #1 的原始崩溃路径：GET /api/check/temp 编码结果的同时 POST /api/check/confirm 写回缓存。
+// 需配合 go test -race 运行
+func TestCheckResultsCacheConcurrentReadWrite(t *testing.T) {
+	s := newTestServer(t.TempDir())
+	s.setCheckResults("t1", []checker.CheckResponse{{
+		AppID:     "x",
+		Platforms: map[string]checker.CheckPlatform{"macos": {LatestVersion: "2"}},
+	}})
+
+	var wg sync.WaitGroup
+	stop := make(chan struct{})
+
+	wg.Add(1)
+	go func() { // 读方：模拟 handleCheckTemp 的锁外 JSON 编码
+		defer wg.Done()
+		for {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			for _, r := range s.getCheckResults("t1") {
+				if _, err := json.Marshal(r); err != nil {
+					t.Errorf("marshal: %v", err)
+					return
+				}
+			}
+		}
+	}()
+
+	wg.Add(1)
+	go func() { // 写方：模拟 handleCheckConfirm
+		defer wg.Done()
+		for i := range 200 {
+			s.syncCachedCurrent("x", map[string]string{"macos": "1." + strconv.Itoa(i)})
+		}
+		close(stop)
+	}()
+
+	wg.Wait()
 }
 
 func TestHandleCheckTemp(t *testing.T) {

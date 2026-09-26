@@ -141,6 +141,18 @@ func (s *Server) handleCheckConfirm(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// cloneCheckPlatforms 深拷贝平台结果表；nil 进 nil 出（保持 JSON 形状不变）
+func cloneCheckPlatforms(in map[string]checker.CheckPlatform) map[string]checker.CheckPlatform {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]checker.CheckPlatform, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
+}
+
 // syncCachedCurrent 把确认后的版本号写回所有包含该 app 的内存检查缓存
 func (s *Server) syncCachedCurrent(appID string, versions map[string]string) {
 	if len(versions) == 0 {
@@ -153,14 +165,18 @@ func (s *Server) syncCachedCurrent(appID string, versions map[string]string) {
 		if !ok {
 			continue
 		}
-		if r.Platforms == nil {
-			r.Platforms = make(map[string]checker.CheckPlatform)
+		// 复制后整体换入，绝不原地修改：已发布的表可能正被 JSON 编码读取，
+		// 而 Go 对 map 的并发读写是 fatal error（无法 recover）
+		cp := cloneCheckPlatforms(r.Platforms)
+		if cp == nil {
+			cp = make(map[string]checker.CheckPlatform)
 		}
 		for os, v := range versions {
-			p := r.Platforms[os]
+			p := cp[os]
 			p.CurrentVersion = v
-			r.Platforms[os] = p
+			cp[os] = p
 		}
+		r.Platforms = cp
 		bucket[appID] = r
 	}
 }
@@ -451,11 +467,13 @@ func (s *Server) handleCheckTemp(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"results": s.getCheckResults(trackerID)})
 }
 
-// 检查结果缓存：按 Tracker（或 direct 的 type）分桶，内层按 app_id；随进程释放
+// 检查结果缓存：按 Tracker（或 direct 的 type）分桶，内层按 app_id；随进程释放。
+// 不变式：桶内的 Platforms 表发布后不再原地修改，读写两侧都做深拷贝。
 
 func (s *Server) setCheckResults(key string, results []checker.CheckResponse) {
 	m := make(map[string]checker.CheckResponse, len(results))
 	for _, r := range results {
+		r.Platforms = cloneCheckPlatforms(r.Platforms)
 		m[r.AppID] = r
 	}
 	s.resultsMu.Lock()
@@ -464,6 +482,7 @@ func (s *Server) setCheckResults(key string, results []checker.CheckResponse) {
 }
 
 func (s *Server) setCheckResult(key string, r checker.CheckResponse) {
+	r.Platforms = cloneCheckPlatforms(r.Platforms)
 	s.resultsMu.Lock()
 	if s.results[key] == nil {
 		s.results[key] = make(map[string]checker.CheckResponse)
@@ -477,6 +496,8 @@ func (s *Server) getCheckResults(key string) []checker.CheckResponse {
 	defer s.resultsMu.RUnlock()
 	out := make([]checker.CheckResponse, 0, len(s.results[key]))
 	for _, r := range s.results[key] {
+		// 必须在锁内深拷贝：调用方会在锁外用 json.Encoder 遍历这些表
+		r.Platforms = cloneCheckPlatforms(r.Platforms)
 		out = append(out, r)
 	}
 	return out
