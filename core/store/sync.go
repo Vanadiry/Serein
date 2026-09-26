@@ -20,6 +20,9 @@ import (
 
 const maxFetchBytes = 8 << 20 // 8MB
 
+// stagingDirName 规则提交的暂存根目录名（home 下的隐藏目录，rules/ 的同级）
+const stagingDirName = ".sync-staging"
+
 // SourceInfo 规则源的元信息（完整 _source.json 内容）
 type SourceInfo struct {
 	ID          string   `json:"source_id"`
@@ -154,6 +157,22 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 
 	ctx := p.Context()
 	rulesDir := filepath.Join(home, "rules")
+	stagingRoot, err := prepareStagingRoot(home)
+	if err != nil {
+		log.LogfWarn("[sync] 准备暂存目录失败，本次同步不提交: %v", err)
+		p.SendMap(map[string]any{
+			"step":            "done",
+			"sources_total":   len(sources),
+			"sources_skipped": 0,
+			"sources_updated": 0,
+			"sources_failed":  len(sources),
+			"files":           0,
+			"file_errors":     0,
+			"failures":        []syncFailure{{Source: "暂存目录", Error: err.Error()}},
+			"cancelled":       ctx.Err() != nil,
+		})
+		return
+	}
 
 	// Phase 1: 遍历
 	leaves, gatherFailures := gatherLeaves(sources, concurrency, p)
@@ -224,7 +243,10 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 		}
 		// 取消时不提交
 		if ctx.Err() == nil {
-			sourcesUpdated = commitLeaves(rulesDir, leaves, contents, leafFailed)
+			updated, commitFailures := commitLeaves(rulesDir, stagingRoot, leaves, contents, leafFailed)
+			sourcesUpdated = updated
+			failures = append(failures, commitFailures...)
+			sourcesFailed += len(commitFailures)
 		}
 	}
 
@@ -301,39 +323,124 @@ func downloadLeaves(ctx context.Context, rulesDir string, leaves []leafSrc, conc
 	return contents, leafFailed, failures, fileErrors
 }
 
-// commitLeaves 原子提交：仅整体替换“全部文件成功”的子规则源，返回更新数
-func commitLeaves(rulesDir string, leaves []leafSrc, contents []map[string][]byte, leafFailed []bool) int {
+// commitLeaves 原子提交：逐个子规则源先在暂存目录里写完整棵树，全部文件写成功才换入
+// 目标目录。任一文件写失败即放弃本次提交——目标目录保持原样，版本标记也不推进，
+// 因此不会出现「_source.json 已记录新版本、规则文件却缺失」的永久损坏状态。
+// 返回成功换入的源数与失败明细。
+func commitLeaves(rulesDir, stagingRoot string, leaves []leafSrc, contents []map[string][]byte, leafFailed []bool) (int, []syncFailure) {
 	updated := 0
+	var failures []syncFailure
 	for i := range leaves {
 		if leafFailed[i] {
 			continue
 		}
 		l := leaves[i]
 		dest := filepath.Join(rulesDir, l.destDir)
-		if err := os.RemoveAll(dest); err != nil {
-			events.Emit("error", "[sync]", fmt.Sprintf("清理目录失败 %s: %v", dest, err))
+		if err := commitLeafDir(stagingRoot, dest, contents[i], l.rawBody); err != nil {
+			events.Emit("error", "[sync]", fmt.Sprintf("提交 %s 失败: %v", l.id, err))
+			log.LogfWarn("[sync] 提交 %s 失败: %v", l.id, err)
+			failures = append(failures, syncFailure{Source: l.id, Error: err.Error()})
 			continue
-		}
-		if err := os.MkdirAll(dest, 0755); err != nil {
-			events.Emit("error", "[sync]", fmt.Sprintf("创建目录失败 %s: %v", dest, err))
-			continue
-		}
-		for rel, body := range contents[i] {
-			target := filepath.Join(dest, rel)
-			if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
-				events.Emit("error", "[sync]", fmt.Sprintf("创建目录失败 %s: %v", filepath.Dir(target), err))
-				continue
-			}
-			if err := os.WriteFile(target, body, 0644); err != nil {
-				events.Emit("error", "[sync]", fmt.Sprintf("写入文件失败 %s: %v", target, err))
-			}
-		}
-		if err := os.WriteFile(filepath.Join(dest, "_source.json"), l.rawBody, 0644); err != nil {
-			events.Emit("error", "[sync]", fmt.Sprintf("写入 _source.json 失败 %s: %v", l.destDir, err))
 		}
 		updated++
 	}
-	return updated
+	return updated, failures
+}
+
+// commitLeafDir 把一个子规则源的文件树原子换入 dest。
+// 步骤：暂存目录写全部文件（逐个 fsync）→ 写版本标记 → fsync 目录 →
+// 旧目录改名让位 → 新目录改名就位 → 删除旧目录。
+// 换入失败会回滚旧目录；进程在两次 rename 之间被杀时，dest 可能短暂缺失，
+// 但版本标记随之消失，下次同步 loadLocalSourceVersion 得到 0 会重新拉取，不会跳过。
+func commitLeafDir(stagingRoot, dest string, files map[string][]byte, rawBody []byte) error {
+	stage, err := os.MkdirTemp(stagingRoot, "leaf-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(stage) // 换入成功后路径已不存在，删除为 no-op
+
+	for rel, body := range files {
+		target := filepath.Join(stage, rel)
+		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
+			return fmt.Errorf("创建目录 %s: %w", filepath.Dir(target), err)
+		}
+		if err := writeFileSync(target, body, 0644); err != nil {
+			return fmt.Errorf("写入 %s: %w", target, err)
+		}
+	}
+	// 版本标记最后写：下次同步据此判断是否跳过本源
+	if err := writeFileSync(filepath.Join(stage, "_source.json"), rawBody, 0644); err != nil {
+		return fmt.Errorf("写入 _source.json: %w", err)
+	}
+	syncDir(stage)
+
+	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+		return fmt.Errorf("创建目录 %s: %w", filepath.Dir(dest), err)
+	}
+	trash, err := os.MkdirTemp(stagingRoot, "trash-")
+	if err != nil {
+		return err
+	}
+	// MkdirTemp 建出来的空目录要先让出位置给 rename 用
+	trashPath := filepath.Join(trash, "old")
+	hadOld := false
+	if _, err := os.Lstat(dest); err == nil {
+		if err := os.Rename(dest, trashPath); err != nil {
+			os.RemoveAll(trash)
+			return fmt.Errorf("让位旧目录 %s: %w", dest, err)
+		}
+		hadOld = true
+	}
+	if err := os.Rename(stage, dest); err != nil {
+		if hadOld { // 回滚，避免目标目录空缺
+			_ = os.Rename(trashPath, dest)
+		}
+		os.RemoveAll(trash)
+		return fmt.Errorf("换入新目录 %s: %w", dest, err)
+	}
+	syncDir(filepath.Dir(dest))
+	os.RemoveAll(trash)
+	return nil
+}
+
+// prepareStagingRoot 准备暂存根目录并清掉上次残留（崩溃时留下的半成品 / 旧目录备份）
+// 放在 rules/ 的同级而非其内部：规则加载会遍历 rules/ 下的所有 .toml，
+// 暂存目录混进去会被当成规则读进来。
+func prepareStagingRoot(home string) (string, error) {
+	root := filepath.Join(home, stagingDirName)
+	if err := os.RemoveAll(root); err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(root, 0755); err != nil {
+		return "", err
+	}
+	return root, nil
+}
+
+func writeFileSync(path string, data []byte, perm os.FileMode) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+	if err != nil {
+		return err
+	}
+	if _, err := f.Write(data); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		return err
+	}
+	return f.Close()
+}
+
+// syncDir fsync 目录本身，使其中的文件名增删落盘（POSIX 语义；Windows 上会失败，忽略）
+func syncDir(dir string) {
+	d, err := os.Open(dir)
+	if err != nil {
+		return
+	}
+	_ = d.Sync()
+	d.Close()
 }
 
 func gatherLeaves(sources []RuleSource, concurrency int, p *progress.Progress) ([]leafSrc, []syncFailure) {
