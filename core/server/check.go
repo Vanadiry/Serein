@@ -716,12 +716,25 @@ func (s *Server) runCheckAllAsync(list []checkAllTracker, p *progress.Progress, 
 			for i := range merged {
 				s.attachProxyURL(&merged[i])
 			}
-			if replace {
-				s.setCheckResults(t.id, merged)
-			} else {
+			switch {
+			case !replace:
+				// 单条 / 按 id：只覆盖本次查到的 app
 				for _, r := range merged {
 					s.setCheckResult(t.id, r)
 				}
+			case len(merged) == 0:
+				// 跑了但一个结果都没有：规则全被过滤（removed / 变量缺失 / 无可用平台）、
+				// 或全部整条目失败。此时整桶替换成空 = 未检查的 app 看起来像「无更新」，
+				// 而实际是「没查到」。保留旧结果，错误由本次的汇总弹窗报出。
+				log.LogfWarn("[check] %s 未产出任何结果，保留原缓存", t.id)
+			case savePartial && ctx.Err() != nil:
+				// 取消：只 upsert 已完成的部分，其余 app 保留历史结果。
+				// 整桶替换会把未检查的 150 个 app 一起清掉，侧栏全部回退成「有更新」。
+				for _, r := range merged {
+					s.setCheckResult(t.id, r)
+				}
+			default:
+				s.setCheckResults(t.id, merged)
 			}
 		}
 		if ctx.Err() != nil {
