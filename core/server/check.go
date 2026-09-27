@@ -104,22 +104,7 @@ func (s *Server) handleCheckConfirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userData := s.loadUserData()
-	if userData[appID] == nil {
-		userData[appID] = make(map[string]string)
-	}
-	for k, v := range body {
-		if k == "app_id" {
-			continue
-		}
-		userData[appID][k] = v
-	}
-	userData[appID]["_confirmed_at"] = strconv.FormatInt(time.Now().UTC().Unix(), 10)
-	if err := store.SaveUserData(s.home, userData); err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	// 同步内存检查缓存里的 current_version，避免切 tab 时读回旧值、又重新显示更新箭头
+	// body 里除 app_id 外的都是「平台 → 版本号」
 	versions := make(map[string]string, len(body))
 	for k, v := range body {
 		if k == "app_id" {
@@ -127,12 +112,18 @@ func (s *Server) handleCheckConfirm(w http.ResponseWriter, r *http.Request) {
 		}
 		versions[k] = v
 	}
+	confirmed, err := s.confirmVersion(appID, versions)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	// 同步内存检查缓存里的 current_version，避免切 tab 时读回旧值、又重新显示更新箭头
 	s.syncCachedCurrent(appID, versions)
-	log.Logf("[confirm] %s: %v", appID, userData[appID])
+	log.Logf("[confirm] %s: %v", appID, confirmed)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"app_id":    appID,
 		"status":    "ok",
-		"platforms": userData[appID],
+		"platforms": confirmed,
 	})
 }
 
@@ -256,13 +247,42 @@ type checkJob struct {
 // 留档文件手工改回来。LoadUserData 出错时也会返回可用的空数据，并且已经把问题
 // 通过事件总线推给前端了，这里不用再报一遍。
 func (s *Server) loadUserData() store.UserData {
-	ud, _ := store.LoadUserData(s.home)
+	ud, _ := s.loadUserDataErr()
 	return ud
+}
+
+func (s *Server) loadUserDataErr() (store.UserData, error) {
+	s.userMu.RLock()
+	defer s.userMu.RUnlock()
+	return store.LoadUserData(s.home)
+}
+
+// confirmVersion 确认或修改某个 app 的版本号，返回该 app 确认后的平台版本。
+//
+// 整段 load-modify-save 都在写锁里。两个并发确认各自加载、各自保存，后写的会
+// 用自己那份旧快照覆盖掉先写的那份——先确认的版本就永久丢了。UI 上「确认更新」
+// 和「手动改版本」是两个入口，很容易连着点。
+func (s *Server) confirmVersion(appID string, versions map[string]string) (map[string]string, error) {
+	s.userMu.Lock()
+	defer s.userMu.Unlock()
+
+	ud, _ := store.LoadUserData(s.home)
+	if ud[appID] == nil {
+		ud[appID] = make(map[string]string)
+	}
+	for k, v := range versions {
+		ud[appID][k] = v
+	}
+	ud[appID]["_confirmed_at"] = strconv.FormatInt(time.Now().UTC().Unix(), 10)
+	if err := store.SaveUserData(s.home, ud); err != nil {
+		return nil, err
+	}
+	return ud[appID], nil
 }
 
 func (s *Server) buildCheckJobs(ctx context.Context, entries []store.TrackerEntry, report func(CheckError)) ([]checkJob, int) {
 	rules := s.getRules()
-	userData, udErr := store.LoadUserData(s.home)
+	userData, udErr := s.loadUserDataErr()
 	if udErr != nil {
 		report(CheckError{Message: fmt.Sprintf("加载用户数据失败: %v", udErr)})
 	}

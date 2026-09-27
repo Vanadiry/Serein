@@ -40,6 +40,13 @@ type Server struct {
 	resultsMu sync.RWMutex
 	results   map[string]map[string]checker.CheckResponse
 
+	// userMu 保护 user/software.json（已确认的版本号）的读—改—写。
+	//
+	// 读和写都要加锁，不只是防「后写覆盖先写」：LoadUserData 读到解析不了的
+	// 文件会把它改名留档，如果这时另一个请求正在往同一路径里写，数据会跟着
+	// 被写进 .corrupt- 文件，正式路径反而空了。
+	userMu sync.RWMutex
+
 	// 下载代理签名密钥；进程级随机，重启即失效
 	proxySecret []byte
 }
