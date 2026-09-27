@@ -1,10 +1,14 @@
 package store
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/vanadiry/serein/core/events"
 )
 
 func TestSaveLoadUserData(t *testing.T) {
@@ -181,6 +185,77 @@ func TestLoadUserDataSkipsBadKeysOnly(t *testing.T) {
 		if strings.HasPrefix(name, "software.json.corrupt-") {
 			t.Errorf("个别键坏掉不该留档: %s", name)
 		}
+	}
+}
+
+// drainEvents 排空订阅时回放的历史事件，只留订阅之后新发的
+func drainEvents(ch chan []byte) {
+	timeout := time.After(100 * time.Millisecond)
+	for {
+		select {
+		case <-ch:
+		case <-timeout:
+			return
+		}
+	}
+}
+
+// 坏文件必须推事件：用户看到的现象是「所有软件都有更新」，不告诉他原因
+// 就会以为全部过期了。走常驻事件，且只推一次。
+func TestLoadUserDataEmitsEvent(t *testing.T) {
+	home := t.TempDir()
+	writeSoftware(t, home, `{"a":`)
+
+	ch := events.Subscribe()
+	defer events.Unsubscribe(ch)
+	drainEvents(ch) // 订阅会回放历史，先排空
+
+	if _, err := LoadUserData(home); err == nil {
+		t.Fatal("应报错")
+	}
+	select {
+	case data := <-ch:
+		var evt events.Event
+		if err := json.Unmarshal(data, &evt); err != nil {
+			t.Fatal(err)
+		}
+		if evt.Level != "error" || !evt.Sticky {
+			t.Errorf("应是常驻 error 事件: %+v", evt)
+		}
+		if !strings.Contains(evt.Message, "留档") {
+			t.Errorf("提示应说明已留档: %s", evt.Message)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("没有收到事件")
+	}
+
+	// 坏文件已移走，第二次读取不该再推
+	if _, err := LoadUserData(home); err != nil {
+		t.Fatalf("第二次读取应干净返回: %v", err)
+	}
+	select {
+	case data := <-ch:
+		t.Errorf("不该重复推送: %s", data)
+	case <-time.After(200 * time.Millisecond):
+	}
+}
+
+// 数据正常时不推事件，否则用户会一直看到「注意」
+func TestLoadUserDataNoEventWhenOK(t *testing.T) {
+	home := t.TempDir()
+	writeSoftware(t, home, `{"a": {"windows": "1.0"}}`)
+
+	ch := events.Subscribe()
+	defer events.Unsubscribe(ch)
+	drainEvents(ch)
+
+	if _, err := LoadUserData(home); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case data := <-ch:
+		t.Errorf("不该有事件: %s", data)
+	case <-time.After(200 * time.Millisecond):
 	}
 }
 

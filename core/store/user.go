@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vanadiry/serein/core/events"
 	"github.com/vanadiry/serein/core/log"
 )
 
@@ -49,9 +50,11 @@ func LoadUserData(home string) (UserData, error) {
 	if err := json.NewDecoder(f).Decode(&top); err != nil && !errors.Is(err, io.EOF) {
 		backup, qerr := quarantineUserData(path)
 		if qerr != nil {
+			reportBroken(fmt.Sprintf("已确认版本数据无法解析，留档也失败了：%v", err))
 			return ud, fmt.Errorf("decode user data: %w；留档失败: %v", err, qerr)
 		}
-		log.LogfError("[user] software.json 解析失败，已留档为 %s，原有已确认版本不再生效", backup)
+		// 原文件已移走，下次读不会再走到这里，所以这条提示天然只报一次
+		reportBroken(fmt.Sprintf("已确认版本数据无法解析，已留档为 %s。\n其中的版本记录不再生效，可手动改回来。", backup))
 		return ud, fmt.Errorf("decode user data: %w（已留档为 %s）", err, backup)
 	}
 
@@ -77,10 +80,23 @@ func LoadUserData(home string) (UserData, error) {
 	}
 	if len(bad) > 0 {
 		sort.Strings(bad)
+		log.LogfWarn("[user] software.json 有 %d 个条目格式不对，已跳过：%s",
+			len(bad), strings.Join(bad, ", "))
 		return ud, fmt.Errorf("software.json 有 %d 个条目格式不对，已跳过：%s",
 			len(bad), strings.Join(bad, ", "))
 	}
 	return ud, nil
+}
+
+// reportBroken 报告已确认版本数据整体不可用。
+//
+// 走事件总线而不是某个接口的响应：这不是任何一次用户操作造成的，是后端自己
+// 的数据文件坏了。走响应的话只有恰好读到它的那个请求能通知到，而且各接口还要
+// 各自携带。用常驻事件是因为这份数据一坏，所有应用会同时显示成「有更新」，
+// 用户不看到就会以为全部软件过期了。
+func reportBroken(msg string) {
+	log.LogfError("[user] %s", msg)
+	events.EmitSticky("error", "[user]", msg)
 }
 
 // quarantineUserData 把解析不了的 software.json 改名留档，返回留档后的文件名

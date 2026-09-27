@@ -104,12 +104,7 @@ func (s *Server) handleCheckConfirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userData, err := store.LoadUserData(s.home)
-	if err != nil {
-		// 不返回 500：LoadUserData 已经把坏文件留档、返回了可用的空数据，
-		// 此时正常写回就能让功能恢复。挡住用户只会让他既不能确认、也删不掉坏文件。
-		log.LogfWarn("[confirm] 已确认版本数据有问题，本次确认基于空数据继续: %v", err)
-	}
+	userData := s.loadUserData()
 	if userData[appID] == nil {
 		userData[appID] = make(map[string]string)
 	}
@@ -257,13 +252,11 @@ type checkJob struct {
 
 // loadUserData 读「已确认安装到哪个版本」。
 //
-// 出错只记日志不中断：software.json 坏了不该让检查、搜索、列表整个打不开，
-// 用户还能把留档文件手工改回来。LoadUserData 出错时也会返回可用的空数据。
+// 出错不中断：software.json 坏了不该让检查、搜索、列表整个打不开，用户还能把
+// 留档文件手工改回来。LoadUserData 出错时也会返回可用的空数据，并且已经把问题
+// 通过事件总线推给前端了，这里不用再报一遍。
 func (s *Server) loadUserData() store.UserData {
-	ud, err := store.LoadUserData(s.home)
-	if err != nil {
-		log.LogfWarn("[user] 已确认版本数据有问题，版本显示可能不准: %v", err)
-	}
+	ud, _ := store.LoadUserData(s.home)
 	return ud
 }
 
