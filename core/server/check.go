@@ -340,6 +340,14 @@ func directCheckResponse(ctx context.Context, checkFn func(context.Context, stri
 	if err != nil {
 		return checker.CheckResponse{}, err
 	}
+	// 与其它取值路径同一标准：尝试过却取不到就报错。
+	// openvsx 的 files.download 缺失时 URL 会是空串，此前一路静默。
+	if strings.TrimSpace(pr.LatestVersion) == "" {
+		return checker.CheckResponse{}, fmt.Errorf("%s: 未取到版本号", typ)
+	}
+	if checker.URLEmpty(pr.URL) {
+		return checker.CheckResponse{}, fmt.Errorf("%s: 未取到下载链接", typ)
+	}
 	currentVer := ""
 	if ud, ok := userData[appID]; ok {
 		currentVer = ud[typ]

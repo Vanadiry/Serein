@@ -59,33 +59,69 @@ func CheckGitHub(ctx context.Context, cfg GitHubConfig, client *http.Client) (Pl
 		return PlatformResult{}, fmt.Errorf("github: unexpected response format")
 	}
 
+	return pickLatestRelease(root, arr, cfg, perPage)
+}
+
+// pickLatestRelease 从已解析的 releases 数组里选出目标 release 并取出版本号与下载链接。
+// 与 HTTP 无关，便于单测（githubAPI 是硬编码常量，没法指向测试服务）。
+//
+// warn 收集到 PlatformResult.Warnings，由 server 归入本次检查的错误列表；不走事件总线
+// ——那是程序运行期的问题通道，不该混进某一次 task 的产出。必须是局部状态：本函数会被并发调用。
+func pickLatestRelease(root any, arr []any, cfg GitHubConfig, perPage int) (PlatformResult, error) {
+	var warns []string
+	collect := func(msg string) {
+		for _, w := range warns {
+			if w == msg {
+				return
+			}
+		}
+		warns = append(warns, msg)
+	}
+
 	var latest PlatformResult
 	var latestFound bool
-	// warn 收集到本次调用的 PlatformResult.Warnings，由 server 归入本次检查的错误列表。
-	// 不走事件总线——那是程序运行期的问题通道，不该混进某一次 task 的产出。
-	// 必须是局部状态：CheckGitHub 会被并发调用。
-	warn := latest.Warn
-
 	for i := range arr {
 		tag, err := extractGitHubVersion(root, i)
 		if err != nil {
 			continue
 		}
-		if !cfg.AllowPrerelease && isGitHubPrerelease(root, i, warn) {
+		if !cfg.AllowPrerelease && isGitHubPrerelease(root, i, collect) {
 			continue
 		}
-		latest = PlatformResult{
-			LatestVersion: tag,
-			URL:           extractGitHubAssets(root, i, cfg.DPosition, warn),
-		}
+		latest = PlatformResult{}
+		latest.LatestVersion = tag
+		latest.URL = extractGitHubAssets(root, i, cfg.DPosition, collect)
 		latestFound = true
 		break
 	}
 
-	if !latestFound && len(arr) > 0 && !cfg.AllowPrerelease {
-		warn(fmt.Sprintf("未在前 %d 个 release 中找到非预发布版本，可增大 per_page", perPage))
+	if !latestFound {
+		// 版本号与下载链接同时取不到，根因只有一个（没有可用的 release），
+		// 所以合并成一条错误，而不是拆成「未取到版本」+「未取到链接」两条。
+		reason := "仓库没有任何 release"
+		if len(arr) > 0 {
+			if cfg.AllowPrerelease {
+				reason = fmt.Sprintf("前 %d 个 release 都取不到 tag_name", perPage)
+			} else {
+				reason = fmt.Sprintf("前 %d 个 release 全是预发布版，可增大 per_page", perPage)
+			}
+		}
+		latest.Warnings = warns
+		return latest, fmt.Errorf("未找到可用的 release：%s", reason)
 	}
 
+	// 取到版本号但没有下载链接：同样算失败。否则 UI 会显示「有更新」，
+	// 用户点确认后版本落盘，软件却永远装不上，且没有任何提示。
+	if urlEmpty(latest.URL) {
+		why := "d_position 的正则没有匹配到任何 asset"
+		if cfg.DPosition == nil {
+			why = "规则缺少 d_position"
+		}
+		latest.Warnings = warns
+		return latest, fmt.Errorf("已取到版本号 %s，但没有下载链接：%s", latest.LatestVersion, why)
+	}
+
+	latest.Warnings = warns
 	return latest, nil
 }
 

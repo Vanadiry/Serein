@@ -1,7 +1,9 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
+	"net/http"
 	"strings"
 	"sync"
 	"testing"
@@ -129,5 +131,29 @@ func TestCheckErrsLimitAndEmpty(t *testing.T) {
 		if e.Message == "" {
 			t.Error("空消息不应进入列表")
 		}
+	}
+}
+
+// msvsix / openvsix 走 directCheckResponse，同样要判定「取到了没有」
+func TestDirectCheckResponseRejectsEmpty(t *testing.T) {
+	ok := func(ctx context.Context, appID string, c *http.Client) (checker.PlatformResult, error) {
+		return checker.PlatformResult{LatestVersion: "1.0", URL: "https://x/1.0.vsix"}, nil
+	}
+	noVer := func(ctx context.Context, appID string, c *http.Client) (checker.PlatformResult, error) {
+		return checker.PlatformResult{URL: "https://x/1.0.vsix"}, nil
+	}
+	noURL := func(ctx context.Context, appID string, c *http.Client) (checker.PlatformResult, error) {
+		return checker.PlatformResult{LatestVersion: "1.0"}, nil
+	}
+	ctx := context.Background()
+	c := &http.Client{}
+	if _, err := directCheckResponse(ctx, ok, c, "a.b", "msvsix", nil); err != nil {
+		t.Errorf("正常情况不该报错: %v", err)
+	}
+	if _, err := directCheckResponse(ctx, noVer, c, "a.b", "msvsix", nil); err == nil {
+		t.Error("未取到版本号应报错")
+	}
+	if _, err := directCheckResponse(ctx, noURL, c, "a.b", "openvsx", nil); err == nil {
+		t.Error("未取到下载链接应报错")
 	}
 }

@@ -16,7 +16,54 @@ import (
 type PlatformResult struct {
 	LatestVersion string
 	URL           any      // string 或 []string（GitHub 多 asset）
-	Warnings      []string // 非致命的异常（取不到正式版、asset 解析失败等）
+	Warnings      []string // 非致命的异常（不影响结果可用性）
+}
+
+// 「配了却取不到」必须报错。判定依据是「本次是否尝试提取该字段」——
+// 规则没要求某个字段（position 为 nil）不算失败；要求了却拿到空值才算。
+//
+// direct 模式没有「提取」这回事：值就是配置里的字面量，所以它恒算尝试过，
+// 为空即配置缺失。隐式取值的 github 不走这里，由 runGitHubCheck 负责。
+func vAttempted(vType string, vPos any) bool {
+	if vType == "direct" {
+		return true
+	}
+	return vPos != nil
+}
+
+func dAttempted(dType string, dPos any) bool {
+	if dType == "direct" {
+		return true
+	}
+	return dPos != nil
+}
+
+// URLEmpty 判断下载链接是否为空。URL 可能是 string / []string / []any / nil。
+// 导出供 server 侧（directCheckResponse）对 msvsix / openvsix 用同一套判定。
+func URLEmpty(u any) bool { return urlEmpty(u) }
+
+func urlEmpty(u any) bool {
+	switch v := u.(type) {
+	case nil:
+		return true
+	case string:
+		return strings.TrimSpace(v) == ""
+	case []string:
+		for _, s := range v {
+			if strings.TrimSpace(s) != "" {
+				return false
+			}
+		}
+		return true
+	case []any:
+		for _, x := range v {
+			if s, ok := x.(string); ok && strings.TrimSpace(s) != "" {
+				return false
+			}
+		}
+		return true
+	}
+	return false
 }
 
 // Warn 记录一条非致命异常，重复的只留一条
@@ -134,7 +181,24 @@ func RunPlatformCheck(ctx context.Context, cfg PlatformCheckConfig, client *http
 		vr.URL = httpx.JoinURL(cfg.BaseURL, toString(dl))
 	}
 
+	// 尝试过却取不到 → 报错。宁可整个平台判为失败，也不要给出「有更新」却装不上：
+	// 前者列表里不显示版本号、没有下载按钮；后者用户会以为有更新并去确认。
+	if err := checkCompleteness(vr, vType, cfg.VPosition, dType, cfg.DPosition); err != nil {
+		return vr, err
+	}
 	return vr, nil
+}
+
+// checkCompleteness 判定「尝试过却取不到」的字段。规则没要求某个字段
+// （position 为 nil）不算失败——那种情况是配置只关心另一半。
+func checkCompleteness(vr PlatformResult, vType string, vPos any, dType string, dPos any) error {
+	if vAttempted(vType, vPos) && strings.TrimSpace(vr.LatestVersion) == "" {
+		return fmt.Errorf("未取到版本号：%s 没能取到内容", vType)
+	}
+	if dAttempted(dType, dPos) && urlEmpty(vr.URL) {
+		return fmt.Errorf("未取到下载链接：%s 没能取到内容", dType)
+	}
+	return nil
 }
 
 // resolveDirectURL 直通模式：d_url 含 {version} 时替换；版本号为空则报错。
