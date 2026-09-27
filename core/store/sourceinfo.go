@@ -115,9 +115,10 @@ func (s SourceInfo) MarshalJSON() ([]byte, error) {
 	return json.Marshal(out)
 }
 
-// validateSourceFiles 就地剔除结构不合法的 files 条目并返回问题列表。
-// 剔除而非报错：上游一个笔误不该挡住整个源，其余条目仍应正常同步。
-func validateSourceFiles(s *SourceInfo) []RuleIssue {
+// validateSourceFiles 就地剔除结构不合法的 files 条目，返回问题列表与「是否整体拒绝」。
+// 单条结构问题只剔除不报错：上游一个笔误不该挡住整个源，其余条目仍应正常同步。
+// 但条目数超限会整体拒绝——此时剔除一部分会让规则集变得不完整，比整体失败更难排查。
+func validateSourceFiles(s *SourceInfo) ([]RuleIssue, bool) {
 	var issues []RuleIssue
 	if s.IsList() {
 		kept := s.SubSources[:0]
@@ -131,7 +132,7 @@ func validateSourceFiles(s *SourceInfo) []RuleIssue {
 			kept = append(kept, f)
 		}
 		s.SubSources = kept
-		return issues
+		return issues, false
 	}
 
 	kept := make(map[string]string, len(s.Files))
@@ -149,8 +150,17 @@ func validateSourceFiles(s *SourceInfo) []RuleIssue {
 		kept[name] = token
 	}
 	s.Files = kept
-	return issues
+	if len(s.Files) > maxFilesPerSource {
+		// 不是 warn 而是直接拒绝：条目数本身就是攻击面（每个条目一次请求 + 一份内存），
+		// 而剔除一部分会让本源的规则集变得不完整，比整体失败更难排查。
+		return append(issues, RuleIssue{Level: "error", Message: fmt.Sprintf(
+			"%s: 声明了 %d 个规则文件，超过上限 %d，已拒绝该源",
+			s.label(), len(s.Files), maxFilesPerSource)}), true
+	}
+	return issues, false
 }
+
+// validateSourceFiles 的第二返回值报告该源是否被整体拒绝
 
 func (s *SourceInfo) label() string {
 	if s.ID != "" {

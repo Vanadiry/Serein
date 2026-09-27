@@ -19,7 +19,19 @@ import (
 	"github.com/vanadiry/serein/core/progress"
 )
 
+// 单次抓取的体积上限（每个文件各自计算）
 const maxFetchBytes = 8 << 20 // 8MB
+
+// 规则同步的总量闸门。manifest 里的文件数与体积都由远程决定，不设上限时
+// 一份声明 20 万条目的 _source.json 就能让进程 OOM（#35）。
+// 峰值内存 ≈ 一个顶层源内所有「本轮有变更」的源之和，所以预算按源计。
+// 声明为 var 而非 const，便于测试覆盖。
+var (
+	// 单个源允许声明的文件数上限
+	maxFilesPerSource = 20000
+	// 单个源本轮允许下载的字节上限
+	maxSourceBytes int64 = 64 << 20
+)
 
 // 提交阶段等待跨进程锁的参数：重试间隔与最长等待。
 // 取得锁后临界区只有毫秒级的 rename，超时给得宽是为了容忍另一个实例正在跑完整同步。
@@ -74,9 +86,17 @@ func fetchSourceInfo(ctx context.Context, url string) (*SourceInfo, []byte, erro
 	if !regexp.MustCompile(`^[a-zA-Z0-9_-]+$`).MatchString(s.ID) {
 		return nil, nil, fmt.Errorf("source_id %q 包含非法字符，仅允许大小写字母、数字、下划线和连字符", s.ID)
 	}
-	for _, is := range validateSourceFiles(&s) {
-		events.Emit("warn", "[sync]", is.Message)
+	issues, rejected := validateSourceFiles(&s)
+	for _, is := range issues {
+		level := "warn"
+		if is.Level == "error" {
+			level = "error"
+		}
+		events.Emit(level, "[sync]", is.Message)
 		log.LogfWarn("[sync] %s", is.Message)
+	}
+	if rejected {
+		return nil, nil, fmt.Errorf("源被拒绝：%s", issues[len(issues)-1].Message)
 	}
 	return &s, body, nil
 }
@@ -228,7 +248,11 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 		root, fails := walkSource(ctx, info, raw, src.URL, info.ID, concurrency, claimed, p)
 		st.failures = append(st.failures, fails...)
 		leaves := flattenLeaves(root)
-		st.total += len(leaves)
+		// 抓取失败的子源既不在 leaves 里也不计入 failed 的话，
+		// sources_total 与 sources_failed 都是 0，前端会把 hasError 判成 false
+		// 而用绿色「同步完成」渲染——被拒绝的源看起来像成功了。
+		st.total += len(leaves) + len(fails)
+		st.failed += len(fails)
 		if len(leaves) == 0 {
 			continue
 		}
@@ -541,6 +565,10 @@ func downloadLeaves(ctx context.Context, rulesDir string, leaves []leafSrc, conc
 	fileErrors := 0
 	var failures []syncFailure
 	var mu sync.Mutex
+	// 每源已下载字节数：超预算即放弃该源（不变量 D）。manifest 只给 token不给体积，
+	// 体积只能边下边量。放弃后派发端不再为它排队，避免继续消耗带宽。
+	downloaded := make([]int64, len(leaves))
+	overBudget := make([]bool, len(leaves))
 
 	queue := make(chan downloadTask, workers*2)
 	var wg sync.WaitGroup
@@ -553,13 +581,27 @@ func downloadLeaves(ctx context.Context, rulesDir string, leaves []leafSrc, conc
 				mu.Lock()
 				pg.done++
 				name := task.rel
-				if err != nil {
+				switch {
+				case err != nil:
 					leafFailed[task.leaf] = true
 					fileErrors++
 					failures = append(failures, syncFailure{Source: task.id, File: task.rel, Error: err.Error()})
 					name += " (失败)"
-				} else {
-					contents[task.leaf][task.rel] = body
+				case overBudget[task.leaf]:
+					// 已在别处判定超预算，这里不再保留内容
+				default:
+					downloaded[task.leaf] += int64(len(body))
+					if downloaded[task.leaf] > maxSourceBytes {
+						overBudget[task.leaf] = true
+						leafFailed[task.leaf] = true
+						fileErrors++
+						msg := fmt.Sprintf("本轮下载体积超过上限 %d 字节，已放弃该源（保留本地现有规则）", maxSourceBytes)
+						failures = append(failures, syncFailure{Source: task.id, Error: msg})
+						events.Emit("warn", "[sync]", msg)
+						log.LogfWarn("[sync] %s: %s", task.id, msg)
+					} else {
+						contents[task.leaf][task.rel] = body
+					}
 				}
 				p.Send("file", name, pg.done, pg.total)
 				mu.Unlock()
@@ -579,6 +621,12 @@ func downloadLeaves(ctx context.Context, rulesDir string, leaves []leafSrc, conc
 				fileErrors++
 				failures = append(failures, syncFailure{Source: l.id, File: f, Error: "非法文件路径"})
 				continue
+			}
+			mu.Lock()
+			skip := overBudget[i]
+			mu.Unlock()
+			if skip {
+				continue // 该源已超预算，不再为它排队
 			}
 			select {
 			case <-ctx.Done():

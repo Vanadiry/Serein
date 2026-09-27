@@ -46,7 +46,10 @@ func TestValidateSourceFilesList(t *testing.T) {
 	if err := json.Unmarshal([]byte(raw), &s); err != nil {
 		t.Fatal(err)
 	}
-	issues := validateSourceFiles(&s)
+	issues, rejected := validateSourceFiles(&s)
+	if rejected {
+		t.Fatal("结构问题不应导致整体拒绝")
+	}
 	if len(s.SubSources) != 2 || s.SubSources[0] != "ok/_source.json" || s.SubSources[1] != "also-ok/_source.json" {
 		t.Errorf("应只保留合法条目，实际 %v", s.SubSources)
 	}
@@ -73,7 +76,10 @@ func TestValidateSourceFilesRules(t *testing.T) {
 	if err := json.Unmarshal([]byte(raw), &s); err != nil {
 		t.Fatal(err)
 	}
-	issues := validateSourceFiles(&s)
+	issues, rejected := validateSourceFiles(&s)
+	if rejected {
+		t.Fatal("结构问题不应导致整体拒绝")
+	}
 	if len(s.Files) != 1 || s.Files["ok.toml"] != "1" {
 		t.Errorf("应只保留 ok.toml，实际 %v", s.Files)
 	}

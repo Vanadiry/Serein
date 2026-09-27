@@ -541,3 +541,101 @@ func TestPruneSkippedWhenWalkFailed(t *testing.T) {
 		t.Errorf("门禁 1 未生效，flaky 被当成孤儿删除: %v", err)
 	}
 }
+
+// 不变量 D：manifest 声明的文件数超上限 → 整个源被拒绝，不得逐条同步
+func TestValidateRejectsTooManyFiles(t *testing.T) {
+	old := maxFilesPerSource
+	maxFilesPerSource = 5
+	t.Cleanup(func() { maxFilesPerSource = old })
+
+	files := make(map[string]string, 8)
+	for i := 0; i < 8; i++ {
+		files["f"+strconv.Itoa(i)+".toml"] = "1"
+	}
+	s := SourceInfo{ID: "big", Files: files}
+	issues, rejected := validateSourceFiles(&s)
+	if !rejected {
+		t.Fatal("超过上限应整体拒绝")
+	}
+	if len(issues) == 0 || issues[len(issues)-1].Level != "error" {
+		t.Errorf("应报 error 级问题: %+v", issues)
+	}
+	// 端到端：被拒绝的源不应落盘任何内容
+	home := t.TempDir()
+	up := filepath.Join(home, "up")
+	seedUpstream(t, up,
+		SourceInfo{ID: "T", Type: "list", SubSources: []string{"big/_source.json"}},
+		map[string]SourceInfo{"big": {ID: "big", Files: files}},
+	)
+	for name := range files {
+		writeFixture(t, filepath.Join(up, "big", name), "X")
+	}
+	p := progress.NewProgress(0)
+	SyncAllSourcesAsync(home, []RuleSource{{URL: filepath.Join(up, sourceFileName)}}, 2, p, nil)
+	d := &doneEvent{}
+	collectDone(p, d)
+	if d.updated != 0 || d.failed == 0 {
+		t.Errorf("被拒绝的源不应更新，应报失败: %+v", d)
+	}
+	if _, err := os.Stat(filepath.Join(home, "rules", "T", "big")); !os.IsNotExist(err) {
+		t.Error("被拒绝的源仍被落盘")
+	}
+}
+
+// 不变量 D：本轮下载体积超上限 → 放弃该源并保留本地现有规则
+func TestDownloadBudgetAbandonsSource(t *testing.T) {
+	home := t.TempDir()
+	up := filepath.Join(home, "up")
+	need := make(map[string]string, 6)
+	for i := 0; i < 6; i++ {
+		name := "f" + strconv.Itoa(i) + ".toml"
+		writeFixture(t, filepath.Join(up, "a", name), strings.Repeat("X", 40))
+		need[name] = "1"
+	}
+	seedUpstream(t, up,
+		SourceInfo{ID: "T", Type: "list", SubSources: []string{"a/_source.json"}},
+		map[string]SourceInfo{"a": {ID: "a", Files: need}},
+	)
+	rulesDir := filepath.Join(home, "rules")
+	// 先建立本地基线：正常同步一次
+	p1 := progress.NewProgress(0)
+	SyncAllSourcesAsync(home, []RuleSource{{URL: filepath.Join(up, sourceFileName)}}, 1, p1, nil)
+	collectDone(p1, &doneEvent{})
+	if _, err := os.Stat(filepath.Join(rulesDir, "T", "a", "f0.toml")); err != nil {
+		t.Fatalf("首次同步未落盘: %v", err)
+	}
+
+	// 全部 token 变新 → 本轮需重下；此时才调低预算，触发超限
+	old := maxSourceBytes
+	maxSourceBytes = 64 // 每个测试文件 40 字节，第 3 个就超
+	t.Cleanup(func() { maxSourceBytes = old })
+	for name := range need {
+		need[name] = "2"
+		writeFixture(t, filepath.Join(up, "a", name), strings.Repeat("Y", 40))
+	}
+	writeJSON(t, filepath.Join(up, "a", sourceFileName), SourceInfo{ID: "a", Files: need})
+	p2 := progress.NewProgress(0)
+	SyncAllSourcesAsync(home, []RuleSource{{URL: filepath.Join(up, sourceFileName)}}, 1, p2, nil)
+	d := &doneEvent{}
+	collectDone(p2, d)
+
+	if d.updated != 0 || d.failed == 0 {
+		t.Errorf("超预算的源不应更新，应报失败: %+v", d)
+	}
+	found := false
+	for _, f := range d.failures {
+		if strings.Contains(f.Error, "超过上限") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("失败原因应说明超限: %+v", d.failures)
+	}
+	// 放弃该源 → marker 不推进，本地内容原样保留
+	if got := loadLocalFileTokens(filepath.Join(rulesDir, "T", "a")); got["f0.toml"] != "1" {
+		t.Errorf("marker 被推进: %v", got)
+	}
+	if got := mustRead(t, filepath.Join(rulesDir, "T", "a", "f0.toml")); got[:1] != "X" {
+		t.Errorf("本地内容被改写: %q", got)
+	}
+}
