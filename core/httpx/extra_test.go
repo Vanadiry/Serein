@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"context"
+	"crypto/tls"
 	"io"
 	"net"
 	"net/http"
@@ -51,6 +52,58 @@ func TestClientTimeouts(t *testing.T) {
 	}
 	if got := StreamClient().Timeout; got != 0 {
 		t.Fatalf("StreamClient timeout = %v", got)
+	}
+}
+
+func TestTransportDefaults(t *testing.T) {
+	tr := newTransport()
+	// 同时设置 DialContext / TLSClientConfig 时若不显式开启，Go 会保守禁用 HTTP/2，
+	// 出站请求无法多路复用，并发信号量空转
+	if !tr.ForceAttemptHTTP2 {
+		t.Error("ForceAttemptHTTP2 应为 true，否则 HTTP/2 被静默禁用")
+	}
+	if tr.DialContext == nil {
+		t.Error("DialContext 不应为空（SSRF 拨号守卫）")
+	}
+	if tr.TLSClientConfig == nil || tr.TLSClientConfig.InsecureSkipVerify {
+		t.Error("不应跳过 TLS 校验")
+	}
+	if tr.TLSClientConfig.MinVersion < tls.VersionTLS12 {
+		t.Errorf("MinVersion = %x, 期望 >= TLS1.2", tr.TLSClientConfig.MinVersion)
+	}
+	if tr.TLSHandshakeTimeout <= 0 {
+		t.Error("TLSHandshakeTimeout 为 0 即无上限")
+	}
+	if tr.IdleConnTimeout <= 0 {
+		t.Error("IdleConnTimeout 为 0 即空闲连接永不回收")
+	}
+	if tr.ResponseHeaderTimeout != 30*time.Second {
+		t.Errorf("ResponseHeaderTimeout = %v", tr.ResponseHeaderTimeout)
+	}
+	if tr.MaxIdleConnsPerHost < 8 {
+		t.Errorf("MaxIdleConnsPerHost = %d，高并发下连接会反复重建", tr.MaxIdleConnsPerHost)
+	}
+}
+
+// 未配置代理时不得沿用环境变量：http.DefaultTransport 带 ProxyFromEnvironment，
+// 直接克隆会让 HTTP_PROXY / HTTPS_PROXY 静默改变出站走向
+func TestTransportProxyNotFromEnv(t *testing.T) {
+	old := proxyURL
+	t.Cleanup(func() { proxyURL = old })
+
+	proxyURL = nil
+	if tr := newTransport(); tr.Proxy != nil {
+		t.Error("未配置代理时 Proxy 应为 nil")
+	}
+	u, _ := url.Parse("http://127.0.0.1:7890")
+	proxyURL = u
+	tr := newTransport()
+	if tr.Proxy == nil {
+		t.Fatal("已配置代理时 Proxy 不应为空")
+	}
+	got, err := tr.Proxy(&http.Request{URL: &url.URL{Scheme: "https", Host: "example.com"}})
+	if err != nil || got == nil || got.Host != "127.0.0.1:7890" {
+		t.Errorf("代理未生效: %v %v", got, err)
 	}
 }
 
