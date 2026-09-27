@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/vanadiry/serein/core/events"
 	"github.com/vanadiry/serein/core/httpx"
 	"github.com/vanadiry/serein/core/log"
 )
@@ -113,6 +114,37 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
+	if !writeUpstream(w, resp, name, rawURL) {
+		return
+	}
+	if _, err := io.Copy(w, resp.Body); err != nil && r.Context().Err() == nil {
+		log.LogfWarn("[file] copy %s: %v", rawURL, err)
+	}
+}
+
+// writeUpstream 写上游响应的状态与响应头，成功返回 true 由调用方继续转发响应体。
+// 返回 false 表示已自行应答，调用方不要再写任何东西。
+func writeUpstream(w http.ResponseWriter, resp *http.Response, name, rawURL string) bool {
+	// 上游 4xx/5xx 的响应体是错误页面（HTML 错误页、JSON 报错），不是 VSIX。
+	// 原样透传的话浏览器会照着 Content-Disposition 把它存下来，用户得到一个
+	// 几百字节的损坏 .vsix，装的时候才报错，还以为是扩展本身有问题。
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		// 读掉一点再丢弃，让连接能进复用池，不必每次都重新握手
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
+		log.LogfWarn("[file] 上游返回 %d: %s", resp.StatusCode, rawURL)
+		writeError(w, proxyErrorStatus(resp.StatusCode),
+			fmt.Sprintf("上游返回 %d，文件没有下载到", resp.StatusCode))
+		// 拿这个 URL 的要么是浏览器标签页、要么是下载器（浏览器扩展拦截），
+		// 两者都不经过前端的 api()，所以 Serein 窗口只能靠事件总线知道出事了。
+		// 少了这条，用户点了下载之后界面毫无反应，得自己切到浏览器看报错。
+		label := sanitizeFilename(name)
+		if label == "" {
+			label = rawURL
+		}
+		events.Emit("error", "[下载]", fmt.Sprintf("%s 下载失败：上游返回 %d", label, resp.StatusCode))
+		return false
+	}
+
 	// 响应头白名单（不整包透传，避免 Set-Cookie / CSP / hop-by-hop 等）
 	for _, h := range []string{"Content-Type", "Content-Length", "Content-Range", "Accept-Ranges", "Last-Modified", "ETag"} {
 		if v := resp.Header.Get(h); v != "" {
@@ -128,11 +160,18 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": name}))
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-
 	w.WriteHeader(resp.StatusCode)
-	if _, err := io.Copy(w, resp.Body); err != nil && r.Context().Err() == nil {
-		log.LogfWarn("[file] copy %s: %v", rawURL, err)
+	return true
+}
+
+// proxyErrorStatus 上游失败时该回给客户端的状态码。
+// 4xx 是上游明确拒绝（版本已下架、403 等），原样透传才看得出原因；
+// 5xx 是上游自己坏了，那是我们这道网关没办成，回 502。
+func proxyErrorStatus(upstream int) int {
+	if upstream >= 400 && upstream < 500 {
+		return upstream
 	}
+	return http.StatusBadGateway
 }
 
 // sanitizeFilename 清洗落盘文件名：去控制字符 / 路径分隔 / Windows 非法字符，限长
