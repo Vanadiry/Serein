@@ -53,3 +53,22 @@ url = "https://x"
 		t.Errorf("A.toml 不应有问题:\n%s", joined)
 	}
 }
+
+// rule_source_dev 只支持本地路径：远端地址会因子源 URL 拼接方式而静默失效，
+// 与其事后看到难懂的报错，不如直接拒绝
+func TestValidateDevSourceRejectsRemote(t *testing.T) {
+	for _, p := range []string{
+		"http://example.com/_source.json",
+		"https://example.com/_source.json",
+		"HTTP://EXAMPLE.COM/_source.json",
+	} {
+		_, err := ValidateDevSource(p, nil)
+		if err == nil {
+			t.Errorf("%s 应被拒绝", p)
+			continue
+		}
+		if !strings.Contains(err.Error(), "只支持本地路径") {
+			t.Errorf("%s 错误信息应说明只支持本地路径: %v", p, err)
+		}
+	}
+}
