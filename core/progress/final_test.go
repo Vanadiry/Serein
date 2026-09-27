@@ -104,3 +104,50 @@ func TestSendAfterCloseIsNoop(t *testing.T) {
 		}
 	}
 }
+
+// 只有「已结束且缓冲区读空」才需要补发结束事件。
+// 否则缓冲区里还有事件时会与正常读取路径重复送出同一帧。
+func TestDrainedOnlyWhenClosedAndEmpty(t *testing.T) {
+	p := NewProgress(0)
+	if p.Drained() {
+		t.Error("任务进行中不该判为 drained")
+	}
+	p.Send("app", "a", 1, 1)
+	if p.Drained() {
+		t.Error("缓冲区还有事件时不该判为 drained")
+	}
+	p.Close()
+	if p.Drained() {
+		t.Error("缓冲区仍有未读事件（含 done）时不该判为 drained")
+	}
+	// 读空缓冲区
+	for range p.Channel {
+	}
+	if !p.Drained() {
+		t.Error("已结束且读空后应判为 drained")
+	}
+	if p.Replay() == "" {
+		t.Error("drained 后必须有可补发的结束事件")
+	}
+}
+
+// Close 时缓冲区满导致 done 被丢弃，Drained 仍应为 true（靠 Replay 兜住）
+func TestDrainedRecoversDroppedDone(t *testing.T) {
+	p := NewProgress(0)
+	for i := 0; i < 100; i++ { // 超过 cap 64，撑满缓冲区
+		p.Send("app", "f", i, 100)
+	}
+	p.Close()
+	for range p.Channel {
+	}
+	if !p.Drained() {
+		t.Fatal("应判为 drained")
+	}
+	var m map[string]any
+	if err := json.Unmarshal([]byte(p.Replay()), &m); err != nil {
+		t.Fatal(err)
+	}
+	if m["step"] != "done" {
+		t.Errorf("补发的应是 done，实际 %v", m["step"])
+	}
+}
