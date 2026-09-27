@@ -930,9 +930,9 @@
                             }
                             errs.push(
                                 '<span class="text-warn">' +
-                                    r.name +
+                                    escapeHtml(r.name) +
                                     " " +
-                                    os +
+                                    escapeHtml(os) +
                                     "</span>: " +
                                     msg
                             );

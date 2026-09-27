@@ -395,7 +395,11 @@ function platformIcon(os, cls) {
     const sz = cls || "w-5 h-5";
     if (name)
         return `<span class="icon-bg inline-flex">${iconImgRaw(name, label, sz)}</span>`;
-    return `<span class="icon-bg inline-flex"><span class="${sz} text-xs text-sub font-semibold inline-flex items-center justify-center">${os.slice(0, 2).toUpperCase()}</span></span>`;
+    // os 来自规则文件的 platforms / [config.<os>]，没有字符集约束，
+    // 必须转义后再拼进 HTML（文本上下文）
+    return `<span class="icon-bg inline-flex"><span class="${sz} text-xs text-sub font-semibold inline-flex items-center justify-center">${escapeHtml(
+        os.slice(0, 2).toUpperCase()
+    )}</span></span>`;
 }
 
 function iconImg(file, alt, cls) {
@@ -406,8 +410,12 @@ function iconYes(alt, cls) {
     return `<span class="icon-bg-green cursor-pointer hover:opacity-80 transition-opacity">${iconImgRaw("yes", alt, cls || "w-5 h-5")}</span>`;
 }
 
+// iconImgRaw alt 走属性上下文：alt 可能是未转义的规则数据（如 platformLabel
+// 对未知平台直接返回 os 本身），一个双引号就能 breakout 属性
 function iconImgRaw(file, alt, sz) {
-    return `<img src="/assets/${file}.svg" class="${sz} inline-block" alt="${alt}" draggable="false">`;
+    return `<img src="/assets/${file}.svg" class="${sz} inline-block" alt="${escapeAttr(
+        alt
+    )}" draggable="false">`;
 }
 
 // 通知组件
