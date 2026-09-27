@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/vanadiry/serein/core/events"
 	"github.com/vanadiry/serein/core/httpx"
@@ -22,6 +23,13 @@ const maxFetchBytes = 8 << 20 // 8MB
 
 // stagingDirName 规则提交的暂存根目录名（home 下的隐藏目录，rules/ 的同级）
 const stagingDirName = ".sync-staging"
+
+// 提交阶段等待跨进程锁的参数：重试间隔与最长等待。
+// 取得锁后临界区只有毫秒级的 rename，超时给得宽是为了容忍另一个实例正在跑完整同步。
+const (
+	commitLockRetry   = 100 * time.Millisecond
+	commitLockTimeout = 30 * time.Second
+)
 
 // SourceInfo 规则源的元信息（完整 _source.json 内容）
 type SourceInfo struct {
@@ -243,10 +251,20 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 		}
 		// 取消时不提交
 		if ctx.Err() == nil {
-			updated, commitFailures := commitLeaves(rulesDir, stagingRoot, leaves, contents, leafFailed)
-			sourcesUpdated = updated
-			failures = append(failures, commitFailures...)
-			sourcesFailed += len(commitFailures)
+			// 临界区：整个 rules/ 树的写入与清理。跨进程互斥——两个实例并发写同一棵
+			// 树会交错出「文件已删而 marker 声称最新」的永久缺失（见 lock.go）。
+			// 拿不到锁就整体放弃本次提交，不做任何修改。
+			lock, err := AcquireFileLock(ctx, home, commitLockTimeout, commitLockRetry)
+			if err != nil {
+				sourcesFailed += len(leaves)
+				failures = append(failures, syncFailure{Source: "文件锁", Error: err.Error()})
+			} else {
+				updated, commitFailures := commitLeaves(rulesDir, stagingRoot, leaves, contents, leafFailed)
+				sourcesUpdated = updated
+				failures = append(failures, commitFailures...)
+				sourcesFailed += len(commitFailures)
+				_ = lock.Release()
+			}
 		}
 	}
 
