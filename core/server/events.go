@@ -9,5 +9,5 @@ import (
 func handleEvents(w http.ResponseWriter, r *http.Request) {
 	ch := events.Subscribe()
 	defer events.Unsubscribe(ch)
-	serveSSE(w, r, ch)
+	serveSSE(w, r, ch, "")
 }

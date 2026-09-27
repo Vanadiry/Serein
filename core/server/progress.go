@@ -30,5 +30,6 @@ func handleProgressSSE(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "task not found"})
 		return
 	}
-	serveSSE(w, r, p.Channel)
+	// 任务若已结束，缓冲区已读空，补发最后一条事件，避免客户端永远等不到 done
+	serveSSE(w, r, p.Channel, p.Replay())
 }

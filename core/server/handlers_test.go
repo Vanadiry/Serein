@@ -383,7 +383,7 @@ func TestServeSSE(t *testing.T) {
 	ch <- "hello"
 	close(ch)
 	rec := httptest.NewRecorder()
-	serveSSE(rec, httptest.NewRequest("GET", "/x", nil), ch)
+	serveSSE(rec, httptest.NewRequest("GET", "/x", nil), ch, "")
 	if got := rec.Header().Get("Content-Type"); got != "text/event-stream" {
 		t.Fatalf("Content-Type = %q", got)
 	}

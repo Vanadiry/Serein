@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"sync"
+	"sync/atomic"
+	"time"
 )
 
 // Progress 一次操作的进度状态
@@ -21,8 +23,16 @@ type Progress struct {
 	mu        sync.Mutex
 	closed    bool
 	cancelled bool
+	finished  bool           // 结束事件已产出，可补发
 	final     map[string]any // 预设的结束事件载荷
+	last      atomic.Value   // string：最后一条事件帧
 }
+
+// progressRetain 任务结束后保留条目的时长。
+// 客户端可能在任务结束后才连上 SSE（连得晚、或 EventSource 重连），那时
+// 缓冲区已读空，只能靠快照补发；立即删除会让那种订阅直接 404，
+// 任务在界面上就永远停着。声明为 var 以便测试覆盖。
+var progressRetain = 60 * time.Second
 
 var (
 	progressMap = map[string]*Progress{}
@@ -44,8 +54,21 @@ func NewProgress(total int) *Progress {
 	progressMu.Lock()
 	progressMap[p.ID] = p
 	progressMu.Unlock()
-	p.Channel <- progressEvent("start", "", 0, total)
+	p.mu.Lock()
+	p.emit(progressEvent("start", "", 0, total))
+	p.mu.Unlock()
 	return p
+}
+
+// emit 记录并投递一条事件。调用方必须持有 p.mu。
+// 缓冲区满时只丢这一帧（客户端消费不过来，中间帧丢了只影响进度条显示精度），
+// 但 last 仍会更新，供迟到的订阅者补发。
+func (p *Progress) emit(data string) {
+	p.last.Store(data)
+	select {
+	case p.Channel <- data:
+	default:
+	}
 }
 
 // Context 返回该任务的 context，供子任务响应取消
@@ -68,11 +91,7 @@ func (p *Progress) Send(step, name string, done, total int) {
 	}
 	p.Done = done
 	p.Name = name
-	// select 带 default，不会阻塞，持锁发送安全
-	select {
-	case p.Channel <- progressEvent(step, name, done, total):
-	default:
-	}
+	p.emit(progressEvent(step, name, done, total))
 }
 
 // SendMap 发送任意 JSON 事件
@@ -83,10 +102,7 @@ func (p *Progress) SendMap(m map[string]any) {
 		return
 	}
 	data, _ := json.Marshal(m)
-	select {
-	case p.Channel <- string(data):
-	default:
-	}
+	p.emit(string(data))
 }
 
 // SetFinalEvent 预设结束事件的载荷，由 Close 发出。
@@ -124,18 +140,50 @@ func (p *Progress) Close() {
 	payload["step"] = "done"
 	payload["cancelled"] = p.cancelled
 	data, _ := json.Marshal(payload)
-	select {
-	case p.Channel <- string(data):
-	default:
+	p.last.Store(string(data))
+	p.finished = true
+
+	// 结束事件必须送达：先把缓冲区排空腾出位置。
+	// 排掉的是客户端来不及看的中间帧，而 done 丢了客户端会永远等不到任务结束，
+	// 进度遮罩就永久卡住（前端只在收到 done 时才 pm.close()）。
+	for drained := false; !drained; {
+		select {
+		case <-p.Channel:
+		default:
+			drained = true
+		}
 	}
+	// 缓冲区已空、容量 64、且此刻持有 p.mu 并且 p.closed 已置位（不会有并发 Send），
+	// 因此这次发送不可能阻塞。
+	p.Channel <- string(data)
 	close(p.Channel)
 	p.mu.Unlock()
 
 	p.cancel()
+	p.retain()
+}
 
-	progressMu.Lock()
-	delete(progressMap, p.ID)
-	progressMu.Unlock()
+// retain 延迟从注册表删除，让迟到的订阅者仍能补发到结束事件
+func (p *Progress) retain() {
+	time.AfterFunc(progressRetain, func() {
+		progressMu.Lock()
+		delete(progressMap, p.ID)
+		progressMu.Unlock()
+	})
+}
+
+// Replay 返回可补发给迟到订阅者的最后一条事件；不需要补发时返回 ""。
+// 仅在任务已结束后非空：任务仍在进行时客户端会从缓冲区拿到后续所有帧，
+// 此时补发会让同一帧被消费两次（进度计数翻倍）。
+func (p *Progress) Replay() string {
+	p.mu.Lock()
+	finished := p.finished
+	p.mu.Unlock()
+	if !finished {
+		return ""
+	}
+	s, _ := p.last.Load().(string)
+	return s
 }
 
 func progressEvent(step, name string, done, total int) string {
