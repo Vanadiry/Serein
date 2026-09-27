@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -75,80 +74,76 @@ func mustRead(t *testing.T, path string) string {
 	return string(b)
 }
 
-// #2 核心回归：提交成功后目标目录是新内容，版本标记一并换入，旧文件消失
-func TestCommitLeafDirReplacesTree(t *testing.T) {
+// 核心回归：提交后新内容就位、marker 一并写入、旧文件与未列出的子目录被清除
+func TestCommitLeafInPlaceWritesAndPrunes(t *testing.T) {
 	home := t.TempDir()
 	rulesDir := filepath.Join(home, "rules")
-	staging, err := prepareStagingRoot(home)
-	if err != nil {
-		t.Fatal(err)
-	}
 	destDir := "src"
 	seedLeaf(t, rulesDir, destDir, nil, map[string]string{
-		"old.toml":      "OLD",
-		"sub/old2.toml": "OLD2",
+		"old.toml":  "OLD",
+		"keep.toml": "KEEP",
 	})
+	// 一个无 marker 的子目录：门禁 2 要求不得被动
+	if err := os.MkdirAll(filepath.Join(rulesDir, destDir, "usercode"), 0755); err != nil {
+		t.Fatal(err)
+	}
 
-	newRaw := `{"source_id":"src","files":{"a.toml":"2"}}`
-	err = commitLeafDir(staging, filepath.Join(rulesDir, destDir), map[string][]byte{
-		"a.toml":     []byte("NEW"),
-		"sub/b.toml": []byte("NEW2"),
-	}, []byte(newRaw))
-	if err != nil {
-		t.Fatalf("commitLeafDir: %v", err)
+	manifest := map[string]string{"keep.toml": "2", "new.toml": "2"}
+	if err := commitLeafInPlace(filepath.Join(rulesDir, destDir), map[string][]byte{
+		"keep.toml": []byte("KEEP2"),
+		"new.toml":  []byte("NEW"),
+	}, manifest, []byte(`{"source_id":"src","files":{"keep.toml":"2","new.toml":"2"}}`)); err != nil {
+		t.Fatalf("commitLeafInPlace: %v", err)
 	}
 
 	dest := filepath.Join(rulesDir, destDir)
-	if got := mustRead(t, filepath.Join(dest, "a.toml")); got != "NEW" {
-		t.Errorf("a.toml = %q", got)
+	if got := mustRead(t, filepath.Join(dest, "keep.toml")); got != "KEEP2" {
+		t.Errorf("keep.toml = %q", got)
 	}
-	if got := mustRead(t, filepath.Join(dest, "sub", "b.toml")); got != "NEW2" {
-		t.Errorf("sub/b.toml = %q", got)
+	if got := mustRead(t, filepath.Join(dest, "new.toml")); got != "NEW" {
+		t.Errorf("new.toml = %q", got)
 	}
-	if got := mustRead(t, filepath.Join(dest, "_source.json")); got != newRaw {
-		t.Errorf("_source.json = %q", got)
-	}
+	// 不变量 B：manifest 未列出的 .toml 被删除
 	if _, err := os.Stat(filepath.Join(dest, "old.toml")); !os.IsNotExist(err) {
-		t.Error("旧文件未被清除")
+		t.Error("未列出的旧文件未被清除")
 	}
-	if _, err := os.Stat(filepath.Join(dest, "sub", "old2.toml")); !os.IsNotExist(err) {
-		t.Error("旧的嵌套文件未被清除")
+	// 门禁 2：无 marker 的子目录不得被动
+	if _, err := os.Stat(filepath.Join(dest, "usercode")); err != nil {
+		t.Errorf("无 marker 的子目录被误删: %v", err)
 	}
-	if got := loadLocalFileTokens(dest); got["a.toml"] != "2" {
-		t.Errorf("marker token 表 = %v, want a.toml=2", got)
+	if got := loadLocalFileTokens(dest); got["new.toml"] != "2" || len(got) != 2 {
+		t.Errorf("marker token 表 = %v", got)
 	}
 }
 
-// #2 核心回归：写文件失败必须放弃提交——目标目录保持原样，版本标记不推进
-func TestCommitLeafDirKeepsOldTreeOnWriteFailure(t *testing.T) {
+// 核心回归：写文件失败必须放弃本源剩余步骤——版本标记绝不推进。
+// 原地写拿不到「整树换入」那种「旧内容原样保留」的更强保证（文件可能已部分更新），
+// 但「标记不推进」这条必须保住：它是下次同步唯一的跳过判据，推进了就永久缺失。
+func TestCommitLeafInPlaceKeepsMarkerOnWriteFailure(t *testing.T) {
 	home := t.TempDir()
 	rulesDir := filepath.Join(home, "rules")
-	staging, err := prepareStagingRoot(home)
-	if err != nil {
-		t.Fatal(err)
-	}
 	destDir := "src"
 	seedLeaf(t, rulesDir, destDir, nil, map[string]string{"old.toml": "OLD"})
 
-	// 暂存根目录置为不可写，使 leaf-xxx 目录创建失败 → 提交必然失败
-	if err := os.Chmod(staging, 0500); err != nil {
+	dest := filepath.Join(rulesDir, destDir)
+	// 造一个「文件」形态的目录，使写入它必然失败
+	if err := os.MkdirAll(filepath.Join(dest, "blocker"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = os.Chmod(staging, 0755) })
-
-	err = commitLeafDir(staging, filepath.Join(rulesDir, destDir), map[string][]byte{
-		"a.toml": []byte("NEW"),
-	}, []byte(`{"source_id":"src","files":{"a.toml":"2"}}`))
+	manifest := map[string]string{"old.toml": "2", "blocker": "2"}
+	err := commitLeafInPlace(dest, map[string][]byte{
+		"old.toml": []byte("OLD2"),
+		"blocker":  []byte("X"),
+	}, manifest, []byte(`{"source_id":"src","files":{"old.toml":"2","blocker":"2"}}`))
 	if err == nil {
-		t.Fatal("预期提交失败（暂存目录不可写）")
+		t.Fatal("预期提交失败（blocker 是目录，写不进去）")
 	}
-
-	dest := filepath.Join(rulesDir, destDir)
-	if got := mustRead(t, filepath.Join(dest, "old.toml")); got != "OLD" {
-		t.Errorf("失败后旧文件被破坏: %q", got)
+	// 旧 marker 记录的是 old.toml=1，失败后必须仍是它（未被推进到 2）
+	if got := loadLocalFileTokens(dest); got["old.toml"] != "1" {
+		t.Errorf("失败后版本标记被推进: %v（下次同步会永久跳过该源）", got)
 	}
-	if got := loadLocalFileTokens(dest); got["a.toml"] != "" {
-		t.Errorf("失败后 token 表被推进: %v（否则下次同步会永久跳过该源）", got)
+	if _, ok := loadLocalFileTokens(dest)["blocker"]; ok {
+		t.Error("失败后 marker 竟含未写入成功的 blocker")
 	}
 }
 
@@ -156,13 +151,11 @@ func TestCommitLeafDirKeepsOldTreeOnWriteFailure(t *testing.T) {
 func TestCommitLeavesReportsFailure(t *testing.T) {
 	home := t.TempDir()
 	rulesDir := filepath.Join(home, "rules")
-	staging, err := prepareStagingRoot(home)
-	if err != nil {
-		t.Fatal(err)
-	}
 	leaves := []leafSrc{
-		{id: "ok", destDir: "ok", rawBody: []byte(`{"source_id":"ok","files":{}}`)},
-		{id: "bad", destDir: "bad", rawBody: []byte(`{"source_id":"bad","files":{}}`)},
+		{id: "ok", destDir: "ok", files: map[string]string{"a.toml": "1"},
+			rawBody: []byte(`{"source_id":"ok","files":{"a.toml":"1"}}`)},
+		{id: "bad", destDir: "bad", files: map[string]string{"a.toml": "1", "a.toml/b.toml": "1"},
+			rawBody: []byte(`{"source_id":"bad","files":{"a.toml":"1","a.toml/b.toml":"1"}}`)},
 	}
 	contents := []map[string][]byte{
 		{"a.toml": []byte("A")},
@@ -171,7 +164,7 @@ func TestCommitLeavesReportsFailure(t *testing.T) {
 	}
 	leafFailed := []bool{false, false}
 
-	updated, failures := commitLeaves(rulesDir, staging, leaves, contents, leafFailed)
+	updated, failures := commitLeaves(rulesDir, leaves, contents, leafFailed)
 	if updated != 1 {
 		t.Errorf("updated = %d, want 1（bad 应失败）", updated)
 	}
@@ -181,66 +174,8 @@ func TestCommitLeavesReportsFailure(t *testing.T) {
 	if got := mustRead(t, filepath.Join(rulesDir, "ok", "a.toml")); got != "A" {
 		t.Errorf("ok 源未提交: %q", got)
 	}
-	// bad 源不该留下任何痕迹（连目录都不该建出来）
-	if _, err := os.Stat(filepath.Join(rulesDir, "bad")); !os.IsNotExist(err) {
-		t.Error("失败的源仍被创建出来")
-	}
-}
-
-// 暂存目录不能落在 rules/ 内部，否则规则加载会把半成品 .toml 当规则读进来
-func TestPrepareStagingRootIsOutsideRulesDir(t *testing.T) {
-	home := t.TempDir()
-	staging, err := prepareStagingRoot(home)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if filepath.Dir(staging) != home {
-		t.Fatalf("暂存根应在 home 下，实际 %s", staging)
-	}
-	rel, _ := filepath.Rel(filepath.Join(home, "rules"), staging)
-	if !strings.HasPrefix(rel, "..") {
-		t.Fatalf("暂存根 %s 落在 rules/ 内部（rel=%s）", staging, rel)
-	}
-	if err := os.MkdirAll(filepath.Join(staging, "leaf-stale"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(staging, "leaf-stale", "x.toml"), []byte("x"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	staging2, err := prepareStagingRoot(home)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := os.Stat(filepath.Join(staging2, "leaf-stale")); !os.IsNotExist(err) {
-		t.Error("上次残留的暂存目录未被清理")
-	}
-}
-
-// 提交成功后暂存根应为空（暂存目录与旧目录备份都已清理）
-func TestCommitLeafDirLeavesNoStagingGarbage(t *testing.T) {
-	home := t.TempDir()
-	rulesDir := filepath.Join(home, "rules")
-	staging, err := prepareStagingRoot(home)
-	if err != nil {
-		t.Fatal(err)
-	}
-	seedLeaf(t, rulesDir, "src", nil, map[string]string{"old.toml": "OLD"})
-	for range 3 {
-		if err := commitLeafDir(staging, filepath.Join(rulesDir, "src"), map[string][]byte{
-			"a.toml": []byte("A"),
-		}, []byte(`{"source_id":"src","files":{"a.toml":"2"}}`)); err != nil {
-			t.Fatal(err)
-		}
-	}
-	entries, err := os.ReadDir(staging)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(entries) != 0 {
-		names := make([]string, 0, len(entries))
-		for _, e := range entries {
-			names = append(names, e.Name())
-		}
-		t.Errorf("暂存根残留: %v", names)
+	// 失败的源不得留下任何已提交内容（marker 未写入 = 界面上不可见）
+	if _, err := os.Stat(filepath.Join(rulesDir, "bad", sourceFileName)); !os.IsNotExist(err) {
+		t.Error("失败的源仍被写入了版本标记")
 	}
 }

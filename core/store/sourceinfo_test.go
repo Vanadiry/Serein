@@ -82,7 +82,7 @@ func TestValidateSourceFilesRules(t *testing.T) {
 	}
 }
 
-// 逐文件比对：token 相同则无需下载
+// 逐文件比对：token 相同则不下载；文件缺失则退回待下载
 func TestPerFileTokenDiff(t *testing.T) {
 	rulesDir := t.TempDir()
 	dest := filepath.Join(rulesDir, "src")
@@ -112,24 +112,15 @@ func TestPerFileTokenDiff(t *testing.T) {
 	if len(l.need) != 1 || l.need["b.toml"] != "2" {
 		t.Fatalf("need = %v, want 仅 b.toml", l.need)
 	}
-
-	readUnchangedFiles(rulesDir, &l, local)
-	// carry 必须是 a 与 c 的本地内容，且不得包含本地表里有但远端已删除的文件
-	if len(l.carry) != 2 || string(l.carry["a.toml"]) != "A1" || string(l.carry["c.toml"]) != "C1" {
-		t.Errorf("carry = %v", l.carry)
-	}
-	for name := range l.carry {
-		if _, inManifest := l.files[name]; !inManifest {
-			t.Errorf("carry 含有远端 manifest 之外的 %q，会把已删除的文件复活", name)
-		}
-	}
+	// 三个文件都在盘上，补齐检查不应改变 need
+	queueMissingFiles(rulesDir, &l)
 	if len(l.need) != 1 {
-		t.Errorf("readUnchangedFiles 不应改动 need，实际 %v", l.need)
+		t.Errorf("queueMissingFiles 不应改动 need，实际 %v", l.need)
 	}
 }
 
-// 上游删掉的文件不得被 carry 复活
-func TestPerFileDiffDoesNotResurrectRemoved(t *testing.T) {
+// 上游删掉的文件不下载，交给不变量 B 删除
+func TestPerFileDiffDoesNotReaddRemoved(t *testing.T) {
 	rulesDir := t.TempDir()
 	dest := filepath.Join(rulesDir, "src")
 	if err := os.MkdirAll(dest, 0755); err != nil {
@@ -138,7 +129,6 @@ func TestPerFileDiffDoesNotResurrectRemoved(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dest, "gone.toml"), []byte("G"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	// 本地表里有 gone.toml，但远端 manifest 已不含它
 	writeMarker(t, dest, "src", map[string]string{"gone.toml": "1", "keep.toml": "1"})
 	local := loadLocalFileTokens(dest)
 
@@ -152,16 +142,18 @@ func TestPerFileDiffDoesNotResurrectRemoved(t *testing.T) {
 			l.need[name] = token
 		}
 	}
-	readUnchangedFiles(rulesDir, &l, local)
-	if _, ok := l.carry["gone.toml"]; ok {
-		t.Error("上游已删除的文件被 carry 复活")
+	queueMissingFiles(rulesDir, &l)
+	// gone.toml 已不在 manifest 中，不该被重新下载（否则删了又拉回来）
+	if _, ok := l.need["gone.toml"]; ok {
+		t.Error("上游已删除的文件被重新加入待下载")
 	}
-	if len(l.carry) != 0 {
-		t.Errorf("carry 应为空，实际 %v", l.carry)
+	if len(l.need) != 1 || l.need["keep.toml"] != "2" {
+		t.Errorf("need = %v, want 仅 keep.toml", l.need)
 	}
 }
 
-// token 未变但文件已不在盘上：必须退回待下载，否则整树换入会把它清掉
+// token 未变但文件已不在盘上：必须退回待下载，否则该规则永久缺失
+// （下次同步的 token 比对会认为它已是最新）
 func TestPerFileDiffRefetchesMissingFile(t *testing.T) {
 	rulesDir := t.TempDir()
 	dest := filepath.Join(rulesDir, "src")
@@ -169,7 +161,6 @@ func TestPerFileDiffRefetchesMissingFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeMarker(t, dest, "src", map[string]string{"a.toml": "1", "b.toml": "1"})
-	// 只落盘 a，b 的 token 记录为已接受但文件不见了
 	if err := os.WriteFile(filepath.Join(dest, "a.toml"), []byte("A"), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -188,12 +179,12 @@ func TestPerFileDiffRefetchesMissingFile(t *testing.T) {
 	if len(l.need) != 0 {
 		t.Fatalf("token 全一致，need 应为空，实际 %v", l.need)
 	}
-	readUnchangedFiles(rulesDir, &l, local)
+	queueMissingFiles(rulesDir, &l)
 	if l.need["b.toml"] != "1" {
 		t.Errorf("缺失文件未被退回待下载: need = %v", l.need)
 	}
-	if _, ok := l.carry["b.toml"]; ok {
-		t.Error("缺失文件不应进 carry")
+	if len(l.need) != 1 {
+		t.Errorf("只有 b 缺失，need 应只有 b，实际 %v", l.need)
 	}
 }
 

@@ -21,9 +21,6 @@ import (
 
 const maxFetchBytes = 8 << 20 // 8MB
 
-// stagingDirName 规则提交的暂存根目录名（home 下的隐藏目录，rules/ 的同级）
-const stagingDirName = ".sync-staging"
-
 // 提交阶段等待跨进程锁的参数：重试间隔与最长等待。
 // 取得锁后临界区只有毫秒级的 rename，超时给得宽是为了容忍另一个实例正在跑完整同步。
 const (
@@ -138,31 +135,25 @@ type leafSrc struct {
 	destDir string
 	baseURL string
 	files   map[string]string // 远端 manifest 全量条目：文件名 → token
-	need    map[string]string // 本次需要下载的条目（files 的子集）
-	carry   map[string][]byte // token 未变、沿用本地内容的条目（并入提交以免整树替换时被清掉）
+	need    map[string]string // 本次需要下载并写入的条目（files 的子集）
 	isWeb   bool
 }
 
-// readUnchangedFiles 读入 token 未变的本地文件，并入提交内容。
-// 两个边界都必须处理：
-//   - 只遍历远端 manifest。遍历本地表会把上游已删除的文件复活——它们正等着被整树换入清掉。
-//   - token 未变但文件已不在盘上（上次同步被中断、手工删除）时退回待下载集合，
-//     否则整树换入会连它一起清掉，造成规则永久缺失。
-func readUnchangedFiles(rulesDir string, l *leafSrc, local map[string]string) {
+// queueMissingFiles 把「token 未变但文件已不在盘上」的条目退回待下载集合。
+// token 记录为已接受而文件却不见了（上次同步被中断、手工删除、清理脚本误删），
+// 不补写就会留下一个永久缺失的规则，而下次同步的 token 比对会认为它已是最新。
+//
+// 只做存在性检查，不把未变的内容读进内存：原地写只写变化的文件，
+// 未变的本来就在盘上。
+func queueMissingFiles(rulesDir string, l *leafSrc) {
 	dir := filepath.Join(rulesDir, l.destDir)
 	for name, token := range l.files {
-		if _, downloading := l.need[name]; downloading {
+		if _, queued := l.need[name]; queued {
 			continue
 		}
-		body, err := os.ReadFile(filepath.Join(dir, name))
-		if err != nil {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
 			l.need[name] = token
-			continue
 		}
-		if l.carry == nil {
-			l.carry = make(map[string][]byte, len(l.files))
-		}
-		l.carry[name] = body
 	}
 }
 
@@ -208,20 +199,6 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 
 	ctx := p.Context()
 	rulesDir := filepath.Join(home, "rules")
-	stagingRoot, err := prepareStagingRoot(home)
-	if err != nil {
-		log.LogfWarn("[sync] 准备暂存目录失败，本次同步不提交: %v", err)
-		p.SetFinalEvent(map[string]any{
-			"sources_total":   len(sources),
-			"sources_skipped": 0,
-			"sources_updated": 0,
-			"sources_failed":  len(sources),
-			"files":           0,
-			"file_errors":     0,
-			"failures":        []syncFailure{{Source: "暂存目录", Error: err.Error()}},
-		})
-		return
-	}
 
 	st := &syncStats{}
 	claimed := &idClaimer{ids: make(map[string]bool)}
@@ -255,7 +232,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 		if len(leaves) == 0 {
 			continue
 		}
-		if syncLeaves(ctx, rulesDir, stagingRoot, home, leaves, concurrency, p, st, pg) {
+		if syncLeaves(ctx, rulesDir, home, root, leaves, len(fails) > 0, concurrency, p, st, pg) {
 			reload = true
 		}
 	}
@@ -421,7 +398,7 @@ func dirHasRuleFiles(dir string) bool {
 
 // syncLeaves 处理一个顶层源下的全部叶子：逐文件剪枝 → 并发下载 → 加锁提交。
 // 返回本次是否更新了规则（需要重载缓存）。
-func syncLeaves(ctx context.Context, rulesDir, stagingRoot, home string, leaves []leafSrc, concurrency int, p *progress.Progress, st *syncStats, pg *progState) bool {
+func syncLeaves(ctx context.Context, rulesDir, home string, root *sourceNode, leaves []leafSrc, walkFailed bool, concurrency int, p *progress.Progress, st *syncStats, pg *progState) bool {
 	// 逐文件比对 token：本地 marker 即上次接受的基线。
 	// 整源无差异则完全跳过；有差异时把 token 未变的条目读进 carry 一并提交——
 	// 提交是整树换入，只带变化的文件会把未变的旧文件一起清掉。
@@ -463,7 +440,7 @@ func syncLeaves(ctx context.Context, rulesDir, stagingRoot, home string, leaves 
 			skipped++
 			continue
 		}
-		readUnchangedFiles(rulesDir, &l, local)
+		queueMissingFiles(rulesDir, &l)
 		fresh = append(fresh, l)
 	}
 	st.skipped += skipped
@@ -508,10 +485,22 @@ func syncLeaves(ctx context.Context, rulesDir, stagingRoot, home string, leaves 
 		return false
 	}
 	defer lock.Release()
-	updated, commitFailures := commitLeaves(rulesDir, stagingRoot, leaves, contents, leafFailed)
+	updated, commitFailures := commitLeaves(rulesDir, leaves, contents, leafFailed)
 	st.updated += updated
 	st.failures = append(st.failures, commitFailures...)
 	st.failed += len(commitFailures)
+	// 不变量 C + 门禁 1：本轮有任何子源没抓成功，就无法区分「上游删掉了它」与
+	// 「这次没抓到」，此时一律不动目录——误删的代价远大于留下一个陈旧目录。
+	if walkFailed {
+		if root != nil {
+			log.LogfWarn("[sync] %s 有子源未抓取成功，跳过孤儿子源清理", root.destRel)
+		}
+		return updated > 0
+	}
+	p.SendMap(map[string]any{"step": "write", "name": fmt.Sprintf("正在写入 %d 个源", len(leaves))})
+	if root != nil {
+		pruneOrphanSubSources(rulesDir, root)
+	}
 	return updated > 0
 }
 
@@ -537,11 +526,8 @@ func downloadLeaves(ctx context.Context, rulesDir string, leaves []leafSrc, conc
 	leafFailed := make([]bool, len(leaves))
 	total := 0
 	for i := range leaves {
-		// 先并入 token 未变的本地内容：提交是整树换入，缺了它们旧文件会被清掉
-		contents[i] = make(map[string][]byte, len(leaves[i].need)+len(leaves[i].carry))
-		for rel, body := range leaves[i].carry {
-			contents[i][rel] = body
-		}
+		// 只装本轮下载到的文件：原地写只写变化的文件，未变的已在盘上
+		contents[i] = make(map[string][]byte, len(leaves[i].need))
 		total += len(leaves[i].need)
 	}
 	// 任务数不足并发数时不必起更多 worker
@@ -609,11 +595,22 @@ func downloadLeaves(ctx context.Context, rulesDir string, leaves []leafSrc, conc
 	return contents, leafFailed, failures, fileErrors
 }
 
-// commitLeaves 原子提交：逐个子规则源先在暂存目录里写完整棵树，全部文件写成功才换入
-// 目标目录。任一文件写失败即放弃本次提交——目标目录保持原样，版本标记也不推进，
-// 因此不会出现「_source.json 已记录新版本、规则文件却缺失」的永久损坏状态。
-// 返回成功换入的源数与失败明细。
-func commitLeaves(rulesDir, stagingRoot string, leaves []leafSrc, contents []map[string][]byte, leafFailed []bool) (int, []syncFailure) {
+// commitLeaves 原地提交。
+//
+// 每个子源分三步，顺序不可调换：
+//  1. 写入全部规则文件
+//  2. 删除 manifest 未列出的 .toml（不变量 B）
+//  3. 写入版本标记（不变量 A）
+//
+// marker 必须最后写：它是下次同步唯一的跳过判据。先写标记再落文件（或先删文件
+// 再落文件），中途崩溃都会留下「标记声称最新、内容却缺失」的状态——下次同步
+// 据此跳过，该规则永久缺失。放在两步之后，任何中途崩溃都退化成「标记未推进，
+// 下次重拉」，可自愈。
+//
+// 任一文件写失败即放弃本源剩余步骤：目标目录可能已写入部分新内容，但标记不推进，
+// 下次同步会重做本源。不返回“整树换入”那种“旧内容原样保留”的更强保证——
+// 原地写拿不到那个保证，代价是崩溃后需要一次重拉而不是零成本回滚。
+func commitLeaves(rulesDir string, leaves []leafSrc, contents []map[string][]byte, leafFailed []bool) (int, []syncFailure) {
 	updated := 0
 	var failures []syncFailure
 	for i := range leaves {
@@ -622,7 +619,7 @@ func commitLeaves(rulesDir, stagingRoot string, leaves []leafSrc, contents []map
 		}
 		l := leaves[i]
 		dest := filepath.Join(rulesDir, l.destDir)
-		if err := commitLeafDir(stagingRoot, dest, contents[i], l.rawBody); err != nil {
+		if err := commitLeafInPlace(dest, contents[i], l.files, l.rawBody); err != nil {
 			events.Emit("error", "[sync]", fmt.Sprintf("提交 %s 失败: %v", l.id, err))
 			log.LogfWarn("[sync] 提交 %s 失败: %v", l.id, err)
 			failures = append(failures, syncFailure{Source: l.id, Error: err.Error()})
@@ -633,74 +630,92 @@ func commitLeaves(rulesDir, stagingRoot string, leaves []leafSrc, contents []map
 	return updated, failures
 }
 
-// commitLeafDir 把一个子规则源的文件树原子换入 dest。
-// 步骤：暂存目录写全部文件（逐个 fsync）→ 写版本标记 → fsync 目录 →
-// 旧目录改名让位 → 新目录改名就位 → 删除旧目录。
-// 换入失败会回滚旧目录；进程在两次 rename 之间被杀时，dest 可能短暂缺失，
-// 但版本标记随之消失，下次同步 loadLocalSourceVersion 得到 0 会重新拉取，不会跳过。
-func commitLeafDir(stagingRoot, dest string, files map[string][]byte, rawBody []byte) error {
-	stage, err := os.MkdirTemp(stagingRoot, "leaf-")
+func commitLeafInPlace(dest string, files map[string][]byte, manifest map[string]string, rawBody []byte) error {
+	if err := os.MkdirAll(dest, 0755); err != nil {
+		return fmt.Errorf("创建目录 %s: %w", dest, err)
+	}
+	// 1. 规则文件
+	for name, body := range files {
+		if err := writeFileSync(filepath.Join(dest, name), body, 0644); err != nil {
+			return fmt.Errorf("写入 %s: %w", name, err)
+		}
+	}
+	// 2. 删除 manifest 未列出的规则文件（只删文件，不碰子目录——子目录归不变量 C 管）
+	entries, err := os.ReadDir(dest)
 	if err != nil {
-		return err
+		return fmt.Errorf("读取目录 %s: %w", dest, err)
 	}
-	defer os.RemoveAll(stage) // 换入成功后路径已不存在，删除为 no-op
-
-	for rel, body := range files {
-		target := filepath.Join(stage, rel)
-		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
-			return fmt.Errorf("创建目录 %s: %w", filepath.Dir(target), err)
+	for _, e := range entries {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".toml" {
+			continue
 		}
-		if err := writeFileSync(target, body, 0644); err != nil {
-			return fmt.Errorf("写入 %s: %w", target, err)
+		if _, listed := manifest[e.Name()]; listed {
+			continue
 		}
-	}
-	// 版本标记最后写：下次同步据此判断是否跳过本源
-	if err := writeFileSync(filepath.Join(stage, "_source.json"), rawBody, 0644); err != nil {
-		return fmt.Errorf("写入 _source.json: %w", err)
-	}
-	syncDir(stage)
-
-	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
-		return fmt.Errorf("创建目录 %s: %w", filepath.Dir(dest), err)
-	}
-	trash, err := os.MkdirTemp(stagingRoot, "trash-")
-	if err != nil {
-		return err
-	}
-	// MkdirTemp 建出来的空目录要先让出位置给 rename 用
-	trashPath := filepath.Join(trash, "old")
-	hadOld := false
-	if _, err := os.Lstat(dest); err == nil {
-		if err := os.Rename(dest, trashPath); err != nil {
-			os.RemoveAll(trash)
-			return fmt.Errorf("让位旧目录 %s: %w", dest, err)
+		if err := os.Remove(filepath.Join(dest, e.Name())); err != nil {
+			return fmt.Errorf("删除未列出的 %s: %w", e.Name(), err)
 		}
-		hadOld = true
+		log.Logf("[sync] 删除 %s/%s（上游已不再列出）", l2a(dest), e.Name())
+		events.Emit("warn", "[sync]", fmt.Sprintf("已删除 %s（上游 manifest 不再列出）", e.Name()))
 	}
-	if err := os.Rename(stage, dest); err != nil {
-		if hadOld { // 回滚，避免目标目录空缺
-			_ = os.Rename(trashPath, dest)
-		}
-		os.RemoveAll(trash)
-		return fmt.Errorf("换入新目录 %s: %w", dest, err)
+	// 3. 版本标记最后写
+	if err := writeFileSync(filepath.Join(dest, sourceFileName), rawBody, 0644); err != nil {
+		return fmt.Errorf("写入 %s: %w", sourceFileName, err)
 	}
-	syncDir(filepath.Dir(dest))
-	os.RemoveAll(trash)
 	return nil
 }
 
-// prepareStagingRoot 准备暂存根目录并清掉上次残留（崩溃时留下的半成品 / 旧目录备份）
-// 放在 rules/ 的同级而非其内部：规则加载会遍历 rules/ 下的所有 .toml，
-// 暂存目录混进去会被当成规则读进来。
-func prepareStagingRoot(home string) (string, error) {
-	root := filepath.Join(home, stagingDirName)
-	if err := os.RemoveAll(root); err != nil {
-		return "", err
+// l2a 目录绝对路径 → 便于日志里看出是哪个源
+func l2a(dir string) string { return filepath.ToSlash(dir) }
+
+// pruneOrphanSubSources 递归删除「本地存在但本轮未声明」的子源目录（不变量 C）。
+// 逐层进行：每个 list 型节点的目录下，一级子目录必须与本轮声明的子源一一对应。
+// 只删含合法 _source.json 的目录（门禁 2）——用户手动放置的目录一律不动。
+func pruneOrphanSubSources(rulesDir string, n *sourceNode) []string {
+	if n == nil {
+		return nil
 	}
-	if err := os.MkdirAll(root, 0755); err != nil {
-		return "", err
+	var removed []string
+	if n.info.IsList() {
+		declared := make(map[string]bool, len(n.children))
+		for _, c := range n.children {
+			declared[filepath.Base(c.destRel)] = true
+		}
+		dir := filepath.Join(rulesDir, n.destRel)
+		entries, err := os.ReadDir(dir)
+		if err == nil {
+			for _, e := range entries {
+				if !e.IsDir() || declared[e.Name()] {
+					continue
+				}
+				child := filepath.Join(dir, e.Name())
+				if !hasValidMarker(child) {
+					continue // 门禁 2：无 marker 的目录是用户放置的，不动
+				}
+				if err := os.RemoveAll(child); err != nil {
+					log.LogfWarn("[sync] 删除孤儿子源 %s 失败: %v", child, err)
+					continue
+				}
+				log.Logf("[sync] 删除孤儿子源 %s（上游已不再列出）", l2a(child))
+				events.Emit("warn", "[sync]", fmt.Sprintf("已删除孤儿子源 %s（上游已不再列出）", e.Name()))
+				removed = append(removed, e.Name())
+			}
+		}
 	}
-	return root, nil
+	for _, c := range n.children {
+		removed = append(removed, pruneOrphanSubSources(rulesDir, c)...)
+	}
+	return removed
+}
+
+// hasValidMarker 报告目录是否含可解析的 _source.json
+func hasValidMarker(dir string) bool {
+	data, err := os.ReadFile(filepath.Join(dir, sourceFileName))
+	if err != nil {
+		return false
+	}
+	var s SourceInfo
+	return json.Unmarshal(data, &s) == nil
 }
 
 func writeFileSync(path string, data []byte, perm os.FileMode) error {

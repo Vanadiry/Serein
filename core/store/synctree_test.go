@@ -451,3 +451,93 @@ func TestSyncAllowsEmptyManifestOnFreshSource(t *testing.T) {
 		t.Errorf("marker 未落盘: %v", err)
 	}
 }
+
+// 不变量 C：上游从 list 里删掉某个子源后，本地孤儿子源目录应被清除
+func TestPruneOrphanSubSources(t *testing.T) {
+	home := t.TempDir()
+	rulesDir := filepath.Join(home, "rules")
+	up := filepath.Join(home, "up")
+	seedUpstream(t, up,
+		SourceInfo{ID: "T", Type: "list", SubSources: []string{"keep/_source.json"}},
+		map[string]SourceInfo{"keep": {ID: "keep", Files: map[string]string{"k.toml": "1"}}},
+	)
+	writeFixture(t, filepath.Join(up, "keep", "k.toml"), "K")
+	sources := []RuleSource{{URL: filepath.Join(up, sourceFileName)}}
+
+	p1 := progress.NewProgress(0)
+	SyncAllSourcesAsync(home, sources, 2, p1, nil)
+	collectDone(p1, &doneEvent{})
+
+	// 上游移除 keep，新增 gone；本地额外留一个用户手放的目录
+	writeJSON(t, filepath.Join(up, sourceFileName),
+		SourceInfo{ID: "T", Type: "list", SubSources: []string{"gone/_source.json"}})
+	writeJSON(t, filepath.Join(up, "gone", sourceFileName),
+		SourceInfo{ID: "gone", Files: map[string]string{"g.toml": "1"}})
+	writeFixture(t, filepath.Join(up, "gone", "g.toml"), "G")
+	if err := os.MkdirAll(filepath.Join(rulesDir, "T", "usermanual"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	// 先手工补一个「上游已删但本地还在」的孤儿子源
+	writeJSON(t, filepath.Join(rulesDir, "T", "orphan", sourceFileName),
+		SourceInfo{ID: "orphan", Files: map[string]string{"o.toml": "1"}})
+	writeFixture(t, filepath.Join(rulesDir, "T", "orphan", "o.toml"), "O")
+
+	p2 := progress.NewProgress(0)
+	SyncAllSourcesAsync(home, sources, 2, p2, nil)
+	collectDone(p2, &doneEvent{})
+
+	if _, err := os.Stat(filepath.Join(rulesDir, "T", "orphan")); !os.IsNotExist(err) {
+		t.Error("孤儿子源目录未被清除")
+	}
+	if got := mustRead(t, filepath.Join(rulesDir, "T", "gone", "g.toml")); got != "G" {
+		t.Errorf("新子源未落盘: %q", got)
+	}
+	// 门禁 2：无 marker 的用户目录不得被动
+	if _, err := os.Stat(filepath.Join(rulesDir, "T", "usermanual")); err != nil {
+		t.Errorf("用户手放目录被误删: %v", err)
+	}
+}
+
+// 门禁 1：本轮有子源抓取失败时，不变量 C 一律不执行——
+// 无法区分「上游删掉了它」与「这次没抓到」
+func TestPruneSkippedWhenWalkFailed(t *testing.T) {
+	home := t.TempDir()
+	rulesDir := filepath.Join(home, "rules")
+	up := filepath.Join(home, "up")
+	seedUpstream(t, up,
+		SourceInfo{ID: "T", Type: "list", SubSources: []string{"keep/_source.json", "flaky/_source.json"}},
+		map[string]SourceInfo{
+			"keep":  {ID: "keep", Files: map[string]string{"k.toml": "1"}},
+			"flaky": {ID: "flaky", Files: map[string]string{"f.toml": "1"}},
+		},
+	)
+	writeFixture(t, filepath.Join(up, "keep", "k.toml"), "K")
+	writeFixture(t, filepath.Join(up, "flaky", "f.toml"), "F")
+	sources := []RuleSource{{URL: filepath.Join(up, sourceFileName)}}
+
+	p1 := progress.NewProgress(0)
+	SyncAllSourcesAsync(home, sources, 2, p1, nil)
+	collectDone(p1, &doneEvent{})
+
+	// 上游删掉 flaky，同时把它的 marker 弄坏 → 抓取失败
+	os.Remove(filepath.Join(up, "flaky", sourceFileName))
+	writeJSON(t, filepath.Join(up, sourceFileName),
+		SourceInfo{ID: "T", Type: "list", SubSources: []string{"keep/_source.json", "flaky/_source.json"}})
+	// 改一下 keep 的 token，确保本轮确实会提交（否则清理逻辑压根不会走到）
+	writeJSON(t, filepath.Join(up, "keep", sourceFileName),
+		SourceInfo{ID: "keep", Files: map[string]string{"k.toml": "2"}})
+	writeFixture(t, filepath.Join(up, "keep", "k.toml"), "K2")
+
+	p2 := progress.NewProgress(0)
+	SyncAllSourcesAsync(home, sources, 2, p2, nil)
+	d := &doneEvent{}
+	collectDone(p2, d)
+
+	if len(d.failures) == 0 {
+		t.Fatal("本应有子源抓取失败")
+	}
+	// 门禁 1：flaky 已从上游消失，但不得因为「没抓到」就当成孤儿删掉
+	if _, err := os.Stat(filepath.Join(rulesDir, "T", "flaky", "f.toml")); err != nil {
+		t.Errorf("门禁 1 未生效，flaky 被当成孤儿删除: %v", err)
+	}
+}

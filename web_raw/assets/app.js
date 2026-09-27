@@ -1145,6 +1145,10 @@ function startSyncProgress(taskId) {
             }
             pm.setStatus(d.name);
         }
+        if (d.step === "write") {
+            // 落盘阶段：进度条已满，只换状态文案
+            pm.setStatus(d.name || "正在写入磁盘");
+        }
         if (d.step === "start" && d.total) {
             pm.setProgress(0, d.total);
         }
