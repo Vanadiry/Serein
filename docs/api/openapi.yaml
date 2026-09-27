@@ -19,14 +19,15 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/TrackerInfo"
-  /api/tracker/list/{id}:
+  /api/tracker/list/{tracker_id}:
     get:
       tags: [Tracker]
       summary: 列出 tracker 详情
       parameters:
-        - name: id
+        - name: tracker_id
           in: path
           required: true
+          description: Tracker 文件名，不含 .toml 后缀
           schema: { type: string }
       responses:
         "200":
@@ -120,22 +121,41 @@ paths:
   /api/check/confirm:
     post:
       tags: [Check]
-      summary: 批量确认更新，写入版本号和时间戳
+      summary: 确认某个 app 的版本号，写入版本号与时间戳
+      description: |
+        一次只确认一个 app。请求体解码为 `map[string]string`：`app_id` 指出是哪个应用，
+        其余键是「平台 → 版本号」。整段 load-modify-save 在写锁内完成，并发调用不会互相覆盖。
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: array
-              items:
+              type: object
+              required: [app_id]
+              additionalProperties: { type: string }
+              properties:
+                app_id: { type: string }
+              example: { app_id: "pub.sakura.Zen", macos: "1.2.3" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
                 type: object
-                required: [app_id]
                 properties:
                   app_id: { type: string }
-                additionalProperties:
-                  type: string
-              description: "数组中每个元素为一个 app 的确认数据，key 为平台名，value 为版本号，如 {\"app_id\":\"xxx\",\"macos\":\"1.0.0\"}"
-      responses:
-        "200": { description: OK }
+                  status: { type: string, example: ok }
+                  platforms:
+                    type: object
+                    description: 确认后该 app 的全部平台版本号，另含服务端写入的 `_confirmed_at`（Unix 秒）
+                    additionalProperties: { type: string }
+                example:
+                  app_id: "pub.sakura.Zen"
+                  status: ok
+                  platforms: { macos: "1.2.3", _confirmed_at: "1720000000" }
+        "400": { description: "app_id 缺失或请求体不是 JSON 对象" }
+        "500": { description: "写入 software.json 失败" }
   /api/check/temp/{tracker_id}:
     get:
       tags: [Check]
@@ -203,6 +223,8 @@ paths:
 
                   检查结果按 Tracker 缓存在内存（进程内），通过 GET /api/check/temp/{tracker_id} 读取。
 
+        "404": { description: "任务不存在或已过期" }
+
   /api/check/cancel/{task_id}:
     post:
       tags: [Progress]
@@ -262,6 +284,9 @@ paths:
                         items: { type: string }
                   first_run:
                     type: boolean
+                  rule_source_dev:
+                    type: string
+                    description: 本地规则目录路径；为空表示未启用，仅 POST /api/rules/check 的 dev 模式使用
 
   # Sync
   /api/sync:
@@ -318,7 +343,108 @@ paths:
                     items:
                       $ref: "#/components/schemas/RuleItem"
 
+  /api/search:
+    get:
+      tags: [Search]
+      summary: 跨规则与所有 Tracker 搜索
+      parameters:
+        - name: q
+          in: query
+          schema: { type: string }
+          description: 关键词，对名称 / app_id / 描述做不区分大小写的子串匹配；为空返回两个空数组
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  apps:
+                    type: array
+                    description: Tracker 命中项，匹配全部条目的 Tracker，合计最多 30 条
+                    items: { $ref: "#/components/schemas/SearchAppHit" }
+                  rules:
+                    type: array
+                    description: 规则命中项，按名称排序，不受 30 条上限限制
+                    items: { $ref: "#/components/schemas/RuleItem" }
+
+  # Rules
+  /api/rules/check:
+    post:
+      tags: [Rules]
+      summary: 校验全部规则，返回问题清单
+      description: |
+        会重新解析一遍 `rules/` 下的全部规则。`dev: true` 时改为校验 `config.serein.rule_source_dev`
+        指向的本地目录，未配置该路径则返回 400。
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dev:
+                  type: boolean
+                  description: 为 true 时校验 rule_source_dev 指向的本地规则目录
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  issues:
+                    type: array
+                    items: { $ref: "#/components/schemas/RuleIssue" }
+        "400": { description: "dev 为 true 但未配置 rule_source_dev" }
+        "500": { description: "校验 rule_source_dev 时出错" }
+
   # Download / Open
+  /api/file:
+    get:
+      tags: [Download]
+      summary: 带签名的下载代理（流式转发上游）
+      description: |
+        供检查结果里的 `proxy_url` 使用，让下载地址经本机中转。四个查询参数缺一不可，
+        且 `sig` 必须与 (url, name, exp) 的 HMAC-SHA256 匹配，否则 403。
+
+        签名密钥是进程级随机值，重启即全部失效；签名有效期 24 小时。
+        上游地址还会经私网/非 http(s) 拦截。
+
+        上游返回 4xx/5xx 时不会把错误页面当附件存下来：4xx 原样透传、5xx 转 502，
+        并通过事件总线（`[下载]` 上下文）向 Serein 窗口推送一条提示。
+      parameters:
+        - name: url
+          in: query
+          required: true
+          description: 上游完整地址
+          schema: { type: string }
+        - name: name
+          in: query
+          description: 落盘文件名；为空时回退上游 Content-Disposition 或 URL 末段
+          schema: { type: string }
+        - name: exp
+          in: query
+          required: true
+          description: 过期时间，Unix 秒
+          schema: { type: string }
+        - name: sig
+          in: query
+          required: true
+          description: "hex 编码的 HMAC-SHA256(secret, \"url\\nname\\nexp\")"
+          schema: { type: string }
+      responses:
+        "200":
+          description: "上游文件内容（Content-Disposition: attachment）"
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        "206": { description: 上游范围响应（透传 Range / If-Range） }
+        "400": { description: "缺少 url，或 url 不是合法的 http(s) 地址" }
+        "403": { description: "签名无效/过期，或目标地址被私网拦截" }
+        "502": { description: "上游请求失败，或上游返回 5xx" }
+
   /api/download:
     post:
       tags: [Download]
@@ -330,10 +456,10 @@ paths:
               type: object
               required: [url]
               properties:
-                url: { type: string }
+                url: { type: string, description: 必须是 http(s) 绝对地址 }
       responses:
         "200":
-          description: OK
+          description: 已交给下载器；下载器未运行或配置未知时会回退到浏览器
           content:
             application/json:
               schema:
@@ -341,6 +467,8 @@ paths:
                 properties:
                   status: { type: string }
                   message: { type: string }
+        "400": { description: "缺少 url，或不是 http(s) 地址" }
+        "403": { description: "仅本机可用（非回环地址调用）" }
   /api/open-url:
     post:
       tags: [Download]
@@ -352,9 +480,11 @@ paths:
               type: object
               required: [url]
               properties:
-                url: { type: string }
+                url: { type: string, description: 必须是 http(s) 绝对地址 }
       responses:
         "200": { description: OK }
+        "400": { description: "缺少 url，或不是 http(s) 地址" }
+        "403": { description: "仅本机可用（非回环地址调用）" }
 
 components:
   schemas:
@@ -423,6 +553,25 @@ components:
                   - type: string
                   - type: array
                     items: { type: string }
+    SearchAppHit:
+      type: object
+      properties:
+        app_id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        tracker_id: { type: string }
+        tracker_name: { type: string }
+        current_version:
+          type: object
+          additionalProperties: { type: string }
+          description: 用户已确认的版本号，来自 user/software.json
+    RuleIssue:
+      type: object
+      properties:
+        level:
+          type: string
+          enum: [warn, error]
+        message: { type: string }
     RuleItem:
       type: object
       properties:
