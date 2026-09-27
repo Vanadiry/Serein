@@ -3,6 +3,7 @@ package store
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -33,8 +34,11 @@ type = "xml"
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(issues) != 0 {
-		t.Fatalf("不应有问题: %+v", issues)
+	// 夹具里 allow_prerelease 配在 type=json 下，是真实的死字段（仅 github 使用），
+	// 死字段检查会报一条 warn；这里只关心合并语义，不在此断言 issues 为空
+	if len(issues) != 1 || issues[0].Level != "warn" ||
+		!strings.Contains(issues[0].Message, "allow_prerelease") {
+		t.Fatalf("应恰好报出 allow_prerelease 死字段一条: %+v", issues)
 	}
 
 	// windows：url/allow_prerelease 覆盖，type 继承

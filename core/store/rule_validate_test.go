@@ -1,6 +1,9 @@
 package store
 
 import (
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -245,5 +248,129 @@ func TestValidateConfigURLMustBeAbsolute(t *testing.T) {
 		if strings.Contains(is.Message, "url") {
 			t.Errorf("协议相对 url 不应报错: %s", is.Message)
 		}
+	}
+}
+
+// 死字段：配了但当前 type 下不会被读取
+func TestValidateDeadFields(t *testing.T) {
+	cases := []struct {
+		name string
+		cfg  PlatConfig
+		want []string // 期望报出的字段
+	}{
+		{"github 下 url/v_url/v_position 全死", PlatConfig{
+			Type: "github", Owner: "o", Repo: "r", DPosition: "exe",
+			URL: "https://x", VURL: "https://y", VPosition: []any{"tag_name"},
+			VJoin: "-", DJoin: "-", BaseURL: "https://b",
+		}, []string{"baseurl", "d_join", "url", "v_join", "v_position", "v_url"}},
+		{"github 下 d_position 是活的（asset 名正则）", PlatConfig{
+			Type: "github", Owner: "o", Repo: "r", DPosition: "exe",
+		}, nil},
+		{"github + d_type=direct 时 d_url 活", PlatConfig{
+			Type: "github", DType: "direct", Owner: "o", Repo: "r", DURL: "https://x/{version}.zip",
+		}, nil},
+		{"github + 非 direct 时 d_url 死", PlatConfig{
+			Type: "github", Owner: "o", Repo: "r", DPosition: "exe", DURL: "https://x",
+		}, []string{"d_url"}},
+		{"非 github 下 owner/repo/per_page/allow_prerelease 死", PlatConfig{
+			Type: "json", URL: "https://x", VPosition: []any{"v"}, DPosition: []any{"u"},
+			Owner: "o", Repo: "r", PerPage: 5, AllowPrerelease: true,
+		}, []string{"allow_prerelease", "owner", "per_page", "repo"}},
+		{"v_type=direct 时 v_position/v_join 死", PlatConfig{
+			Type: "regex", VType: "direct", URL: "1.0", DPosition: []any{"u"},
+			VPosition: []any{"v"}, VJoin: "-",
+		}, []string{"v_join", "v_position"}},
+		{"d_type=direct 时 d_position/d_join/baseurl 死", PlatConfig{
+			Type: "regex", URL: "https://x", VPosition: []any{"v"},
+			DType: "direct", DURL: "https://x/{version}.zip",
+			DPosition: []any{"u"}, DJoin: "-", BaseURL: "https://b",
+		}, []string{"baseurl", "d_join", "d_position"}},
+		{"两侧都 direct 时 ua/headers 死", PlatConfig{
+			Type: "direct", URL: "1.0", UA: "x", Headers: map[string]string{"A": "b"},
+		}, []string{"headers", "ua"}},
+		{"v_url 与 d_url 都指定时 url 死", PlatConfig{
+			Type: "json", URL: "https://shared", VURL: "https://v", DURL: "https://d",
+			VPosition: []any{"v"}, DPosition: []any{"u"},
+		}, []string{"url"}},
+		{"只指定 v_url 时 url 仍是回落来源（活）", PlatConfig{
+			Type: "json", URL: "https://shared", VURL: "https://v", DPosition: []any{"u"},
+		}, nil},
+		{"什么都没配多余的", PlatConfig{
+			Type: "json", URL: "https://x", VPosition: []any{"v"}, DPosition: []any{"u"},
+		}, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			vType := tc.cfg.VType
+			if vType == "" {
+				vType = tc.cfg.Type
+			}
+			dType := tc.cfg.DType
+			if dType == "" {
+				dType = tc.cfg.Type
+			}
+			got := deadFields(tc.cfg, vType, dType)
+			if len(got) != len(tc.want) {
+				t.Fatalf("死字段 = %v, want %v", keysOf(got), tc.want)
+			}
+			for _, w := range tc.want {
+				if _, ok := got[w]; !ok {
+					t.Errorf("缺少 %s（实际 %v）", w, keysOf(got))
+				}
+			}
+			// 报出的 level 必须是 warn，且带上原因
+			for _, is := range validateDeadFields("config", tc.cfg, vType, dType) {
+				if is.Level != "warn" {
+					t.Errorf("level 应为 warn: %+v", is)
+				}
+				if !strings.Contains(is.Message, "不会被读取") {
+					t.Errorf("消息应说明不会被读取: %s", is.Message)
+				}
+			}
+		})
+	}
+}
+
+func keysOf(m map[string]string) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// 端到端：PPSSPP 的 android 把 type 覆盖成 html_selector 后，owner/repo 变成死字段。
+// 这是真实规则集里唯一的两处死字段，用它守住判据不误报。
+func TestValidateRealWorldDeadFields(t *testing.T) {
+	p := filepath.Join(os.Getenv("HOME"),
+		".vSoft/Serein/rules/SereinRulesList_Official/v-github/PPSSPP.toml")
+	if _, err := os.Stat(p); err != nil {
+		t.Skip("本机没有规则集，跳过")
+	}
+	_, issues, err := ParseRuleFile(p, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := map[string]bool{}
+	for _, is := range issues {
+		t.Logf("  %s: %s", is.Level, is.Message)
+		if strings.Contains(is.Message, "config.android") &&
+			(strings.Contains(is.Message, "owner") || strings.Contains(is.Message, "repo")) {
+			found[is.Message] = true
+		}
+	}
+	if len(found) != 2 {
+		t.Errorf("应报出 android 的 owner/repo 两条死字段，实际 %d 条: %+v", len(found), issues)
+	}
+	// 整份规则集不该有别的死字段误报
+	warns := 0
+	for _, is := range issues {
+		if is.Level == "warn" {
+			warns++
+		}
+	}
+	if warns != 2 {
+		t.Errorf("warn 总数 = %d, want 2（判据若误报会更多）", warns)
 	}
 }

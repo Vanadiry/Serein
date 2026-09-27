@@ -499,6 +499,10 @@ var validParserTypes = map[string]bool{
 	"html_selector": true, "github": true, "direct": true,
 }
 
+// IsValidParserType 报告 t 是否为受支持的解析器类型。
+// 规则检查与运行时检查共用这一份定义，避免两处枚举漂移。
+func IsValidParserType(t string) bool { return validParserTypes[t] }
+
 func validatePlatConfig(name string, c PlatConfig) []RuleIssue {
 	var issues []RuleIssue
 	add := func(level, msg string) {
@@ -546,13 +550,11 @@ func validatePlatConfig(name string, c PlatConfig) []RuleIssue {
 
 	issues = append(issues, validatePosition(name, "v_position", c.VPosition, vType)...)
 	issues = append(issues, validatePosition(name, "d_position", c.DPosition, dType)...)
+	issues = append(issues, validateDeadFields(name, c, vType, dType)...)
 	return issues
 }
 
-// IsValidParserType 报告 t 是否为受支持的解析器类型。
-// 规则检查与运行时检查共用这一份定义，避免两处枚举漂移。
-func IsValidParserType(t string) bool { return validParserTypes[t] }
-
+// parserTypeList 合法解析器类型的可读列表，用于错误提示
 func parserTypeList() string {
 	names := make([]string, 0, len(validParserTypes))
 	for k := range validParserTypes {
@@ -560,6 +562,123 @@ func parserTypeList() string {
 	}
 	sort.Strings(names)
 	return strings.Join(names, " | ")
+}
+
+// configuredFields 本配置里作者显式配了哪些字段（零值不算「配了」）
+func configuredFields(c PlatConfig) map[string]bool {
+	m := map[string]bool{}
+	for f, v := range map[string]string{
+		"url": c.URL, "v_url": c.VURL, "v_type": c.VType,
+		"d_url": c.DURL, "d_type": c.DType,
+		"v_join": c.VJoin, "d_join": c.DJoin,
+		"baseurl": c.BaseURL, "ua": c.UA,
+		"owner": c.Owner, "repo": c.Repo,
+	} {
+		if strings.TrimSpace(v) != "" {
+			m[f] = true
+		}
+	}
+	if c.VPosition != nil {
+		m["v_position"] = true
+	}
+	if c.DPosition != nil {
+		m["d_position"] = true
+	}
+	if len(c.Headers) > 0 {
+		m["headers"] = true
+	}
+	if c.PerPage != 0 {
+		m["per_page"] = true
+	}
+	if c.AllowPrerelease {
+		m["allow_prerelease"] = true
+	}
+	return m
+}
+
+// deadFields 返回在给定 (type, v_type, d_type) 下**不会被读取**的字段 → 原因。
+// 只列出作者确实配了的字段。
+//
+// 依据实际读取点，而不是「文档里有没有写」：
+//   - core/checker/checker.go:128-186  RunPlatformCheck
+//   - core/checker/github.go:35-117    CheckGitHub / pickLatestRelease
+//   - core/checker/runner.go:166-168   runGitHubCheck 的 direct 分支
+//
+// 两个容易搞错的地方：
+//   - github 的 d_position 不是路径定位，而是 asset 文件名正则（github.go:93），
+//     所以它在 github 下是活的，不能按「路径类字段」一律判死。
+//   - baseurl 只在下载侧、且 d_type != direct 时用于 JoinURL（checker.go:181）。
+func deadFields(c PlatConfig, vType, dType string) map[string]string {
+	set := configuredFields(c)
+	dead := map[string]string{}
+	kill := func(f, why string) {
+		if set[f] {
+			dead[f] = why
+		}
+	}
+	if c.Type == "github" {
+		// 版本号隐式取 [release 序号, "tag_name"]，请求地址由 owner/repo 拼出
+		const tagOnly = "github 的版本号固定从 tag_name 提取，请求地址由 owner/repo 拼接"
+		for _, f := range []string{"url", "v_url", "v_type", "v_position", "v_join"} {
+			kill(f, tagOnly)
+		}
+		kill("d_join", "github 的 d_position 是 asset 文件名正则，没有多路径拼接")
+		kill("baseurl", "github 不做相对地址拼接")
+		if dType != "direct" {
+			kill("d_url", "github 的下载链接取自 asset，只有 d_type=direct 时才读 d_url")
+		}
+		return dead
+	}
+	const onlyGitHub = "仅 github 规则使用"
+	for _, f := range []string{"owner", "repo", "per_page", "allow_prerelease"} {
+		kill(f, onlyGitHub)
+	}
+	if vType == "direct" {
+		kill("v_position", "v_type=direct，版本号直接取 v_url/url，不需要 v_position")
+		kill("v_join", "v_type=direct，不做多路径拼接")
+	}
+	if dType == "direct" {
+		kill("d_position", "d_type=direct，下载链接直接取 d_url/url，不需要 d_position")
+		kill("d_join", "d_type=direct，不做多路径拼接")
+		kill("baseurl", "baseurl 只用于拼接下载链接的相对地址，d_type=direct 时用不到")
+	}
+	// url 是 v_url / d_url 的回落来源：两者都单独指定了，url 就不会被读到
+	if c.VURL != "" && c.DURL != "" {
+		kill("url", "v_url 与 d_url 都已单独指定，url 不会作为回落地址被读到")
+	}
+	// ua / headers 只在真的要发请求时用得上
+	if (vType == "direct" || c.VPosition == nil) &&
+		(dType == "direct" || c.DPosition == nil) {
+		kill("ua", "本次检查不发请求（版本号与下载链接都不需要提取）")
+		kill("headers", "本次检查不发请求（版本号与下载链接都不需要提取）")
+	}
+	return dead
+}
+
+// validateDeadFields 报出「配了但当前 type 下不生效」的字段。
+// 报 warn 而非 error：属于规则的整洁度问题，不影响检查能否进行，
+// 且规则集里数量极少（332 个平台配置中 2 处）。
+func validateDeadFields(name string, c PlatConfig, vType, dType string) []RuleIssue {
+	dead := deadFields(c, vType, dType)
+	keys := make([]string, 0, len(dead))
+	for f := range dead {
+		keys = append(keys, f)
+	}
+	sort.Strings(keys)
+	issues := make([]RuleIssue, 0, len(keys))
+	for _, f := range keys {
+		issues = append(issues, RuleIssue{Level: "warn", Message: fmt.Sprintf(
+			"%s: %s 在 type=%s / v_type=%s / d_type=%s 下不会被读取（%s）",
+			name, f, typeOrNone(c.Type), typeOrNone(vType), typeOrNone(dType), dead[f])})
+	}
+	return issues
+}
+
+func typeOrNone(s string) string {
+	if s == "" {
+		return "无"
+	}
+	return s
 }
 
 func validatePosition(name, field string, pos any, typ string) []RuleIssue {
