@@ -40,12 +40,9 @@ func CheckStatus(resp *http.Response) error {
 	return fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
 }
 
-// Request 发起 GET 请求，带 SSRF 校验与响应大小限制，并缓存结果
+// Request 发起 GET 请求，带响应大小限制，并缓存结果。
+// SSRF 校验在 RoundTrip 层统一做（见 guardTransport），这里不再重复。
 func Request(ctx context.Context, client *http.Client, rawURL, ua string, headers map[string]string) ([]byte, error) {
-	if err := blockPrivate(rawURL); err != nil {
-		return nil, err
-	}
-
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, err
@@ -113,11 +110,8 @@ func requestKey(req *http.Request) string {
 	return b.String()
 }
 
-// PostRequest 发起 POST 请求，带 SSRF 校验与响应大小限制
+// PostRequest 发起 POST 请求，带响应大小限制。SSRF 校验同样在 RoundTrip 层
 func PostRequest(ctx context.Context, client *http.Client, rawURL, ua string, headers map[string]string, bodyJSON []byte) ([]byte, error) {
-	if err := blockPrivate(rawURL); err != nil {
-		return nil, err
-	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, rawURL, strings.NewReader(string(bodyJSON)))
 	if err != nil {
 		return nil, err

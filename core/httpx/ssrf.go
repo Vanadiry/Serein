@@ -101,8 +101,8 @@ func blockPrivate(rawURL string) error { return BlockPrivate(rawURL) }
 func safeDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	d := net.Dialer{Timeout: 15 * time.Second}
 	if proxyURL != nil {
-		// 走代理时拨号目标是代理本身（常为 127.0.0.1），跳过私网校验
-		// 目标地址的 SSRF 校验由 Request 里的 BlockPrivate 负责
+		// 走代理时拨号目标是代理本身（常为 127.0.0.1），这一层无从校验目标。
+		// 目标校验在 RoundTrip 层做（guardTransport），与是否配了代理无关。
 		return d.DialContext(ctx, network, addr)
 	}
 	host, port, err := net.SplitHostPort(addr)

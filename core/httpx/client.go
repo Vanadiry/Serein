@@ -38,11 +38,31 @@ func newTransport() *http.Transport {
 	return tr
 }
 
-// newClient 按总超时构造客户端；其余守卫（拨号校验 / 代理 / auth / 重定向）一致
+// guardTransport 在 RoundTrip 层做 SSRF 校验。
+//
+// 之前校验散落在各调用点（Request / PostRequest / server 的下载代理），靠自觉——
+// core/store 的 getHTTP 就是漏掉的那一处，而它的 URL 来自远程规则源的 baseurl，
+// 配合「配置代理即放弃拨号校验」正好构成一条可远程触发的读内网路径。
+//
+// 放到 transport 里，任何经由 NewClient / StreamClient / DefaultClient 发出的请求
+// 都绕不过，包括将来新增的调用点。置于最外层，以便在注入认证头之前就拒绝。
+type guardTransport struct{ base http.RoundTripper }
+
+func (t guardTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if err := BlockPrivate(req.URL.String()); err != nil {
+		return nil, err
+	}
+	return t.base.RoundTrip(req)
+}
+
+// newClient 按总超时构造客户端；其余守卫（SSRF / 代理 / auth / 重定向）一致
 func newClient(timeout time.Duration) *http.Client {
 	return &http.Client{
-		Timeout:   timeout,
-		Transport: &authTransport{base: newTransport(), targets: authTargets},
+		Timeout: timeout,
+		Transport: guardTransport{base: &authTransport{
+			base:    newTransport(),
+			targets: authTargets,
+		}},
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 10 {
 				return fmt.Errorf("stopped after 10 redirects")
