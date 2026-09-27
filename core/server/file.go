@@ -43,7 +43,6 @@ func signProxy(secret []byte, rawURL, name string, exp int64) string {
 
 // proxyURL 生成带签名的下载代理地址（供检查结果透传）
 func (s *Server) proxyURL(rawURL, name string) string {
-	rawURL = normalizeURL(rawURL)
 	name = sanitizeFilename(name)
 	exp := time.Now().Add(proxyExpiry).Unix()
 	q := url.Values{}
@@ -62,7 +61,7 @@ func (s *Server) verifyProxy(rawURL, name, expStr, sig string) bool {
 	if err != nil || exp < time.Now().Unix() {
 		return false
 	}
-	want := signProxy(s.proxySecret, normalizeURL(rawURL), name, exp)
+	want := signProxy(s.proxySecret, rawURL, name, exp)
 	return hmac.Equal([]byte(want), []byte(sig))
 }
 

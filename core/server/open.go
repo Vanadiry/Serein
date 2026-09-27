@@ -10,18 +10,23 @@ import (
 	"strings"
 )
 
-// normalizeURL 给协议相对（//host）的地址补上 https
-func normalizeURL(raw string) string {
-	raw = strings.TrimSpace(raw)
-	if strings.HasPrefix(raw, "//") {
-		return "https:" + raw
-	}
-	return raw
-}
-
-// parseHTTPURL 补全 scheme 并校验为 http(s) 绝对地址，返回规范化后的字符串
+// parseHTTPURL 只做校验，不改写输入。
+//
+// 协议相对地址（//host/x）原样放行：它的消费方是浏览器与外部下载器，两者都认
+// //host，无需在此补协议。真正需要绝对地址的是 Go 的 http.Client，那一步由调用方
+// 在取数前显式做（见 file.go 的 httpx.ResolveScheme）——校验层不替它猜。
 func parseHTTPURL(raw string) (string, error) {
-	raw = normalizeURL(raw)
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", fmt.Errorf("empty url")
+	}
+	// 协议相对：交给下游自己解析，这里只确认 host 部分非空
+	if strings.HasPrefix(raw, "//") {
+		if strings.Trim(raw[2:], "/") == "" {
+			return "", fmt.Errorf("only http/https URLs are allowed")
+		}
+		return raw, nil
+	}
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return "", fmt.Errorf("only http/https URLs are allowed")

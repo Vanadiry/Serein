@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/vanadiry/serein/core/httpx"
+
 	"github.com/BurntSushi/toml"
 )
 
@@ -454,26 +456,6 @@ func (r Rule) Validate() []RuleIssue {
 	return issues
 }
 
-// urlScheme 返回 raw 的协议名（小写、不含冒号）；没有 scheme 时返回 ""。
-// 按 scheme 语法判断而不是「第一个冒号之前」，否则 "https://x" 的 scheme 冒号
-// 会被误当成路径里的冒号。
-func urlScheme(raw string) string {
-	i := strings.IndexByte(raw, ':')
-	if i <= 0 {
-		return ""
-	}
-	for j := 0; j < i; j++ {
-		c := raw[j]
-		switch {
-		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z':
-		case j > 0 && (c >= '0' && c <= '9' || c == '+' || c == '-' || c == '.'):
-		default:
-			return "" // 冒号不在 scheme 位置（路径 / 查询串里）
-		}
-	}
-	return strings.ToLower(raw[:i])
-}
-
 // checkURLScheme 校验一个 URL 字段的协议。
 //
 // allowRelative 按字段的消费方区分，不能一刀切：
@@ -488,7 +470,11 @@ func checkURLScheme(field, u string, allowRelative bool) (level, msg string) {
 	if u == "" {
 		return "", "" // 字段未设置
 	}
-	scheme := urlScheme(u)
+	// 协议相对地址原样放行：消费方是浏览器与下载器，两者都认 //host
+	if strings.HasPrefix(strings.TrimSpace(u), "//") {
+		return "", ""
+	}
+	scheme := httpx.URLScheme(u)
 	if scheme == "http" || scheme == "https" {
 		return "", ""
 	}

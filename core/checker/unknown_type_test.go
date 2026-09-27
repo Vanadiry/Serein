@@ -79,3 +79,30 @@ func TestExtractValueRejectsNonExtractableTypes(t *testing.T) {
 		}
 	}
 }
+
+// 直通模式不补协议：//host 与无协议地址原样透出，交给浏览器 / 外部下载器处理。
+// 真正需要绝对地址的只有 Go 的 http.Client，由取数前显式做（httpx.ResolveScheme）。
+func TestResolveDirectURLPassesSchemeThrough(t *testing.T) {
+	cases := []struct{ durl, version, want string }{
+		{"//cdn.example.com/f.zip", "", "//cdn.example.com/f.zip"},
+		{"cdn.example.com/f.zip", "", "cdn.example.com/f.zip"},
+		{"https://cdn.example.com/f.zip", "", "https://cdn.example.com/f.zip"},
+		{"//cdn.example.com/{version}.zip", "1.2.3", "//cdn.example.com/1.2.3.zip"},
+		{"cdn.example.com/{version}.zip", "1.2.3", "cdn.example.com/1.2.3.zip"},
+		{"https://cdn.example.com/{version}.zip", "1.2.3", "https://cdn.example.com/1.2.3.zip"},
+	}
+	for _, c := range cases {
+		got, err := resolveDirectURL(c.durl, c.version)
+		if err != nil {
+			t.Errorf("resolveDirectURL(%q, %q) 报错: %v", c.durl, c.version, err)
+			continue
+		}
+		if got != c.want {
+			t.Errorf("resolveDirectURL(%q, %q) = %q, want %q（不应补协议）", c.durl, c.version, got, c.want)
+		}
+	}
+	// {version} 但版本为空仍要报错
+	if _, err := resolveDirectURL("cdn.example.com/{version}.zip", ""); err == nil {
+		t.Error("版本为空时应报错")
+	}
+}

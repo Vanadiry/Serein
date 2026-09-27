@@ -216,36 +216,10 @@ func TestValidateRejectsNonHTTPSchemeInConfig(t *testing.T) {
 	}
 }
 
-// urlScheme 必须按 scheme 语法判断，不能用「第一个冒号」。
-// 判据是与浏览器一致：前端白名单基于 new URL(u, origin).protocol，
-// 两者对同一个字符串必须给出同一个协议名，否则校验与运行时判定会打架。
-func TestURLScheme(t *testing.T) {
-	cases := map[string]string{
-		"https://example.com": "https",
-		"http://x/y":          "http",
-		"javascript:alert(1)": "javascript",
-		"JaVaScRiPt:x":        "javascript",
-		"data:text/html,x":    "data",
-		"//example.com/x":     "",
-		"/rules?a=b":          "",
-		"relative/path":       "",
-		"https://x/?a=b:c":    "https", // 第二个冒号在查询串里，不影响
-		// 与浏览器一致：new URL("example.com:8080/x").protocol === "example.com:"
-		"example.com:8080/x":     "example.com",
-		"?x=javascript:alert(1)": "",
-		"":                       "",
-	}
-	for in, want := range cases {
-		if got := urlScheme(in); got != want {
-			t.Errorf("urlScheme(%q) = %q, want %q", in, got, want)
-		}
-	}
-}
-
 // config 的 url / v_url / d_url 是服务端取数目标，必须是绝对 http(s)：
 // 无 scheme 与协议相对都会被 http.NewRequest 拒绝
 func TestValidateConfigURLMustBeAbsolute(t *testing.T) {
-	for _, u := range []string{"example.com/api", "//example.com/x", "/relative"} {
+	for _, u := range []string{"example.com/api", "/relative", "not a url at all"} {
 		cfg := PlatConfig{Type: "json", VPosition: []any{"v"}, DPosition: []any{"d"}, URL: u}
 		found := false
 		for _, is := range validatePlatConfig("config", cfg) {
@@ -263,6 +237,13 @@ func TestValidateConfigURLMustBeAbsolute(t *testing.T) {
 	for _, is := range validatePlatConfig("config", cfg) {
 		if strings.Contains(is.Message, "url") {
 			t.Errorf("未设置 url 不应报错: %s", is.Message)
+		}
+	}
+	// 协议相对地址合法：消费方是浏览器与下载器，两者都认 //host
+	cfg.URL = "//example.com/x"
+	for _, is := range validatePlatConfig("config", cfg) {
+		if strings.Contains(is.Message, "url") {
+			t.Errorf("协议相对 url 不应报错: %s", is.Message)
 		}
 	}
 }

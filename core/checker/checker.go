@@ -126,7 +126,8 @@ func RunPlatformCheck(ctx context.Context, cfg PlatformCheckConfig, client *http
 	return vr, nil
 }
 
-// resolveDirectURL 直通模式：d_url 含 {version} 时替换；版本号为空则报错
+// resolveDirectURL 直通模式：d_url 含 {version} 时替换；版本号为空则报错。
+// 不补协议：//host 原样透出，浏览器与外部下载器都认，Go 客户端由调用方取数前解析。
 func resolveDirectURL(durl, version string) (string, error) {
 	if !strings.Contains(durl, "{version}") {
 		return durl, nil

@@ -59,8 +59,13 @@ function hasDownloader() {
         SEREIN_DOWNLOADER_TYPE === "ndm" || SEREIN_DOWNLOADER_TYPE === "custom"
     );
 }
-// 补全相对路径为绝对 URL（proxy_url 为相对路径，端点只认绝对地址）
+// 补全相对路径为绝对 URL（proxy_url 是本地相对路径，端点只认绝对地址）
+// 协议相对地址（//host/x）原样返回：Serein 不解析它，交给用户的浏览器 /
+// 下载器处理。只有相对路径需要相对本地 origin 补全——本地是 http，不能套 https。
 function absoluteUrl(u) {
+    if (typeof u === "string" && u.trim().indexOf("//") === 0) {
+        return u.trim();
+    }
     try {
         return new URL(u, location.origin).href;
     } catch (e) {
