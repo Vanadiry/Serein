@@ -143,3 +143,126 @@ func TestIsValidParserType(t *testing.T) {
 		t.Errorf("枚举大小 = %d，改动时记得同步 checker 侧与文档", len(validParserTypes))
 	}
 }
+
+// official_website 会被前端直接送进 openUrl。new URL() 对 "javascript:..." 不抛错，
+// 浏览器分支一旦无校验就会执行规则里带来的脚本。
+func TestValidateRejectsNonHTTPScheme(t *testing.T) {
+	cases := []struct {
+		name  string
+		value string
+		level string
+	}{
+		{"javascript", "javascript:alert(1)", "error"},
+		{"data", "data:text/html,<script>alert(1)</script>", "error"},
+		{"vbscript", "vbscript:msgbox(1)", "error"},
+		{"file", "file:///etc/passwd", "error"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := Rule{Info: RuleInfo{AppID: "a", Name: "A", Platforms: []string{"windows"},
+				OfficialWebsite: tc.value}}
+			found := ""
+			for _, is := range r.Validate() {
+				if strings.Contains(is.Message, "official_website") {
+					found = is.Level
+				}
+			}
+			if found != tc.level {
+				t.Errorf("level = %q, want %q（issues: %+v）", found, tc.level, r.Validate())
+			}
+		})
+	}
+}
+
+// 合法的官网地址不得被误伤，含协议相对与 http
+func TestValidateAcceptsNormalWebsite(t *testing.T) {
+	for _, w := range []string{
+		"https://example.com",
+		"http://example.com/x",
+		"//example.com/x", // 协议相对，交由 normalizeURL / 前端补全
+		"",
+	} {
+		r := Rule{Info: RuleInfo{AppID: "a", Name: "A", Platforms: []string{"windows"},
+			OfficialWebsite: w}}
+		for _, is := range r.Validate() {
+			if strings.Contains(is.Message, "official_website") {
+				t.Errorf("%q 被误判: %s", w, is.Message)
+			}
+		}
+	}
+}
+
+// config 里的 url / v_url / d_url 同样不得使用 javascript: 之类
+func TestValidateRejectsNonHTTPSchemeInConfig(t *testing.T) {
+	for _, field := range []string{"url", "v_url", "d_url"} {
+		cfg := PlatConfig{Type: "json", VPosition: []any{"v"}, DPosition: []any{"d"}}
+		switch field {
+		case "url":
+			cfg.URL = "javascript:alert(1)"
+		case "v_url":
+			cfg.VURL = "javascript:alert(1)"
+		case "d_url":
+			cfg.DURL = "javascript:alert(1)"
+		}
+		found := false
+		for _, is := range validatePlatConfig("config", cfg) {
+			if is.Level == "error" && strings.Contains(is.Message, field) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("%s = javascript: 未报 error: %+v", field, validatePlatConfig("config", cfg))
+		}
+	}
+}
+
+// urlScheme 必须按 scheme 语法判断，不能用「第一个冒号」。
+// 判据是与浏览器一致：前端白名单基于 new URL(u, origin).protocol，
+// 两者对同一个字符串必须给出同一个协议名，否则校验与运行时判定会打架。
+func TestURLScheme(t *testing.T) {
+	cases := map[string]string{
+		"https://example.com": "https",
+		"http://x/y":          "http",
+		"javascript:alert(1)": "javascript",
+		"JaVaScRiPt:x":        "javascript",
+		"data:text/html,x":    "data",
+		"//example.com/x":     "",
+		"/rules?a=b":          "",
+		"relative/path":       "",
+		"https://x/?a=b:c":    "https", // 第二个冒号在查询串里，不影响
+		// 与浏览器一致：new URL("example.com:8080/x").protocol === "example.com:"
+		"example.com:8080/x":     "example.com",
+		"?x=javascript:alert(1)": "",
+		"":                       "",
+	}
+	for in, want := range cases {
+		if got := urlScheme(in); got != want {
+			t.Errorf("urlScheme(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// config 的 url / v_url / d_url 是服务端取数目标，必须是绝对 http(s)：
+// 无 scheme 与协议相对都会被 http.NewRequest 拒绝
+func TestValidateConfigURLMustBeAbsolute(t *testing.T) {
+	for _, u := range []string{"example.com/api", "//example.com/x", "/relative"} {
+		cfg := PlatConfig{Type: "json", VPosition: []any{"v"}, DPosition: []any{"d"}, URL: u}
+		found := false
+		for _, is := range validatePlatConfig("config", cfg) {
+			if is.Level == "warn" && strings.Contains(is.Message, "url") {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("config.url = %q 应报 warn（取数目标必须是绝对 http(s)）: %+v",
+				u, validatePlatConfig("config", cfg))
+		}
+	}
+	// 空字段不报
+	cfg := PlatConfig{Type: "json", VPosition: []any{"v"}, DPosition: []any{"d"}}
+	for _, is := range validatePlatConfig("config", cfg) {
+		if strings.Contains(is.Message, "url") {
+			t.Errorf("未设置 url 不应报错: %s", is.Message)
+		}
+	}
+}

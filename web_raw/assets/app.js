@@ -67,14 +67,37 @@ function absoluteUrl(u) {
         return u;
     }
 }
+
+// 唯一允许打开的协议。new URL() 对 "javascript:..." 不抛错，会原样保留该协议，
+// 于是 window.open 就能执行规则文件里带来的脚本。桌面分支由服务端
+// parseHTTPURL 兜底（core/server/open.go），浏览器分支原本毫无校验——
+// 而规则里的 official_website、以及检查结果里的 url / proxy_url 都是远程可控数据。
+var ALLOWED_URL_SCHEMES = ["http:", "https:"];
+function isAllowedUrl(u) {
+    try {
+        return ALLOWED_URL_SCHEMES.indexOf(new URL(u, location.origin).protocol) >= 0;
+    } catch (e) {
+        return false;
+    }
+}
 // 打开链接：桌面壳经服务端拉起系统浏览器；浏览器里直接开新标签
 function openUrl(url) {
     if (!url) return;
-    url = absoluteUrl(url);
+    var abs = absoluteUrl(url);
+    if (!isAllowedUrl(abs)) {
+        _makeToast(
+            "无法打开",
+            "已阻止非 http/https 协议的链接：" + escapeHtml(String(url).slice(0, 120)),
+            "bg-warn",
+            "bg-warn/80",
+            5
+        );
+        return;
+    }
     if (isDesktop()) {
-        apiPost("/api/open-url", { url: url });
+        apiPost("/api/open-url", { url: abs });
     } else {
-        window.open(url, "_blank");
+        window.open(abs, "_blank");
     }
 }
 

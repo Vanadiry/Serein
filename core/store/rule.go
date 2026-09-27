@@ -432,6 +432,14 @@ func (r Rule) Validate() []RuleIssue {
 	if len(r.Info.Platforms) == 0 {
 		issues = append(issues, RuleIssue{Level: "error", Message: "info: 至少需要一个平台"})
 	}
+	// official_website 会被前端直接送进 openUrl。new URL() 对 "javascript:..." 不抛错，
+	// 浏览器分支一旦无校验就会执行规则里带来的脚本（core/store/rule.schema.json 不存在，
+	// 只能在这里校验）。协议相对 //host 交由 normalizeURL / 前端补全，不算非法。
+	if w := strings.TrimSpace(r.Info.OfficialWebsite); w != "" {
+		if level, msg := checkURLScheme("info: official_website", w, true); level != "" {
+			issues = append(issues, RuleIssue{Level: level, Message: msg})
+		}
+	}
 	for _, p := range r.Info.Platforms {
 		if strings.TrimSpace(p) == "" {
 			issues = append(issues, RuleIssue{Level: "error", Message: "info: 平台名不能为空"})
@@ -444,6 +452,56 @@ func (r Rule) Validate() []RuleIssue {
 		issues = append(issues, validatePlatConfig("config."+os, r.MergedConfig(os))...)
 	}
 	return issues
+}
+
+// urlScheme 返回 raw 的协议名（小写、不含冒号）；没有 scheme 时返回 ""。
+// 按 scheme 语法判断而不是「第一个冒号之前」，否则 "https://x" 的 scheme 冒号
+// 会被误当成路径里的冒号。
+func urlScheme(raw string) string {
+	i := strings.IndexByte(raw, ':')
+	if i <= 0 {
+		return ""
+	}
+	for j := 0; j < i; j++ {
+		c := raw[j]
+		switch {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z':
+		case j > 0 && (c >= '0' && c <= '9' || c == '+' || c == '-' || c == '.'):
+		default:
+			return "" // 冒号不在 scheme 位置（路径 / 查询串里）
+		}
+	}
+	return strings.ToLower(raw[:i])
+}
+
+// checkURLScheme 校验一个 URL 字段的协议。
+//
+// allowRelative 按字段的消费方区分，不能一刀切：
+//   - config 的 url / v_url / d_url 是**服务端取数的目标**，必须是绝对 http(s)，
+//     否则 http.NewRequest 直接失败——无 scheme、协议相对都要报出来。
+//   - official_website 是**前端链接**，会被 absoluteUrl() 相对 origin 补全，
+//     所以无 scheme 与 //host 都是合法的。
+//
+// 两边共同的一条：javascript: 之类必须 error —— new URL() 对它不抛错，
+// 前端 openUrl 若无白名单就会执行规则里带来的脚本。
+func checkURLScheme(field, u string, allowRelative bool) (level, msg string) {
+	if u == "" {
+		return "", "" // 字段未设置
+	}
+	scheme := urlScheme(u)
+	if scheme == "http" || scheme == "https" {
+		return "", ""
+	}
+	if scheme == "" {
+		if allowRelative {
+			return "", ""
+		}
+		return "warn", field + " 不是 http(s) 链接"
+	}
+	if scheme == "javascript" || scheme == "data" || scheme == "vbscript" || scheme == "file" {
+		return "error", field + " 使用了非 http(s) 协议（" + scheme + ":），可能被用于注入脚本"
+	}
+	return "warn", field + " 不是 http(s) 链接"
 }
 
 // validParserTypes 合法的解析器类型。type / v_type / d_type 都必须落在这个集合里。
@@ -490,11 +548,12 @@ func validatePlatConfig(name string, c PlatConfig) []RuleIssue {
 	}
 
 	checkURL := func(field, u string) {
-		if u == "" || strings.HasPrefix(u, "http://") || strings.HasPrefix(u, "https://") {
-			return
+		if level, msg := checkURLScheme(field, u, false); level != "" {
+			add(level, msg)
 		}
-		add("warn", field+" 不是 http(s) 链接")
 	}
+	// 规则里的 URL 会被前端拿去过 scheme 白名单（openUrl），但 static 校验
+	// 提前挡住更省事：core/store/rule.schema.json 并不存在，只能在代码里校验
 	checkURL("url", c.URL)
 	checkURL("v_url", c.VURL)
 	checkURL("d_url", c.DURL)
