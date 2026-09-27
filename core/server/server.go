@@ -319,6 +319,34 @@ func (s *Server) Listen() error {
 	return nil
 }
 
+// 服务端连接级超时。零值 http.Server 的 ReadHeaderTimeout / ReadTimeout 都是
+// 「无限制」，IdleTimeout 为 0 时回落到 ReadTimeout（同样是 0）——于是三者全无限制：
+// 慢速滴灌 header 的连接可永久占用一个 goroutine 与 fd，而本服务无鉴权、
+// 可被本机任意进程访问，没有限流手段可用。
+//
+// WriteTimeout 刻意不设：/api/events 与 /api/progress/{id} 是长连接 SSE，
+// 任何写超时都会把它们掐断。声明为 var 以便测试缩短。
+var (
+	readHeaderTimeout = 10 * time.Second
+	readTimeout       = 30 * time.Second
+	idleTimeout       = 120 * time.Second
+	// maxHeaderBytes 与 Go 的 DefaultMaxHeaderBytes 一致，写明以免默认值变化后
+	// 悄悄放宽。请求体另有 limitBody 的 1MB 上限，与此无关。
+	maxHeaderBytes = 1 << 20
+)
+
+// newHTTPServer 构造带连接级超时的 http.Server
+func newHTTPServer(h http.Handler) *http.Server {
+	return &http.Server{
+		Handler:           h,
+		ReadHeaderTimeout: readHeaderTimeout,
+		ReadTimeout:       readTimeout,
+		IdleTimeout:       idleTimeout,
+		MaxHeaderBytes:    maxHeaderBytes,
+		// WriteTimeout 留空：SSE 长连接不能有写超时
+	}
+}
+
 // Serve 在已绑定的监听器上提供服务，直到收到退出信号
 func (s *Server) Serve() error {
 	if s.ln == nil {
@@ -326,7 +354,7 @@ func (s *Server) Serve() error {
 			return err
 		}
 	}
-	srv := &http.Server{Handler: withCORS()(sameOriginGuard(loggingMiddleware(s.mux)))}
+	srv := newHTTPServer(withCORS()(sameOriginGuard(loggingMiddleware(s.mux))))
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
