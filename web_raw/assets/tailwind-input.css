@@ -1,6 +1,5 @@
 @import "tailwindcss";
 
-/* Dark mode (default) */
 :root {
     --c-bg: #1d1d1d;
     --c-surface: #202028;
