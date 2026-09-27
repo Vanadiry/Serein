@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/vanadiry/serein/core/progress"
 )
@@ -295,5 +297,91 @@ func collectDone(p *progress.Progress, d *doneEvent) {
 		d.files, d.fileErrors = m.Files, m.FileErrors
 		d.failures, d.cancelled = m.Failures, m.Cancelled
 		return
+	}
+}
+
+// worker pool 的边界：任务数为 0 / 少于并发数时不得死锁或起多余的 worker
+func TestDownloadLeavesDegenerateTaskCounts(t *testing.T) {
+	home := t.TempDir()
+	rulesDir := filepath.Join(home, "rules")
+	up := filepath.Join(home, "up")
+	if err := os.MkdirAll(filepath.Join(up, "a"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	writeFixture(t, filepath.Join(up, "a", "one.toml"), "ONE")
+
+	for _, tc := range []struct {
+		name   string
+		conc   int
+		leaves []leafSrc
+	}{
+		{"无任务", 4, nil},
+		{"任务数少于并发数", 8, []leafSrc{{
+			id: "a", destDir: "a", baseURL: filepath.Join(up, "a"), isWeb: false,
+			files: map[string]string{"one.toml": "1"},
+			need:  map[string]string{"one.toml": "1"},
+		}}},
+		{"并发数为 0", 0, []leafSrc{{
+			id: "a", destDir: "a", baseURL: filepath.Join(up, "a"), isWeb: false,
+			files: map[string]string{"one.toml": "1"},
+			need:  map[string]string{"one.toml": "1"},
+		}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := progress.NewProgress(0)
+			defer p.Close()
+			pg := &progState{}
+			contents, failed, fails, fileErrors := downloadLeaves(
+				context.Background(), rulesDir, tc.leaves, tc.conc, p, pg)
+			if fileErrors != 0 || len(fails) != 0 {
+				t.Errorf("不应有失败: %v %d", fails, fileErrors)
+			}
+			for i := range failed {
+				if failed[i] {
+					t.Errorf("leaf %d 被标记失败", i)
+				}
+			}
+			if len(tc.leaves) > 0 && string(contents[0]["one.toml"]) != "ONE" {
+				t.Errorf("内容 = %q", contents[0]["one.toml"])
+			}
+			if pg.done != len(tc.leaves) {
+				t.Errorf("done = %d, want %d", pg.done, len(tc.leaves))
+			}
+		})
+	}
+}
+
+// 取消：不得死锁（派发端与 worker 都必须能从 ctx 撤出），且不返回任何内容
+func TestDownloadLeavesCancelDoesNotDeadlock(t *testing.T) {
+	home := t.TempDir()
+	up := filepath.Join(home, "up")
+	if err := os.MkdirAll(filepath.Join(up, "a"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	need := make(map[string]string, 200)
+	for i := 0; i < 200; i++ {
+		name := "f" + strconv.Itoa(i) + ".toml"
+		writeFixture(t, filepath.Join(up, "a", name), "X")
+		need[name] = "1"
+	}
+	leaves := []leafSrc{{
+		id: "a", destDir: "a", baseURL: filepath.Join(up, "a"),
+		files: need, need: need,
+	}}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // 一开始就取消：最坏情况是派发端先撞上满队列
+
+	p := progress.NewProgress(0)
+	defer p.Close()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		downloadLeaves(ctx, filepath.Join(home, "rules"), leaves, 4, p, &progState{})
+	}()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("取消后 downloadLeaves 未返回（死锁）")
 	}
 }

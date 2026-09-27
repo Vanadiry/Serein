@@ -118,11 +118,11 @@ func safeRelPath(base, rel string) (string, bool) {
 }
 
 // readLeafFile 读取子规则源的一个文件内容：web 源走网络，本地源读文件
-func readLeafFile(ctx context.Context, l leafSrc, rel string) ([]byte, error) {
-	if !l.isWeb {
-		return os.ReadFile(filepath.Join(l.baseURL, rel))
+func readLeafFile(ctx context.Context, base string, isWeb bool, rel string) ([]byte, error) {
+	if !isWeb {
+		return os.ReadFile(filepath.Join(base, rel))
 	}
-	url := strings.TrimSuffix(l.baseURL, "/") + "/" + filepath.ToSlash(rel)
+	url := strings.TrimSuffix(base, "/") + "/" + filepath.ToSlash(rel)
 	body, err := getHTTP(ctx, url, maxFetchBytes)
 	if err != nil {
 		return nil, fmt.Errorf("下载 %s: %w", url, err)
@@ -487,25 +487,73 @@ func syncLeaves(ctx context.Context, rulesDir, stagingRoot, home string, leaves 
 	return updated > 0
 }
 
-// downloadLeaves 并发下载各子规则源的文件（内存暂存）；返回失败标记、失败明细与文件错误数
+// downloadTask 一个待下载的规则文件
+type downloadTask struct {
+	leaf  int    // 对应 leaves 的下标
+	id    string // 源 ID（失败归属）
+	base  string // 该源目录的绝对路径
+	isWeb bool
+	rel   string // 源内相对文件名
+}
+
+// downloadLeaves 并发下载各子规则源的文件（内存暂存）；返回失败标记、失败明细与文件错误数。
+// 用固定数量的 worker 从带缓冲 channel 取任务，而不是每个文件起一个 goroutine——
+// 10000 条规则就是 10000 个 goroutine 与闭包，只为并发跑 concurrency 个。
 func downloadLeaves(ctx context.Context, rulesDir string, leaves []leafSrc, concurrency int, p *progress.Progress, pg *progState) ([]map[string][]byte, []bool, []syncFailure, int) {
-	sem := make(chan struct{}, concurrency)
-	var mu sync.Mutex
-	var wg sync.WaitGroup
+	workers := concurrency
+	if workers < 1 {
+		workers = 1
+	}
 
 	contents := make([]map[string][]byte, len(leaves))
 	leafFailed := make([]bool, len(leaves))
+	total := 0
 	for i := range leaves {
 		// 先并入 token 未变的本地内容：提交是整树换入，缺了它们旧文件会被清掉
 		contents[i] = make(map[string][]byte, len(leaves[i].need)+len(leaves[i].carry))
 		for rel, body := range leaves[i].carry {
 			contents[i][rel] = body
 		}
+		total += len(leaves[i].need)
+	}
+	// 任务数不足并发数时不必起更多 worker
+	if total < workers {
+		workers = total
+	}
+	if workers == 0 {
+		return contents, leafFailed, nil, 0
 	}
 
 	fileErrors := 0
 	var failures []syncFailure
+	var mu sync.Mutex
 
+	queue := make(chan downloadTask, workers*2)
+	var wg sync.WaitGroup
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for task := range queue {
+				body, err := readLeafFile(ctx, task.base, task.isWeb, task.rel)
+				mu.Lock()
+				pg.done++
+				name := task.rel
+				if err != nil {
+					leafFailed[task.leaf] = true
+					fileErrors++
+					failures = append(failures, syncFailure{Source: task.id, File: task.rel, Error: err.Error()})
+					name += " (失败)"
+				} else {
+					contents[task.leaf][task.rel] = body
+				}
+				p.Send("file", name, pg.done, pg.total)
+				mu.Unlock()
+			}
+		}()
+	}
+
+	// 派发：非法路径就地记失败，不进队列
 	for i := range leaves {
 		l := leaves[i]
 		base := filepath.Join(rulesDir, l.destDir)
@@ -513,40 +561,22 @@ func downloadLeaves(ctx context.Context, rulesDir string, leaves []leafSrc, conc
 			rel, ok := safeRelPath(base, f)
 			if !ok {
 				events.Emit("warn", "[sync]", fmt.Sprintf("跳过非法文件路径 %q（源 %s）", f, l.id))
-				mu.Lock()
 				leafFailed[i] = true
 				fileErrors++
 				failures = append(failures, syncFailure{Source: l.id, File: f, Error: "非法文件路径"})
-				mu.Unlock()
 				continue
 			}
-			wg.Add(1)
-			go func(i int, l leafSrc, rel string) {
-				defer wg.Done()
-				select {
-				case <-ctx.Done():
-					return
-				case sem <- struct{}{}:
-				}
-				defer func() { <-sem }()
-
-				body, err := readLeafFile(ctx, l, rel)
-				mu.Lock()
-				pg.done++
-				name := rel
-				if err != nil {
-					leafFailed[i] = true
-					fileErrors++
-					failures = append(failures, syncFailure{Source: l.id, File: rel, Error: err.Error()})
-					name += " (失败)"
-				} else {
-					contents[i][rel] = body
-				}
-				p.Send("file", name, pg.done, pg.total)
-				mu.Unlock()
-			}(i, l, rel)
+			select {
+			case <-ctx.Done():
+				// 取消：关闭队列让 worker 退出，剩余任务不下载
+				close(queue)
+				wg.Wait()
+				return contents, leafFailed, failures, fileErrors
+			case queue <- downloadTask{leaf: i, id: l.id, base: l.baseURL, isWeb: l.isWeb, rel: rel}:
+			}
 		}
 	}
+	close(queue)
 	wg.Wait()
 	return contents, leafFailed, failures, fileErrors
 }
