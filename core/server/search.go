@@ -37,7 +37,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		CurrentVersion map[string]string `json:"current_version"`
 	}
 	infos, _ := store.LoadAllTrackerInfo(s.home)
-	userData, _ := store.LoadUserData(s.home)
+	userData := s.loadUserData()
 	var appItems []appHit
 	for _, ti := range infos {
 		entries, err := store.LoadTrackerFile(s.home, ti.ID)

@@ -67,7 +67,7 @@ func (s *Server) handleTrackerListByID(w http.ResponseWriter, r *http.Request) {
 	if !isVsixType {
 		rules = s.getRules()
 	}
-	userData, _ = store.LoadUserData(s.home)
+	userData = s.loadUserData()
 
 	type detail struct {
 		AppID           string            `json:"app_id"`
