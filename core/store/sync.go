@@ -211,8 +211,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 	stagingRoot, err := prepareStagingRoot(home)
 	if err != nil {
 		log.LogfWarn("[sync] 准备暂存目录失败，本次同步不提交: %v", err)
-		p.SendMap(map[string]any{
-			"step":            "done",
+		p.SetFinalEvent(map[string]any{
 			"sources_total":   len(sources),
 			"sources_skipped": 0,
 			"sources_updated": 0,
@@ -220,7 +219,6 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 			"files":           0,
 			"file_errors":     0,
 			"failures":        []syncFailure{{Source: "暂存目录", Error: err.Error()}},
-			"cancelled":       ctx.Err() != nil,
 		})
 		return
 	}
@@ -265,8 +263,9 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 	if st.updated > 0 {
 		reload = true
 	}
-	p.SendMap(map[string]any{
-		"step":            "done",
+	// 结束事件由 Close 发出（见 progress.SetFinalEvent）：自行先发一条 done 会与
+	// Close 的收尾 done 重复，客户端只会取到其中一条。
+	p.SetFinalEvent(map[string]any{
 		"sources_total":   st.total,
 		"sources_skipped": st.skipped,
 		"sources_updated": st.updated,
@@ -274,7 +273,6 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 		"files":           st.files,
 		"file_errors":     st.fileErrs,
 		"failures":        st.failures,
-		"cancelled":       ctx.Err() != nil,
 	})
 }
 

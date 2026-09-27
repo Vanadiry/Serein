@@ -21,6 +21,7 @@ type Progress struct {
 	mu        sync.Mutex
 	closed    bool
 	cancelled bool
+	final     map[string]any // 预设的结束事件载荷
 }
 
 var (
@@ -88,6 +89,18 @@ func (p *Progress) SendMap(m map[string]any) {
 	}
 }
 
+// SetFinalEvent 预设结束事件的载荷，由 Close 发出。
+// 调用方往往直到收尾才知道汇总数字（成功/跳过/失败各多少），而结束事件只能在
+// Close 里发——所以让它能携带载荷，而不是让调用方自己先发一条 done，那样会与
+// Close 发的收尾 done 重复。重复的 done 会被客户端当成两次结束，前端只是恰好
+// 在第一条就 close 才没出问题，而载荷丢失的那条只剩 {"step":"done"}，
+// 客户端会把它渲染成「同步完成」，把失败静默吞掉。
+func (p *Progress) SetFinalEvent(payload map[string]any) {
+	p.mu.Lock()
+	p.final = payload
+	p.mu.Unlock()
+}
+
 // Close 结束进度追踪，可重复调用
 // 关闭后 Send/SendMap 变为 no-op，避免与并发 Send 撞上 send-on-closed-channel
 func (p *Progress) Close() {
@@ -97,7 +110,20 @@ func (p *Progress) Close() {
 		return
 	}
 	p.closed = true
-	data, _ := json.Marshal(map[string]any{"step": "done", "cancelled": p.cancelled})
+	payload := p.final
+	if payload == nil {
+		payload = map[string]any{}
+	} else {
+		// 复制一份，避免把调用方持有的 map 与后续 Close 竞争
+		cp := make(map[string]any, len(payload)+2)
+		for k, v := range payload {
+			cp[k] = v
+		}
+		payload = cp
+	}
+	payload["step"] = "done"
+	payload["cancelled"] = p.cancelled
+	data, _ := json.Marshal(payload)
 	select {
 	case p.Channel <- string(data):
 	default:
