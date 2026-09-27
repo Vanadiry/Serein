@@ -405,6 +405,20 @@ func flattenLeaves(n *sourceNode) []leafSrc {
 	return out
 }
 
+// dirHasRuleFiles 报告目录下是否还有规则文件
+func dirHasRuleFiles(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		if !e.IsDir() && filepath.Ext(e.Name()) == ".toml" {
+			return true
+		}
+	}
+	return false
+}
+
 // syncLeaves 处理一个顶层源下的全部叶子：逐文件剪枝 → 并发下载 → 加锁提交。
 // 返回本次是否更新了规则（需要重载缓存）。
 func syncLeaves(ctx context.Context, rulesDir, stagingRoot, home string, leaves []leafSrc, concurrency int, p *progress.Progress, st *syncStats, pg *progState) bool {
@@ -414,7 +428,18 @@ func syncLeaves(ctx context.Context, rulesDir, stagingRoot, home string, leaves 
 	var fresh []leafSrc
 	skipped := 0
 	for _, l := range leaves {
-		local := loadLocalFileTokens(filepath.Join(rulesDir, l.destDir))
+		dest := filepath.Join(rulesDir, l.destDir)
+		// #3 保护：manifest 为空而本地已有规则文件 → 拒绝提交。
+		// 上游返回截断的 manifest、临时故障、正在重建的站点都会走到这里；
+		// 提交等于用空树替换整棵目录，规则会被静默清光。方向上宁可保留旧规则并报错。
+		if len(l.files) == 0 && dirHasRuleFiles(dest) {
+			msg := "上游未列出任何规则文件，已保留本地现有规则不做替换（请检查该源的 _source.json）"
+			log.LogfWarn("[sync] %s %s", l.id, msg)
+			st.failures = append(st.failures, syncFailure{Source: l.id, Error: msg})
+			st.failed++
+			continue
+		}
+		local := loadLocalFileTokens(dest)
 		l.need = make(map[string]string, len(l.files))
 		for name, token := range l.files {
 			if local[name] != token {
@@ -430,7 +455,10 @@ func syncLeaves(ctx context.Context, rulesDir, stagingRoot, home string, leaves 
 				break
 			}
 		}
-		if len(l.need) == 0 && !stale {
+		if len(l.need) == 0 && !stale && local != nil {
+			// local != nil 表示有可信基线（marker 存在且可解析）。没有基线时即使
+			// 无差异也要走一次提交，把源物化出来——否则 marker 永不落盘，
+			// 该源在界面上不可见，且每次同步都被当成"已是最新"。
 			p.SendMap(map[string]any{"step": "skip", "name": l.id, "files": len(l.files)})
 			skipped++
 			continue

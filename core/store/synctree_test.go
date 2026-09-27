@@ -385,3 +385,69 @@ func TestDownloadLeavesCancelDoesNotDeadlock(t *testing.T) {
 		t.Fatal("取消后 downloadLeaves 未返回（死锁）")
 	}
 }
+
+// #3 回归：上游返回空 files 而本地已有规则文件时，必须拒绝提交而不是把规则清光。
+// 触发条件很常见——上游 manifest 被截断、临时故障、站点正在重建。
+func TestSyncRejectsEmptyManifest(t *testing.T) {
+	home := t.TempDir()
+	up := filepath.Join(home, "up")
+	seedUpstream(t, up,
+		SourceInfo{ID: "T", Type: "list", SubSources: []string{"a/_source.json"}},
+		map[string]SourceInfo{"a": {ID: "a", Files: map[string]string{"x.toml": "1", "y.toml": "1"}}},
+	)
+	writeFixture(t, filepath.Join(up, "a", "x.toml"), "X")
+	writeFixture(t, filepath.Join(up, "a", "y.toml"), "Y")
+	sources := []RuleSource{{URL: filepath.Join(up, sourceFileName)}}
+	rulesDir := filepath.Join(home, "rules")
+
+	p1 := progress.NewProgress(0)
+	SyncAllSourcesAsync(home, sources, 2, p1, nil)
+	collectDone(p1, &doneEvent{})
+
+	// manifest 被清空
+	writeJSON(t, filepath.Join(up, "a", sourceFileName), SourceInfo{ID: "a"})
+	p2 := progress.NewProgress(0)
+	SyncAllSourcesAsync(home, sources, 2, p2, nil)
+	d := &doneEvent{}
+	collectDone(p2, d)
+
+	if got := mustRead(t, filepath.Join(rulesDir, "T", "a", "x.toml")); got != "X" {
+		t.Errorf("规则文件被清掉: x.toml = %q", got)
+	}
+	if got := mustRead(t, filepath.Join(rulesDir, "T", "a", "y.toml")); got != "Y" {
+		t.Errorf("规则文件被清掉: y.toml = %q", got)
+	}
+	if d.updated != 0 || d.failed != 1 {
+		t.Errorf("updated=%d failed=%d, want 0/1（应报失败而非成功）", d.updated, d.failed)
+	}
+	if len(d.failures) != 1 || !strings.Contains(d.failures[0].Error, "未列出任何规则文件") {
+		t.Errorf("failures = %+v", d.failures)
+	}
+}
+
+// 空的全新源（本地本来就没有规则文件）应当正常提交，不被保护误伤
+func TestSyncAllowsEmptyManifestOnFreshSource(t *testing.T) {
+	home := t.TempDir()
+	up := filepath.Join(home, "up")
+	seedUpstream(t, up,
+		SourceInfo{ID: "T", Type: "list", SubSources: []string{"a/_source.json"}},
+		map[string]SourceInfo{"a": {ID: "a"}},
+	)
+	sources := []RuleSource{{URL: filepath.Join(up, sourceFileName)}}
+
+	p := progress.NewProgress(0)
+	SyncAllSourcesAsync(home, sources, 2, p, nil)
+	d := &doneEvent{}
+	collectDone(p, d)
+
+	if d.failed != 0 {
+		t.Errorf("全新空源不应被判失败: %+v", d)
+	}
+	// marker 仍应落盘，源在界面上可见
+	if got := loadLocalFileTokens(filepath.Join(home, "rules", "T", "a")); got != nil {
+		t.Errorf("marker 应已落盘, got %v", got)
+	}
+	if _, err := os.Stat(filepath.Join(home, "rules", "T", "a", sourceFileName)); err != nil {
+		t.Errorf("marker 未落盘: %v", err)
+	}
+}
