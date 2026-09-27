@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/vanadiry/serein/core/events"
 	"github.com/vanadiry/serein/core/httpx"
+	"github.com/vanadiry/serein/core/store"
 )
 
 // PlatformResult 单个平台的检查结果
@@ -51,37 +51,30 @@ func stripVersionAffixes(ver string) string {
 	return ver
 }
 
+// checkParserTypes 校验版本号与下载链接两侧的解析器类型
+func checkParserTypes(vType, dType string) error {
+	if !store.IsValidParserType(vType) {
+		return fmt.Errorf("未知版本号解析器 %q", vType)
+	}
+	if !store.IsValidParserType(dType) {
+		return fmt.Errorf("未知下载解析器 %q", dType)
+	}
+	return nil
+}
+
 // RunPlatformCheck 对单个平台执行检查
 func RunPlatformCheck(ctx context.Context, cfg PlatformCheckConfig, client *http.Client) (PlatformResult, error) {
 	var vr PlatformResult
 
-	// 提取版本号
-	vURL := cfg.URL
-	vType := cfg.Type
+	// 版本号与下载链接的请求地址 / 解析器：d_url、d_type 覆盖 url、type
+	vURL, vType := cfg.URL, cfg.Type
 	if cfg.VURL != "" {
 		vURL = cfg.VURL
 	}
 	if cfg.VType != "" {
 		vType = cfg.VType
 	}
-
-	if vType == "direct" {
-		vr.LatestVersion = stripVersionAffixes(vURL)
-	} else if cfg.VPosition != nil {
-		body, err := httpx.Request(ctx, client, vURL, cfg.UA, cfg.Headers)
-		if err != nil {
-			return vr, err
-		}
-		ver, err := extractValue(body, vType, cfg.VPosition, cfg.VJoin, "", cfg.Label)
-		if err != nil {
-			return vr, err
-		}
-		vr.LatestVersion = stripVersionAffixes(toString(ver))
-	}
-
-	// 提取下载链接
-	dURL := cfg.URL
-	dType := cfg.Type
+	dURL, dType := cfg.URL, cfg.Type
 	if cfg.DURL != "" {
 		dURL = cfg.DURL
 	}
@@ -89,6 +82,29 @@ func RunPlatformCheck(ctx context.Context, cfg PlatformCheckConfig, client *http
 		dType = cfg.DType
 	}
 
+	// 前置校验解析器类型，必须早于任何网络请求：否则未知类型会先发一次请求，
+	// 拿到的是网络错误（请求成功后才炸出 "<nil>" 版本号），
+	// 真实原因被掩盖，还白白浪费一次往返。
+	if err := checkParserTypes(vType, dType); err != nil {
+		return vr, err
+	}
+
+	// 提取版本号
+	if vType == "direct" {
+		vr.LatestVersion = stripVersionAffixes(vURL)
+	} else if cfg.VPosition != nil {
+		body, err := httpx.Request(ctx, client, vURL, cfg.UA, cfg.Headers)
+		if err != nil {
+			return vr, err
+		}
+		ver, err := extractValue(body, vType, cfg.VPosition, cfg.VJoin, "")
+		if err != nil {
+			return vr, err
+		}
+		vr.LatestVersion = stripVersionAffixes(toString(ver))
+	}
+
+	// 提取下载链接
 	if dType == "direct" {
 		dl, err := resolveDirectURL(dURL, vr.LatestVersion)
 		if err != nil {
@@ -100,7 +116,7 @@ func RunPlatformCheck(ctx context.Context, cfg PlatformCheckConfig, client *http
 		if err != nil {
 			return vr, err
 		}
-		dl, err := extractValue(body, dType, cfg.DPosition, cfg.DJoin, "", cfg.Label)
+		dl, err := extractValue(body, dType, cfg.DPosition, cfg.DJoin, "")
 		if err != nil {
 			return vr, err
 		}
@@ -123,7 +139,10 @@ func resolveDirectURL(durl, version string) (string, error) {
 
 // extractValue 根据 type 从响应体中提取一个值（版本号或下载链接）。
 // join 为空 → 单路径；非空 → 多路径拼接。
-func extractValue(body []byte, typ string, pos any, join, baseURL, label string) (any, error) {
+//
+// 未知类型必须报错，不能返回 (nil, nil)：那会让调用方的 toString(nil) 产出字面量
+// "<nil>"，被当成合法版本号写进结果并最终持久化进 user/software.json。
+func extractValue(body []byte, typ string, pos any, join, baseURL string) (any, error) {
 	switch typ {
 	case "json":
 		return extractJSONValue(body, pos, join)
@@ -133,12 +152,11 @@ func extractValue(body []byte, typ string, pos any, join, baseURL, label string)
 		return extractRegexValue(body, pos)
 	case "html_selector":
 		return extractSelectorValue(body, pos, baseURL)
+	case "github", "direct":
+		// 这两类不经由本函数取值：github 由 CheckGitHub 处理，
+		// direct 的"值"就是配置里的字面量（见 RunPlatformCheck）
+		return nil, fmt.Errorf("提取类型 %q 不经由 extractValue 取值", typ)
 	default:
-		ctx := "[checker]"
-		if label != "" {
-			ctx += " " + label
-		}
-		events.Emit("warn", ctx, fmt.Sprintf("未知提取类型: %s", typ))
-		return nil, nil
+		return nil, fmt.Errorf("未知提取类型 %q", typ)
 	}
 }

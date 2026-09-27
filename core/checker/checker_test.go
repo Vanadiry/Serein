@@ -1,6 +1,7 @@
 package checker
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/vanadiry/serein/core/store"
@@ -43,31 +44,40 @@ func TestResolveDirectURL(t *testing.T) {
 
 func TestExtractValue(t *testing.T) {
 	// json 单路径
-	if v, err := extractValue([]byte(`{"s":"x","n":12}`), "json", []any{"s"}, "", "", ""); err != nil || toString(v) != "x" {
+	if v, err := extractValue([]byte(`{"s":"x","n":12}`), "json", []any{"s"}, "", ""); err != nil || toString(v) != "x" {
 		t.Fatalf("json: %v %v", v, err)
 	}
 	// json 多路径拼接
 	pos := []any{[]any{"a"}, []any{"b"}}
-	if v, err := extractValue([]byte(`{"a":"1","b":"2"}`), "json", pos, "-", "", ""); err != nil || v != "1-2" {
+	if v, err := extractValue([]byte(`{"a":"1","b":"2"}`), "json", pos, "-", ""); err != nil || v != "1-2" {
 		t.Fatalf("json join: %v %v", v, err)
 	}
 	// xml + #text
-	if v, err := extractValue([]byte(`<r><v>1.2</v></r>`), "xml", []any{"r", "v", "#text"}, "", "", ""); err != nil || v != "1.2" {
+	if v, err := extractValue([]byte(`<r><v>1.2</v></r>`), "xml", []any{"r", "v", "#text"}, "", ""); err != nil || v != "1.2" {
 		t.Fatalf("xml: %v %v", v, err)
 	}
 	// regex
-	if v, err := extractValue([]byte("ver=3.4.5"), "regex", `ver=([0-9.]+)`, "", "", ""); err != nil || v != "3.4.5" {
+	if v, err := extractValue([]byte("ver=3.4.5"), "regex", `ver=([0-9.]+)`, "", ""); err != nil || v != "3.4.5" {
 		t.Fatalf("regex: %v %v", v, err)
 	}
 	// html_selector + baseurl
 	body := []byte(`<html><body><a class="dl" href="/files/x.bin">x</a></body></html>`)
 	pos2 := map[string]any{"selector": ".dl", "attr": "href"}
-	if v, err := extractValue(body, "html_selector", pos2, "", "https://h", ""); err != nil || v != "https://h/files/x.bin" {
+	if v, err := extractValue(body, "html_selector", pos2, "", "https://h"); err != nil || v != "https://h/files/x.bin" {
 		t.Fatalf("selector: %v %v", v, err)
 	}
-	// 未知类型 → nil, nil
-	if v, err := extractValue(nil, "nope", nil, "", "", ""); err != nil || v != nil {
-		t.Fatalf("未知类型: %v %v", v, err)
+	// 未知类型必须报错。旧实现返回 (nil, nil)，调用方的 toString(nil) 会产出
+	// 字面量 "<nil>"，被当成合法版本号写进结果并最终持久化进 user/software.json
+	if v, err := extractValue(nil, "nope", nil, "", ""); err == nil {
+		t.Fatalf("未知类型应报错，实际返回 %v", v)
+	} else if !strings.Contains(err.Error(), "nope") {
+		t.Errorf("错误信息应包含出错的类型: %v", err)
+	}
+	// github / direct 不经由本函数取值，误用要报错而不是静默返回 nil
+	for _, typ := range []string{"github", "direct"} {
+		if _, err := extractValue(nil, typ, nil, "", ""); err == nil {
+			t.Errorf("%s 不应经由 extractValue 取值", typ)
+		}
 	}
 }
 

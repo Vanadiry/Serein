@@ -125,7 +125,12 @@ func StepMulti(root any, paths [][]any, join string) (string, error) {
 	return strings.Join(parts, join), nil
 }
 
+// toString 把步进结果转成字符串。nil 返回空串而不是 fmt.Sprintf("%v", nil) 的
+// 字面量 "<nil>"——后者会被当成合法版本号一路写进 user/software.json。
 func toString(v any) string {
+	if v == nil {
+		return ""
+	}
 	if m, ok := v.(map[string]any); ok {
 		if t, ok := m["#text"]; ok {
 			return fmt.Sprintf("%v", t)

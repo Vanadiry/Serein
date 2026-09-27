@@ -38,7 +38,7 @@ func RunPreRequests(ctx context.Context, steps []store.PreRequestStep, client *h
 		}
 
 		// 复用通用提取（与版本/下载解析器同一套逻辑）
-		v, err := extractValue(respBody, step.Type, step.Position, "", step.BaseURL, "")
+		v, err := extractValue(respBody, step.Type, step.Position, "", step.BaseURL)
 		if err != nil {
 			return "", fmt.Errorf("pre_request %d: %w", i, err)
 		}

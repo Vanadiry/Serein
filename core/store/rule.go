@@ -446,6 +446,15 @@ func (r Rule) Validate() []RuleIssue {
 	return issues
 }
 
+// validParserTypes 合法的解析器类型。type / v_type / d_type 都必须落在这个集合里。
+// 拼写错误（如 v_type = "jsno"）过去能通过全部校验，直到运行时才炸成一个
+// 字面量 "<nil>" 的"版本号"。core/store/rule.schema.json 并不存在，
+// 所以这个 enum 由代码定义并在规则检查时校验。
+var validParserTypes = map[string]bool{
+	"json": true, "xml": true, "regex": true,
+	"html_selector": true, "github": true, "direct": true,
+}
+
 func validatePlatConfig(name string, c PlatConfig) []RuleIssue {
 	var issues []RuleIssue
 	add := func(level, msg string) {
@@ -462,9 +471,13 @@ func validatePlatConfig(name string, c PlatConfig) []RuleIssue {
 	}
 	if vType == "" {
 		add("error", "缺少 type（版本号解析器）")
+	} else if !validParserTypes[vType] {
+		add("error", fmt.Sprintf("未知版本号解析器 %q，可选 %s", vType, parserTypeList()))
 	}
 	if dType == "" {
 		add("error", "缺少 type（下载解析器）")
+	} else if !validParserTypes[dType] {
+		add("error", fmt.Sprintf("未知下载解析器 %q，可选 %s", dType, parserTypeList()))
 	}
 
 	if c.Type == "github" {
@@ -491,6 +504,19 @@ func validatePlatConfig(name string, c PlatConfig) []RuleIssue {
 	return issues
 }
 
+// IsValidParserType 报告 t 是否为受支持的解析器类型。
+// 规则检查与运行时检查共用这一份定义，避免两处枚举漂移。
+func IsValidParserType(t string) bool { return validParserTypes[t] }
+
+func parserTypeList() string {
+	names := make([]string, 0, len(validParserTypes))
+	for k := range validParserTypes {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	return strings.Join(names, " | ")
+}
+
 func validatePosition(name, field string, pos any, typ string) []RuleIssue {
 	if pos == nil || typ == "" || typ == "direct" {
 		return nil
@@ -498,6 +524,10 @@ func validatePosition(name, field string, pos any, typ string) []RuleIssue {
 	var issues []RuleIssue
 	add := func(msg string) {
 		issues = append(issues, RuleIssue{Level: "warn", Message: name + ": " + field + " " + msg})
+	}
+	if !validParserTypes[typ] {
+		// 未知类型在 validatePlatConfig 已报 error，这里不重复
+		return nil
 	}
 	switch typ {
 	case "json", "xml":
