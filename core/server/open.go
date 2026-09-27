@@ -44,7 +44,20 @@ func OpenBrowser(url string) {
 	default:
 		c = exec.Command("xdg-open", url)
 	}
-	_ = c.Start()
+	startDetached(c)
+}
+
+// startDetached 启动一个短命子进程并回收它。
+//
+// Start 之后必须 Wait：否则子进程退出后一直挂在进程表里成为僵尸，直到父进程
+// 自身结束。Serein 是长时间运行的，而 open / 下载器这类调用很频繁（点链接、
+// 下载回退、错误页都会走到），不回收会持续累积。
+func startDetached(c *exec.Cmd) error {
+	if err := c.Start(); err != nil {
+		return err
+	}
+	go func() { _ = c.Wait() }()
+	return nil
 }
 
 func (s *Server) handleOpenURL(w http.ResponseWriter, r *http.Request) {

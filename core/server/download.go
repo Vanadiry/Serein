@@ -65,7 +65,15 @@ func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "message": fmt.Sprintf("%s 未找到，已在浏览器中打开", args[0])})
 			return
 		}
-		go exec.Command(args[0], args[1:]...).Start()
+		if err := startDetached(exec.Command(args[0], args[1:]...)); err != nil {
+			log.LogfWarn("[download] 启动 %s 失败: %v", args[0], err)
+			OpenBrowser(body.URL)
+			writeJSON(w, http.StatusOK, map[string]string{
+				"status":  "error",
+				"message": fmt.Sprintf("无法启动 %s，已在浏览器中打开", args[0]),
+			})
+			return
+		}
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "message": "已调用 " + args[0]})
 
 	default:
