@@ -2,14 +2,18 @@ package checker
 
 import (
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/vanadiry/serein/core/store"
 )
 
 func TestStripVersionAffixes(t *testing.T) {
-	oldP, oldS := versionPrefixes, versionSuffixes
-	t.Cleanup(func() { versionPrefixes, versionSuffixes = oldP, oldS })
+	oldP, oldS := versionPrefixes.Load(), versionSuffixes.Load()
+	t.Cleanup(func() {
+		versionPrefixes.Store(oldP)
+		versionSuffixes.Store(oldS)
+	})
 
 	// 前缀按长度优先（ver 先于 v），后缀同理
 	SetVersionPrefixes([]string{"v", "ver"})
@@ -101,5 +105,41 @@ func TestNewPlatformCheckConfig(t *testing.T) {
 	}
 	if !got.AllowPrerelease || !got.DownloadViaProxy || got.DownloadName != "a-{version}.zip" {
 		t.Fatalf("透传字段: %+v", got)
+	}
+}
+
+// 拉取动态配置时会在运行时改写前后缀，而检查任务正并发读 —— 不得数据竞争
+func TestSetAffixesConcurrent(t *testing.T) {
+	oldP, oldS := versionPrefixes.Load(), versionSuffixes.Load()
+	t.Cleanup(func() {
+		versionPrefixes.Store(oldP)
+		versionSuffixes.Store(oldS)
+	})
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(2)
+		go func() { defer wg.Done(); SetVersionPrefixes([]string{"v", "ver", "release-"}) }()
+		go func() { defer wg.Done(); SetVersionSuffixes([]string{"a", "-beta"}) }()
+	}
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() { defer wg.Done(); _ = stripVersionAffixes("v1.2.3-beta") }()
+	}
+	wg.Wait()
+}
+
+// atomic.Pointer 零值是 nil，未调用过 Set* 时读它不能 panic
+// （裸切片时代零值是 nil 切片，range 合法，所以这个坑是引入 atomic 后才有的）
+func TestStripAffixesWithoutSet(t *testing.T) {
+	oldP, oldS := versionPrefixes.Load(), versionSuffixes.Load()
+	t.Cleanup(func() {
+		versionPrefixes.Store(oldP)
+		versionSuffixes.Store(oldS)
+	})
+	versionPrefixes.Store(nil)
+	versionSuffixes.Store(nil)
+
+	if got := stripVersionAffixes("v1.2.3"); got != "v1.2.3" {
+		t.Errorf("未配置前后缀时应原样返回，实际 %q", got)
 	}
 }

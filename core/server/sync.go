@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/vanadiry/serein/core/checker"
 	"github.com/vanadiry/serein/core/log"
 	"github.com/vanadiry/serein/core/progress"
 	"github.com/vanadiry/serein/core/store"
@@ -52,6 +53,10 @@ func (s *Server) syncProfile(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	// 同步后立刻应用新的前后缀：否则设置页显示的是新列表，实际检查仍用旧列表。
+	// （handleConfig 每次请求都重读 profile 文件，所以那个不一致是可见的。）
+	checker.SetVersionPrefixes(p.VersionPrefixes)
+	checker.SetVersionSuffixes(p.VersionSuffixes)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"updated":          updated,
 		"known_extensions": p.KnownExtensions,

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync/atomic"
 
 	"github.com/vanadiry/serein/core/httpx"
 	"github.com/vanadiry/serein/core/store"
@@ -76,31 +77,42 @@ func (pr *PlatformResult) Warn(msg string) {
 	pr.Warnings = append(pr.Warnings, msg)
 }
 
-var versionPrefixes []string
-var versionSuffixes []string
+// 前后缀列表。拉取动态配置时会在运行时被 Set* 改写，而检查任务正并发读，
+// 所以走 atomic.Pointer 整体替换 —— 裸切片赋值会被并发读写判定为数据竞争。
+var (
+	versionPrefixes atomic.Pointer[[]string]
+	versionSuffixes atomic.Pointer[[]string]
+)
+
+func affixes(in []string) *[]string {
+	cp := append([]string(nil), in...)
+	sort.Slice(cp, func(i, j int) bool { return len(cp[i]) > len(cp[j]) })
+	return &cp
+}
+
+// list 读出当前的前后缀列表。atomic.Pointer 的零值是 nil，
+// 未调用过 Set* 时 Load() 返回 nil 指针，解引用会 panic。
+func list(p *atomic.Pointer[[]string]) []string {
+	if v := p.Load(); v != nil {
+		return *v
+	}
+	return nil
+}
 
 // SetVersionPrefixes 设置版本前缀。内部拷贝后再排序，不修改调用方切片
-func SetVersionPrefixes(prefixes []string) {
-	cp := append([]string(nil), prefixes...)
-	sort.Slice(cp, func(i, j int) bool { return len(cp[i]) > len(cp[j]) })
-	versionPrefixes = cp
-}
+func SetVersionPrefixes(prefixes []string) { versionPrefixes.Store(affixes(prefixes)) }
 
 // SetVersionSuffixes 设置版本后缀。内部拷贝后再排序，不修改调用方切片
-func SetVersionSuffixes(suffixes []string) {
-	cp := append([]string(nil), suffixes...)
-	sort.Slice(cp, func(i, j int) bool { return len(cp[i]) > len(cp[j]) })
-	versionSuffixes = cp
-}
+func SetVersionSuffixes(suffixes []string) { versionSuffixes.Store(affixes(suffixes)) }
 
 func stripVersionAffixes(ver string) string {
-	for _, p := range versionPrefixes {
+	for _, p := range list(&versionPrefixes) {
 		if len(p) > 0 && strings.HasPrefix(ver, p) {
 			ver = ver[len(p):]
 			break
 		}
 	}
-	for _, s := range versionSuffixes {
+	for _, s := range list(&versionSuffixes) {
 		if len(s) > 0 && strings.HasSuffix(ver, s) {
 			ver = ver[:len(ver)-len(s)]
 			break
