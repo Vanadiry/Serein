@@ -176,19 +176,31 @@ paths:
               schema:
                 type: string
                 description: |
-                  每行 `data: <json>\n\n`。
-                  规则同步事件:
-                    start:    {"step":"start","name":"","done":0,"total":<files>}
+                  每行 `data: <json>\n\n`。每个任务有且仅有一条 `step:"done"`。
+
+                  规则同步事件（顶层源之间串行，同一顶层源内先走树再下载）：
+                    start:    {"step":"start","name":"","done":<已完成>,"total":<累计>}
                     list:     {"step":"list","name":"<source_id>","done":0,"total":0}
-                    source:   {"step":"source","name":"<source_id>","files":<n>}
-                    skip:     {"step":"skip","name":"<source_id>","files":<n>}
+                    source:   {"step":"source","name":"<source_id>","files":<本轮需下载数>}
+                    skip:     {"step":"skip","name":"<source_id>","files":<manifest 条目数>}
                     file:     {"step":"file","name":"<filename>","done":5,"total":131}
+                    write:    {"step":"write","name":"正在写入 <n> 个源"}
                     error:    {"step":"error","name":"<url> 获取失败","done":0,"total":0}
-                    done:     {"step":"done","sources_total":10,"sources_skipped":3,"sources_updated":5,"sources_failed":1,"files":45,"file_errors":1,"failures":[{"source":"v-github","file":"foo.toml","error":"HTTP 404: Not Found"}]}
+                    done:     {"step":"done","sources_total":10,"sources_skipped":3,"sources_updated":5,"sources_failed":1,"files":45,"file_errors":1,"cancelled":false,"failures":[{"source":"v-github","file":"foo.toml","error":"HTTP 404: Not Found"}]}
+
+                  同步计数口径：
+                    - `files` 为**本轮实际需下载的文件数**，跳过的文件不计入；每个文件对应一次 `file` 事件。
+                    - `done`/`total` 跨顶层源累计，单调递增；`start` 只在首次出现时发出（重复发会让进度条清零）。
+                    - `sources_total` = 发现的叶子源数 + 抓取失败的子源数。抓取失败的子源同时计入 `sources_failed`，
+                      否则 `sources_total` 与 `sources_failed` 双为 0，客户端会把失败判成成功。
+                    - `skip` 按源汇总（不逐文件发），条件是 token 全部未变、无本地多余条目、且本地有可信 marker。
+                    - `write` 表示下载已结束、正在原地落盘（含删除上游已不再列出的文件与孤儿子源）。
+
                   检查更新事件:
                     start: {"step":"start","name":"","done":0,"total":<n>}
                     app:   {"step":"app","name":"<app>","done":12,"total":30}   # 检查全部时为 "<Tracker>：<app>"
                     done:  {"step":"done","cancelled":false}
+
                   检查结果按 Tracker 缓存在内存（进程内），通过 GET /api/check/temp/{tracker_id} 读取。
 
   /api/check/cancel/{task_id}:

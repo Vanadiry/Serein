@@ -46,8 +46,8 @@ d_position = [0, "assets", "name~exe", "browser_download_url"]
 
 ## 注意事项
 
-- `v_position` 不需要写，版本号始终从 `tag_name` 提取，并自动去 `v` 前缀
-- `d_position` 是为正则，匹配 asset 文件名
+- `v_position` 由程序默认配置，无需在规则里声明。版本号始终从 `tag_name` 提取，并自动去 `v` 前缀
+- `d_position` 是匹配 asset 文件名的正则
 - 同平台匹配多个 asset 时全部返回
 - 不需要 `url`，由 `owner/repo` 自动拼接
 - `per_page` 可选，拼接为 `/releases?per_page=N`
