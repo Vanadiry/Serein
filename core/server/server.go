@@ -49,6 +49,11 @@ type Server struct {
 	// 被写进 .corrupt- 文件，正式路径反而空了。
 	userMu sync.RWMutex
 
+	// runPreRequests 便于测试替换：真实实现要联网，而测试里指向 127.0.0.1 的
+	// 地址会被 SSRF 防护正确拦掉，没法构造「预请求失败」这个场景。
+	// 为 nil 时用 checker.RunPreRequests。
+	runPreRequests func(ctx context.Context, steps []store.PreRequestStep, client *http.Client) (string, error)
+
 	// 下载代理签名密钥；进程级随机，重启即失效
 	proxySecret []byte
 }

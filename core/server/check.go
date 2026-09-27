@@ -311,12 +311,24 @@ func (s *Server) buildCheckJobs(ctx context.Context, entries []store.TrackerEntr
 
 			preSteps := rule.PreRequestChain(os)
 			if len(preSteps) > 0 {
-				preURL, err := checker.RunPreRequests(ctx, preSteps, httpx.NewClient())
+				runPre := s.runPreRequests
+				if runPre == nil {
+					runPre = checker.RunPreRequests
+				}
+				preURL, err := runPre(ctx, preSteps, httpx.NewClient())
 				if err != nil {
-					if !errors.Is(err, context.Canceled) {
-						report(CheckError{Name: jobName, Message: fmt.Sprintf("%s 前置请求失败: %v", jobName, err)})
+					if errors.Is(err, context.Canceled) {
+						return jobs, conc // 用户取消了，别再往下堆任务
 					}
-				} else if preURL != "" {
+					// 预请求失败就不能拿规则里的原始 URL 去检查：那不是真正的版本页。
+					// 请求它多半拿到一个错误页，解析器会从里面抠出一个版本号（比如
+					// "v2.1.0 not found" 里的 2.1.0）当成成功结果，用户点一下
+					// 「确认这个更新」，错的值就写进 software.json，之后这个应用
+					// 再也不会提示更新了。宁可这次不查。
+					report(CheckError{Name: jobName, Message: fmt.Sprintf("%s 前置请求失败，已跳过 %s: %v", jobName, os, err)})
+					continue
+				}
+				if preURL != "" {
 					platCfg.URL = preURL
 				}
 			}
