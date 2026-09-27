@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/vanadiry/serein/core/checker"
-	"github.com/vanadiry/serein/core/events"
 	"github.com/vanadiry/serein/core/httpx"
 	"github.com/vanadiry/serein/core/log"
 	"github.com/vanadiry/serein/core/progress"
@@ -183,16 +182,82 @@ func (s *Server) syncCachedCurrent(appID string, versions map[string]string) {
 
 // 异步检查（后台 goroutine，通过 SSE 推送进度）
 
+// checkMaxErrors 单次检查返回的错误条数上限。超出后只累加计数，
+// 由 done 事件里的 overflow 告知前端「还有更多」，避免超长响应
+const checkMaxErrors = 2000
+
+// CheckError 一次检查里的一条错误。随 done 事件返回给前端一次性展示，
+// 不写入结果缓存——缓存存的是版本号与下载链接，不是错误。
+type CheckError struct {
+	Tracker string `json:"tracker,omitempty"` // 所属 Tracker，前端按它分组
+	AppID   string `json:"app_id,omitempty"`
+	Name    string `json:"name,omitempty"`
+	OS      string `json:"os,omitempty"` // 空 = 整条目级或任务级
+	Message string `json:"message"`
+}
+
+// checkErrs 收集一次检查的错误。四种 scope 共用 runCheckAllAsync，
+// 所以收集逻辑只有这一份。
+type checkErrs struct {
+	mu       sync.Mutex
+	items    []CheckError
+	overflow int
+}
+
+func (c *checkErrs) add(e CheckError) {
+	if e.Message == "" {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if len(c.items) < checkMaxErrors {
+		c.items = append(c.items, e)
+	} else {
+		c.overflow++
+	}
+}
+
+// scoped 返回一个绑定到某个 Tracker 的 report，用于交给取数阶段的各函数
+func (c *checkErrs) scoped(tracker string) func(CheckError) {
+	return func(e CheckError) {
+		if e.Tracker == "" {
+			e.Tracker = tracker
+		}
+		c.add(e)
+	}
+}
+
+func (c *checkErrs) snapshot() ([]CheckError, int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.items, c.overflow
+}
+
+// recordResultErrors 把一次取数结果里的错误与告警收进收集器。
+// 直接遍历内存里的 results（不是结果缓存），所以天然只含本次的错误。
+func recordResultErrors(ce *checkErrs, tracker string, results []checker.CheckResponse) {
+	for _, r := range results {
+		for os, cp := range r.Platforms {
+			if cp.Error != "" {
+				ce.add(CheckError{Tracker: tracker, AppID: r.AppID, Name: r.Name, OS: os, Message: cp.Error})
+			}
+			for _, w := range cp.Warnings {
+				ce.add(CheckError{Tracker: tracker, AppID: r.AppID, Name: r.Name, OS: os, Message: w})
+			}
+		}
+	}
+}
+
 type checkJob struct {
 	req  checker.CheckRequest
 	name string
 }
 
-func (s *Server) buildCheckJobs(ctx context.Context, entries []store.TrackerEntry) ([]checkJob, int) {
+func (s *Server) buildCheckJobs(ctx context.Context, entries []store.TrackerEntry, report func(CheckError)) ([]checkJob, int) {
 	rules := s.getRules()
 	userData, udErr := store.LoadUserData(s.home)
 	if udErr != nil {
-		events.Emit("error", "[check]", fmt.Sprintf("加载用户数据失败: %v", udErr))
+		report(CheckError{Message: fmt.Sprintf("加载用户数据失败: %v", udErr)})
 	}
 
 	conc := s.config.Download.Concurrency
@@ -221,7 +286,7 @@ func (s *Server) buildCheckJobs(ctx context.Context, entries []store.TrackerEntr
 				preURL, err := checker.RunPreRequests(ctx, preSteps, httpx.NewClient())
 				if err != nil {
 					if !errors.Is(err, context.Canceled) {
-						events.Emit("error", "[check]", fmt.Sprintf("%s 前置请求失败: %v", jobName, err))
+						report(CheckError{Name: jobName, Message: fmt.Sprintf("%s 前置请求失败: %v", jobName, err)})
 					}
 				} else if preURL != "" {
 					platCfg.URL = preURL
@@ -340,13 +405,13 @@ func runConcurrent[T any](
 }
 
 // runAppJobs 并发执行 app 检查任务；每完成一个（含失败）调用 record(appID, name)
-func (s *Server) runAppJobs(ctx context.Context, jobs []checkJob, conc int, record func(appID, name string)) []checker.CheckResponse {
+func (s *Server) runAppJobs(ctx context.Context, jobs []checkJob, conc int, record func(appID, name string), report func(CheckError)) []checker.CheckResponse {
 	return runConcurrent(ctx, jobs, conc,
 		func(ctx context.Context, j checkJob) (checker.CheckResponse, error) {
 			return checker.RunCheck(ctx, j.req)
 		},
 		func(j checkJob, err error) {
-			events.Emit("error", "[check]", fmt.Sprintf("%s: %v", j.name, err))
+			report(CheckError{Name: j.name, Message: fmt.Sprintf("%s: %v", j.name, err)})
 			record(j.req.AppID, j.name)
 		},
 		func(j checkJob, resp checker.CheckResponse) {
@@ -356,7 +421,7 @@ func (s *Server) runAppJobs(ctx context.Context, jobs []checkJob, conc int, reco
 }
 
 // runDirectEntries 并发执行 direct（vsix）检查；每完成一个（含失败）调用 record(appID, name)
-func (s *Server) runDirectEntries(ctx context.Context, entries []store.TrackerEntry, typ string, conc int, record func(appID, name string)) []checker.CheckResponse {
+func (s *Server) runDirectEntries(ctx context.Context, entries []store.TrackerEntry, typ string, conc int, record func(appID, name string), report func(CheckError)) []checker.CheckResponse {
 	checkFn := selectDirectCheckFn(typ)
 	client := httpx.NewClient()
 	userData, _ := store.LoadUserData(s.home)
@@ -365,7 +430,7 @@ func (s *Server) runDirectEntries(ctx context.Context, entries []store.TrackerEn
 			return directCheckResponse(ctx, checkFn, client, e.AppID, typ, userData)
 		},
 		func(e store.TrackerEntry, err error) {
-			events.Emit("error", "["+typ+"]", fmt.Sprintf("%s: %v", e.AppID, err))
+			report(CheckError{AppID: e.AppID, Name: e.AppID, Message: fmt.Sprintf("%s: %v", e.AppID, err)})
 			record(e.AppID, e.AppID)
 		},
 		func(e store.TrackerEntry, resp checker.CheckResponse) {
@@ -586,7 +651,17 @@ func (s *Server) buildCheckList(trackerIDs []string, idFilter map[string][]strin
 }
 
 func (s *Server) runCheckAllAsync(list []checkAllTracker, p *progress.Progress, savePartial, replace bool) {
-	defer p.Close()
+	// 错误随 done 事件一次性返回：收集器只是本次调用的局部状态，
+	// 不注册、不出接口、不写入结果缓存。
+	ce := &checkErrs{}
+	defer func() {
+		items, overflow := ce.snapshot()
+		if items == nil {
+			items = []CheckError{}
+		}
+		p.SetFinalEvent(map[string]any{"errors": items, "overflow": overflow})
+		p.Close()
+	}()
 	ctx := p.Context()
 	conc := s.config.Download.Concurrency
 	if conc < 1 {
@@ -612,13 +687,18 @@ func (s *Server) runCheckAllAsync(list []checkAllTracker, p *progress.Progress, 
 			p.Send("app", t.name+"："+name, d, totalApps)
 		}
 
+		report := ce.scoped(t.name)
 		var results []checker.CheckResponse
 		if t.typ == "msvsix" || t.typ == "openvsx" {
-			results = s.runDirectEntries(ctx, t.entries, t.typ, conc, record)
+			results = s.runDirectEntries(ctx, t.entries, t.typ, conc, record, report)
 		} else {
-			jobs, _ := s.buildCheckJobs(ctx, t.entries)
-			results = s.runAppJobs(ctx, jobs, conc, record)
+			jobs, _ := s.buildCheckJobs(ctx, t.entries, report)
+			results = s.runAppJobs(ctx, jobs, conc, record, report)
 		}
+		// per-platform 错误与告警在此收集，**不能挂在提交阶段**：
+		// 取消时提交不执行，挂在那里会一条都收不上。遍历的是内存里的 results，
+		// 不是结果缓存，所以天然只含本次的错误。
+		recordResultErrors(ce, t.name, results)
 
 		// savePartial：指定范围检查时，取消也保留已完成的部分；全部检查时不覆盖未完成的桶
 		// replace：整表检查整桶替换；单条/按 id 检查只 upsert（保留该桶其它 app 的结果）

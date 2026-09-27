@@ -15,7 +15,18 @@ import (
 // PlatformResult 单个平台的检查结果
 type PlatformResult struct {
 	LatestVersion string
-	URL           any // string 或 []string（GitHub 多 asset）
+	URL           any      // string 或 []string（GitHub 多 asset）
+	Warnings      []string // 非致命的异常（取不到正式版、asset 解析失败等）
+}
+
+// Warn 记录一条非致命异常，重复的只留一条
+func (pr *PlatformResult) Warn(msg string) {
+	for _, w := range pr.Warnings {
+		if w == msg {
+			return
+		}
+	}
+	pr.Warnings = append(pr.Warnings, msg)
 }
 
 var versionPrefixes []string

@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/vanadiry/serein/core/events"
 	"github.com/vanadiry/serein/core/httpx"
 )
 
@@ -29,15 +28,6 @@ type GitHubConfig struct {
 	DPosition       any
 	AllowPrerelease bool   // true 时不过滤 prerelease，直接取最新一条
 	Label           string // 事件标题里的标识，为空时回退 owner/repo
-}
-
-// eventContext 事件标题
-func (cfg GitHubConfig) eventContext() string {
-	label := cfg.Label
-	if label == "" {
-		label = cfg.Owner + "/" + cfg.Repo
-	}
-	return "[github] " + label
 }
 
 // CheckGitHub 请求 /releases，返回最新非预发布版本及其下载链接。
@@ -71,25 +61,29 @@ func CheckGitHub(ctx context.Context, cfg GitHubConfig, client *http.Client) (Pl
 
 	var latest PlatformResult
 	var latestFound bool
+	// warn 收集到本次调用的 PlatformResult.Warnings，由 server 归入本次检查的错误列表。
+	// 不走事件总线——那是程序运行期的问题通道，不该混进某一次 task 的产出。
+	// 必须是局部状态：CheckGitHub 会被并发调用。
+	warn := latest.Warn
 
 	for i := range arr {
 		tag, err := extractGitHubVersion(root, i)
 		if err != nil {
 			continue
 		}
-		if !cfg.AllowPrerelease && isGitHubPrerelease(root, i, cfg.eventContext()) {
+		if !cfg.AllowPrerelease && isGitHubPrerelease(root, i, warn) {
 			continue
 		}
 		latest = PlatformResult{
 			LatestVersion: tag,
-			URL:           extractGitHubAssets(root, i, cfg.DPosition, cfg.eventContext()),
+			URL:           extractGitHubAssets(root, i, cfg.DPosition, warn),
 		}
 		latestFound = true
 		break
 	}
 
 	if !latestFound && len(arr) > 0 && !cfg.AllowPrerelease {
-		events.Emit("warn", cfg.eventContext(), fmt.Sprintf("未在前 %d 个 release 中找到非预发布版本，可增大 per_page", perPage))
+		warn(fmt.Sprintf("未在前 %d 个 release 中找到非预发布版本，可增大 per_page", perPage))
 	}
 
 	return latest, nil
@@ -103,7 +97,7 @@ func extractGitHubVersion(root any, idx int) (string, error) {
 	return stripVersionAffixes(fmt.Sprintf("%v", ver)), nil
 }
 
-func extractGitHubAssets(root any, idx int, dPosition any, eventCtx string) any {
+func extractGitHubAssets(root any, idx int, dPosition any, warn func(string)) any {
 	if dPosition == nil {
 		return nil
 	}
@@ -113,13 +107,13 @@ func extractGitHubAssets(root any, idx int, dPosition any, eventCtx string) any 
 	}
 	assetRe, err := regexp.Compile(assetReStr)
 	if err != nil {
-		events.Emit("error", eventCtx, fmt.Sprintf("规则正则表达式编译失败: %v", err))
+		warn(fmt.Sprintf("规则正则表达式编译失败: %v", err))
 		return nil
 	}
 
 	assets, err := stepJSON(root, []any{int64(idx), "assets"}, "")
 	if err != nil {
-		events.Emit("error", eventCtx, fmt.Sprintf("GitHub assets JSON 解析失败: %v", err))
+		warn(fmt.Sprintf("GitHub assets JSON 解析失败: %v", err))
 		return nil
 	}
 	assetArr, ok := assets.([]any)
@@ -149,10 +143,10 @@ func extractGitHubAssets(root any, idx int, dPosition any, eventCtx string) any 
 	return nil
 }
 
-func isGitHubPrerelease(root any, idx int, eventCtx string) bool {
+func isGitHubPrerelease(root any, idx int, warn func(string)) bool {
 	pr, err := stepJSON(root, []any{int64(idx), "prerelease"}, "")
 	if err != nil {
-		events.Emit("warn", eventCtx, fmt.Sprintf("无法判断 release #%d 是否为预发布: %v", idx, err))
+		warn(fmt.Sprintf("无法判断 release #%d 是否为预发布: %v", idx, err))
 		return false
 	}
 	b, ok := pr.(bool)

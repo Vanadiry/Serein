@@ -69,6 +69,9 @@ type CheckPlatform struct {
 	DownloadViaProxy bool   `json:"download_via_proxy,omitempty"`
 	DownloadName     string `json:"download_name,omitempty"`
 	ProxyURL         any    `json:"proxy_url,omitempty"`
+	// Warnings 非致命异常（取不到正式版、asset 解析失败等）。与 Error 分开：
+	// Error 会让 hasUpdate / checkedAny 判定为「没结果」，Warnings 不会
+	Warnings []string `json:"warnings,omitempty"`
 }
 
 // RunCheck 对一个软件执行检查，返回统一的 CheckResponse。
@@ -166,18 +169,24 @@ func runGitHubCheck(ctx context.Context, req CheckRequest, client *http.Client) 
 		}
 		pr, err := CheckGitHub(ctx, cfg, client)
 		if err != nil {
-			resp.Platforms[pc.OS] = newCheckPlatform(pc, pr, err)
+			cp := newCheckPlatform(pc, pr, err)
+			cp.Warnings = pr.Warnings
+			resp.Platforms[pc.OS] = cp
 			continue
 		}
 		if pc.DType == "direct" {
 			dl, err := resolveDirectURL(pc.DURL, pr.LatestVersion)
 			if err != nil {
-				resp.Platforms[pc.OS] = newCheckPlatform(pc, PlatformResult{}, err)
+				cp := newCheckPlatform(pc, PlatformResult{}, err)
+				cp.Warnings = pr.Warnings
+				resp.Platforms[pc.OS] = cp
 				continue
 			}
 			pr.URL = dl
 		}
-		resp.Platforms[pc.OS] = newCheckPlatform(pc, pr, nil)
+		cp := newCheckPlatform(pc, pr, nil)
+		cp.Warnings = pr.Warnings
+		resp.Platforms[pc.OS] = cp
 	}
 	return resp, nil
 }
