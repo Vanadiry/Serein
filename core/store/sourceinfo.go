@@ -88,6 +88,33 @@ func sourceTypeName(t string) string {
 	return t
 }
 
+// MarshalJSON 与 UnmarshalJSON 对称：按 type 输出对应形态的 files。
+// 没有它则 SubSources（json:"-"）无法往返，任何 marshal 出的 list 型源都会丢掉子源列表。
+func (s SourceInfo) MarshalJSON() ([]byte, error) {
+	out := struct {
+		ID          string `json:"source_id"`
+		Name        string `json:"name,omitempty"`
+		Description string `json:"description,omitempty"`
+		Type        string `json:"type,omitempty"`
+		BaseURL     string `json:"baseurl,omitempty"`
+		Files       any    `json:"files,omitempty"`
+	}{
+		ID:          s.ID,
+		Name:        s.Name,
+		Description: s.Description,
+		Type:        s.Type,
+		BaseURL:     s.BaseURL,
+	}
+	if s.IsList() {
+		if len(s.SubSources) > 0 {
+			out.Files = s.SubSources
+		}
+	} else if len(s.Files) > 0 {
+		out.Files = s.Files
+	}
+	return json.Marshal(out)
+}
+
 // validateSourceFiles 就地剔除结构不合法的 files 条目并返回问题列表。
 // 剔除而非报错：上游一个笔误不该挡住整个源，其余条目仍应正常同步。
 func validateSourceFiles(s *SourceInfo) []RuleIssue {

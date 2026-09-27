@@ -173,10 +173,30 @@ type syncFailure struct {
 	Error  string `json:"error"`
 }
 
-// SyncAllSourcesAsync 两阶段同步：
-// 1. 遍历源树，收集所有子规则源 → 发 list 事件
-// 2. 并发下载所有规则文件 → 发 file 事件（done/total）
-// onDone 在同步完成后（进度关闭后）调用，可用于重载规则缓存
+// syncStats 汇总一次同步的计数与失败明细
+type syncStats struct {
+	total    int
+	skipped  int
+	updated  int
+	failed   int
+	files    int
+	fileErrs int
+	failures []syncFailure
+}
+
+// progState 跨顶层源累计的进度。done/total 单调递增，
+// 否则第二个顶层源会把进度条清零（前端在收到 start 时会重置为 0）
+type progState struct {
+	done      int
+	total     int
+	started   bool
+	sendStart func(done, total int)
+}
+
+// SyncAllSourcesAsync 同步规则源。
+// 顶层源之间串行——ID 认领按配置顺序，结果与 goroutine 调度无关；
+// 顶层源内部走树并行，最后统一剪枝、下载、提交。
+// onDone 在同步完成后（进度关闭后）调用，可用于重载规则缓存。
 func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *progress.Progress, onDone func()) {
 	reload := false
 	defer func() {
@@ -205,30 +225,196 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 		return
 	}
 
-	// Phase 1: 遍历
-	leaves, gatherFailures := gatherLeaves(sources, concurrency, p)
-	sourcesTotal := len(leaves) + len(gatherFailures)
-	if len(leaves) == 0 {
-		// gather 阶段全部失败：明确汇总，避免静默“同步完成”
-		p.SendMap(map[string]any{
-			"step":            "done",
-			"sources_total":   sourcesTotal,
-			"sources_skipped": 0,
-			"sources_updated": 0,
-			"sources_failed":  len(gatherFailures),
-			"files":           0,
-			"file_errors":     0,
-			"failures":        gatherFailures,
-			"cancelled":       ctx.Err() != nil,
-		})
-		return
+	st := &syncStats{}
+	claimed := &idClaimer{ids: make(map[string]bool)}
+	pg := &progState{sendStart: func(done, total int) { p.Send("start", "", done, total) }}
+
+	for _, src := range sources {
+		if ctx.Err() != nil {
+			break
+		}
+		info, raw, err := fetchSourceInfo(ctx, src.URL)
+		if err != nil {
+			p.Send("error", src.URL+" 获取失败", 0, 0)
+			log.LogfWarn("[sync] 获取 %s 失败: %v", src.URL, err)
+			st.total++
+			st.failed++
+			st.failures = append(st.failures, syncFailure{Source: src.URL, Error: err.Error()})
+			continue
+		}
+		// ID 已被更靠前的源认领：计入总数但不算失败
+		if !claimed.claim(info.ID) {
+			st.total++
+			continue
+		}
+		p.Send("list", info.ID, 0, 0)
+
+		// 路径树先行：先把整棵树抓完，再决定要拉哪些文件
+		root, fails := walkSource(ctx, info, raw, src.URL, info.ID, concurrency, claimed, p)
+		st.failures = append(st.failures, fails...)
+		leaves := flattenLeaves(root)
+		st.total += len(leaves)
+		if len(leaves) == 0 {
+			continue
+		}
+		if syncLeaves(ctx, rulesDir, stagingRoot, home, leaves, concurrency, p, st, pg) {
+			reload = true
+		}
 	}
 
+	if st.updated > 0 {
+		reload = true
+	}
+	p.SendMap(map[string]any{
+		"step":            "done",
+		"sources_total":   st.total,
+		"sources_skipped": st.skipped,
+		"sources_updated": st.updated,
+		"sources_failed":  st.failed,
+		"files":           st.files,
+		"file_errors":     st.fileErrs,
+		"failures":        st.failures,
+		"cancelled":       ctx.Err() != nil,
+	})
+}
+
+// sourceNode 源树的一个节点。list 型是中间层，rules 型是叶子
+type sourceNode struct {
+	info     *SourceInfo
+	rawBody  []byte
+	baseURL  string
+	isWeb    bool
+	destRel  string // 相对 rules/ 的目录
+	children []*sourceNode
+}
+
+// idClaimer 源 ID 认领器。并发走树时同一 ID 可能被多个兄弟同时看到
+type idClaimer struct {
+	mu  sync.Mutex
+	ids map[string]bool
+}
+
+func (c *idClaimer) claim(id string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.ids[id] {
+		return false
+	}
+	c.ids[id] = true
+	return true
+}
+
+// walkSource 抓取一个源的子源 marker 并递归展开，返回树节点。
+// 同一层的兄弟并行抓取——原先是在循环体内逐个获取/释放信号量，严格串行，
+// 9 个子源就是 9 个串行往返，且全部发生在任何规则文件下载开始之前。
+func walkSource(ctx context.Context, s *SourceInfo, rawBody []byte, sourceURL, destRel string, conc int, claimed *idClaimer, p *progress.Progress) (*sourceNode, []syncFailure) {
+	isLocal := !strings.HasPrefix(sourceURL, "http://") && !strings.HasPrefix(sourceURL, "https://")
+	baseURL := s.BaseURL
+	if baseURL == "" {
+		baseURL = filepath.Dir(sourceURL)
+		if !isLocal {
+			if idx := strings.LastIndex(sourceURL, "/"); idx >= 0 {
+				baseURL = sourceURL[:idx]
+			}
+		}
+	}
+	node := &sourceNode{info: s, rawBody: rawBody, baseURL: baseURL, isWeb: !isLocal, destRel: destRel}
+	if !s.IsList() {
+		return node, nil
+	}
+
+	sem := make(chan struct{}, conc)
+	var wg sync.WaitGroup
+	results := make([]*sourceNode, len(s.SubSources))
+	resultFails := make([][]syncFailure, len(s.SubSources))
+
+	for i, f := range s.SubSources {
+		wg.Add(1)
+		go func(i int, f string) {
+			defer wg.Done()
+			select {
+			case <-ctx.Done():
+				return
+			case sem <- struct{}{}:
+			}
+			defer func() { <-sem }()
+
+			subDir := filepath.Dir(f)
+			var subURL string
+			if isLocal {
+				subURL = filepath.Join(baseURL, f)
+			} else {
+				subURL = strings.TrimSuffix(baseURL, "/") + "/" + f
+			}
+			subInfo, subRaw, err := fetchSourceInfo(ctx, subURL)
+			if err != nil {
+				p.Send("error", subURL+" 获取失败", 0, 0)
+				log.LogfWarn("[sync] 获取 %s 失败: %v", subURL, err)
+				resultFails[i] = []syncFailure{{Source: subURL, Error: err.Error()}}
+				return
+			}
+			// 目录名即该子源的 ID，不一致则无法确定落盘位置
+			if subInfo.ID != subDir {
+				msg := fmt.Sprintf("子源 %s 的 source_id(%s) 与目录名(%s) 不一致，已忽略", subURL, subInfo.ID, subDir)
+				log.LogfWarn("[sync] %s", msg)
+				resultFails[i] = []syncFailure{{Source: subURL, Error: msg}}
+				return
+			}
+			if !claimed.claim(subInfo.ID) {
+				return
+			}
+			p.Send("list", subInfo.ID, 0, 0)
+			n, fails := walkSource(ctx, subInfo, subRaw, subURL, filepath.Join(destRel, subDir), conc, claimed, p)
+			results[i] = n
+			resultFails[i] = fails
+		}(i, f)
+	}
+	wg.Wait()
+
+	var failures []syncFailure
+	for i := range results {
+		failures = append(failures, resultFails[i]...)
+		if results[i] != nil {
+			node.children = append(node.children, results[i])
+		}
+	}
+	return node, failures
+}
+
+// flattenLeaves 深度优先展开出全部叶子（rules 型源），顺序按 files 声明稳定
+func flattenLeaves(n *sourceNode) []leafSrc {
+	if n == nil {
+		return nil
+	}
+	if len(n.children) == 0 {
+		if n.info.IsList() {
+			// list 型但子源全都没抓到：不是叶子
+			return nil
+		}
+		return []leafSrc{{
+			id:      n.info.ID,
+			rawBody: n.rawBody,
+			destDir: n.destRel,
+			baseURL: n.baseURL,
+			files:   n.info.Files,
+			isWeb:   n.isWeb,
+		}}
+	}
+	var out []leafSrc
+	for _, c := range n.children {
+		out = append(out, flattenLeaves(c)...)
+	}
+	return out
+}
+
+// syncLeaves 处理一个顶层源下的全部叶子：逐文件剪枝 → 并发下载 → 加锁提交。
+// 返回本次是否更新了规则（需要重载缓存）。
+func syncLeaves(ctx context.Context, rulesDir, stagingRoot, home string, leaves []leafSrc, concurrency int, p *progress.Progress, st *syncStats, pg *progState) bool {
 	// 逐文件比对 token：本地 marker 即上次接受的基线。
 	// 整源无差异则完全跳过；有差异时把 token 未变的条目读进 carry 一并提交——
 	// 提交是整树换入，只带变化的文件会把未变的旧文件一起清掉。
 	var fresh []leafSrc
-	var skipped []leafSrc
+	skipped := 0
 	for _, l := range leaves {
 		local := loadLocalFileTokens(filepath.Join(rulesDir, l.destDir))
 		l.need = make(map[string]string, len(l.files))
@@ -237,91 +423,76 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 				l.need[name] = token
 			}
 		}
-		if len(l.need) == 0 {
-			p.SendMap(map[string]any{
-				"step":  "skip",
-				"name":  l.id,
-				"files": len(l.files),
-			})
-			skipped = append(skipped, l)
+		// 本地有、远端已删除的条目也算需要处理：否则「上游只做了删除」时
+		// 本源 token 全部匹配而被整体跳过，陈旧文件永远留在盘上。
+		stale := false
+		for name := range local {
+			if _, listed := l.files[name]; !listed {
+				stale = true
+				break
+			}
+		}
+		if len(l.need) == 0 && !stale {
+			p.SendMap(map[string]any{"step": "skip", "name": l.id, "files": len(l.files)})
+			skipped++
 			continue
 		}
 		readUnchangedFiles(rulesDir, &l, local)
 		fresh = append(fresh, l)
 	}
+	st.skipped += skipped
+	if len(fresh) == 0 {
+		return false
+	}
 	leaves = fresh
-	sourcesSkipped := len(skipped)
-	sourcesUpdated := 0
 
-	totalFiles := 0
+	total := 0
 	for _, l := range leaves {
-		totalFiles += len(l.need)
+		total += len(l.need)
+	}
+	st.files += total
+	pg.total += total
+	if !pg.started {
+		pg.started = true
+		pg.sendStart(pg.done, pg.total)
+	}
+	for _, l := range leaves {
+		p.SendMap(map[string]any{"step": "source", "name": l.id, "files": len(l.need)})
 	}
 
-	if totalFiles > 0 {
-		for _, l := range leaves {
-			p.SendMap(map[string]any{
-				"step":  "source",
-				"name":  l.id,
-				"files": len(l.need),
-			})
-		}
-		p.Send("start", "", 0, totalFiles)
-	}
-
-	fileErrors := 0
-	sourcesFailed := len(gatherFailures)
-	failures := append([]syncFailure(nil), gatherFailures...)
-
-	if totalFiles > 0 {
-		contents, leafFailed, dlFailures, dlErrors := downloadLeaves(ctx, rulesDir, leaves, concurrency, p, totalFiles)
-		failures = append(failures, dlFailures...)
-		fileErrors += dlErrors
-		for i := range leaves {
-			if leafFailed[i] {
-				sourcesFailed++
-			}
-		}
-		// 取消时不提交
-		if ctx.Err() == nil {
-			// 临界区：整个 rules/ 树的写入与清理。跨进程互斥——两个实例并发写同一棵
-			// 树会交错出「文件已删而 marker 声称最新」的永久缺失（见 lock.go）。
-			// 拿不到锁就整体放弃本次提交，不做任何修改。
-			lock, err := AcquireFileLock(ctx, home, commitLockTimeout, commitLockRetry)
-			if err != nil {
-				sourcesFailed += len(leaves)
-				failures = append(failures, syncFailure{Source: "文件锁", Error: err.Error()})
-			} else {
-				updated, commitFailures := commitLeaves(rulesDir, stagingRoot, leaves, contents, leafFailed)
-				sourcesUpdated = updated
-				failures = append(failures, commitFailures...)
-				sourcesFailed += len(commitFailures)
-				_ = lock.Release()
-			}
+	contents, leafFailed, dlFailures, dlErrors := downloadLeaves(ctx, rulesDir, leaves, concurrency, p, pg)
+	st.failures = append(st.failures, dlFailures...)
+	st.fileErrs += dlErrors
+	for i := range leaves {
+		if leafFailed[i] {
+			st.failed++
 		}
 	}
-
-	if sourcesUpdated > 0 {
-		reload = true
+	// 取消时不提交
+	if ctx.Err() != nil {
+		return false
 	}
-	p.SendMap(map[string]any{
-		"step":            "done",
-		"sources_total":   sourcesTotal,
-		"sources_skipped": sourcesSkipped,
-		"sources_updated": sourcesUpdated,
-		"sources_failed":  sourcesFailed,
-		"files":           totalFiles,
-		"file_errors":     fileErrors,
-		"failures":        failures,
-		"cancelled":       ctx.Err() != nil,
-	})
+	// 临界区：整个 rules/ 树的写入。跨进程互斥——两个实例并发写同一棵树会
+	// 交错出「文件已删而 marker 声称最新」的永久缺失（见 lock.go）。
+	// 拿不到锁就整体放弃本次提交，不做任何修改。
+	lock, err := AcquireFileLock(ctx, home, commitLockTimeout, commitLockRetry)
+	if err != nil {
+		st.failed += len(leaves)
+		st.failures = append(st.failures, syncFailure{Source: "文件锁", Error: err.Error()})
+		return false
+	}
+	defer lock.Release()
+	updated, commitFailures := commitLeaves(rulesDir, stagingRoot, leaves, contents, leafFailed)
+	st.updated += updated
+	st.failures = append(st.failures, commitFailures...)
+	st.failed += len(commitFailures)
+	return updated > 0
 }
 
 // downloadLeaves 并发下载各子规则源的文件（内存暂存）；返回失败标记、失败明细与文件错误数
-func downloadLeaves(ctx context.Context, rulesDir string, leaves []leafSrc, concurrency int, p *progress.Progress, totalFiles int) ([]map[string][]byte, []bool, []syncFailure, int) {
+func downloadLeaves(ctx context.Context, rulesDir string, leaves []leafSrc, concurrency int, p *progress.Progress, pg *progState) ([]map[string][]byte, []bool, []syncFailure, int) {
 	sem := make(chan struct{}, concurrency)
 	var mu sync.Mutex
-	var done int
 	var wg sync.WaitGroup
 
 	contents := make([]map[string][]byte, len(leaves))
@@ -354,12 +525,16 @@ func downloadLeaves(ctx context.Context, rulesDir string, leaves []leafSrc, conc
 			wg.Add(1)
 			go func(i int, l leafSrc, rel string) {
 				defer wg.Done()
-				sem <- struct{}{}
+				select {
+				case <-ctx.Done():
+					return
+				case sem <- struct{}{}:
+				}
 				defer func() { <-sem }()
 
 				body, err := readLeafFile(ctx, l, rel)
 				mu.Lock()
-				done++
+				pg.done++
 				name := rel
 				if err != nil {
 					leafFailed[i] = true
@@ -369,7 +544,7 @@ func downloadLeaves(ctx context.Context, rulesDir string, leaves []leafSrc, conc
 				} else {
 					contents[i][rel] = body
 				}
-				p.Send("file", name, done, totalFiles)
+				p.Send("file", name, pg.done, pg.total)
 				mu.Unlock()
 			}(i, l, rel)
 		}
@@ -496,98 +671,4 @@ func syncDir(dir string) {
 	}
 	_ = d.Sync()
 	d.Close()
-}
-
-func gatherLeaves(sources []RuleSource, concurrency int, p *progress.Progress) ([]leafSrc, []syncFailure) {
-	sem := make(chan struct{}, concurrency)
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-	usedIDs := make(map[string]bool)
-	var leaves []leafSrc
-	var failures []syncFailure
-
-	for _, src := range sources {
-		wg.Add(1)
-		go func(src RuleSource) {
-			defer wg.Done()
-			sem <- struct{}{}
-			si, raw, err := fetchSourceInfo(p.Context(), src.URL)
-			<-sem
-			if err != nil {
-				p.Send("error", src.URL+" 获取失败", 0, 0)
-				log.LogfWarn("[sync] 获取 %s 失败: %v", src.URL, err)
-				mu.Lock()
-				failures = append(failures, syncFailure{Source: src.URL, Error: err.Error()})
-				mu.Unlock()
-				return
-			}
-			mu.Lock()
-			if usedIDs[si.ID] {
-				mu.Unlock()
-				return
-			}
-			usedIDs[si.ID] = true
-			mu.Unlock()
-
-			p.Send("list", si.ID, 0, 0)
-			sub, subFails := resolveLeaves(si, raw, src.URL, si.ID, usedIDs, sem, &mu, p)
-			mu.Lock()
-			leaves = append(leaves, sub...)
-			failures = append(failures, subFails...)
-			mu.Unlock()
-		}(src)
-	}
-	wg.Wait()
-	return leaves, failures
-}
-
-func resolveLeaves(s *SourceInfo, rawBody []byte, sourceURL, destRel string, usedIDs map[string]bool, sem chan struct{}, mu *sync.Mutex, p *progress.Progress) ([]leafSrc, []syncFailure) {
-	isLocal := !strings.HasPrefix(sourceURL, "http://") && !strings.HasPrefix(sourceURL, "https://")
-	baseURL := s.BaseURL
-	if baseURL == "" {
-		baseURL = filepath.Dir(sourceURL)
-		if !isLocal {
-			if idx := strings.LastIndex(sourceURL, "/"); idx >= 0 {
-				baseURL = sourceURL[:idx]
-			}
-		}
-	}
-	if !s.IsList() {
-		return []leafSrc{{id: s.ID, rawBody: rawBody, destDir: destRel, baseURL: baseURL, files: s.Files, isWeb: !isLocal}}, nil
-	}
-	var result []leafSrc
-	var failures []syncFailure
-	// 结构非法的条目已在 fetchSourceInfo → validateSourceFiles 中剔除并报 warn
-	for _, f := range s.SubSources {
-		subDir := filepath.Dir(f)
-		var subURL string
-		if isLocal {
-			subURL = filepath.Join(baseURL, f)
-		} else {
-			subURL = strings.TrimSuffix(baseURL, "/") + "/" + f
-		}
-		sem <- struct{}{}
-		subInfo, subRaw, err := fetchSourceInfo(p.Context(), subURL)
-		<-sem
-		if err != nil {
-			p.Send("error", subURL+" 获取失败", 0, 0)
-			log.LogfWarn("[sync] 获取 %s 失败: %v", subURL, err)
-			failures = append(failures, syncFailure{Source: subURL, Error: err.Error()})
-			continue
-		}
-		if subInfo.ID != subDir {
-			continue
-		}
-		mu.Lock()
-		if usedIDs[subInfo.ID] {
-			mu.Unlock()
-			continue
-		}
-		usedIDs[subInfo.ID] = true
-		mu.Unlock()
-		sub, subFails := resolveLeaves(subInfo, subRaw, subURL, filepath.Join(destRel, subDir), usedIDs, sem, mu, p)
-		result = append(result, sub...)
-		failures = append(failures, subFails...)
-	}
-	return result, failures
 }
