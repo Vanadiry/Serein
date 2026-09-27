@@ -56,8 +56,11 @@ func fileExists(p string) bool {
 
 // validateSourceDir 递归校验；display 为该目录相对根的展示路径
 func validateSourceDir(dir, display string, s *SourceInfo, ruleValues map[string]map[string]string, issues *[]RuleIssue) {
-	if s.Type == "list" {
-		for _, f := range s.Files {
+	// 结构非法的条目先剔除，dev 检查要如实报告而不是重复报「文件不存在」
+	*issues = append(*issues, validateSourceFiles(s)...)
+
+	if s.IsList() {
+		for _, f := range s.SubSources {
 			rel := filepath.ToSlash(f)
 			child := filepath.ToSlash(filepath.Join(display, filepath.Dir(filepath.FromSlash(f))))
 			if child == "." {
@@ -80,10 +83,10 @@ func validateSourceDir(dir, display string, s *SourceInfo, ruleValues map[string
 
 	// rules：逐条校验 + 多余文件检查
 	listed := make(map[string]bool, len(s.Files))
-	for _, f := range s.Files {
-		listed[filepath.Base(filepath.FromSlash(f))] = true
+	for f := range s.Files {
+		listed[f] = true
 		mp := filepath.ToSlash(filepath.Join(display, f))
-		full := filepath.Join(dir, filepath.FromSlash(f))
+		full := filepath.Join(dir, f)
 		if !fileExists(full) {
 			*issues = append(*issues, RuleIssue{Level: "error", Message: mp + ": 文件不存在"})
 			continue

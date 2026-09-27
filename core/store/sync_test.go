@@ -1,9 +1,9 @@
 package store
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -27,8 +27,9 @@ func TestSafeRelPath(t *testing.T) {
 	}
 }
 
-// seedLeaf 造一个已提交过的子规则源：目标目录里有旧文件 + 旧版本标记
-func seedLeaf(t *testing.T, rulesDir, destDir string, oldVersion int, oldFiles map[string]string) {
+// seedLeaf 造一个已提交过的子规则源：目标目录里有旧文件 + 旧 token 标记。
+// oldTokens 显式给出上次接受的 token（缺省用文件名当 token）。
+func seedLeaf(t *testing.T, rulesDir, destDir string, oldTokens map[string]string, oldFiles map[string]string) {
 	t.Helper()
 	dest := filepath.Join(rulesDir, destDir)
 	if err := os.MkdirAll(dest, 0755); err != nil {
@@ -42,8 +43,25 @@ func seedLeaf(t *testing.T, rulesDir, destDir string, oldVersion int, oldFiles m
 			t.Fatal(err)
 		}
 	}
-	raw := `{"source_id":"s","version":` + strconv.Itoa(oldVersion) + `,"files":[]}`
-	if err := os.WriteFile(filepath.Join(dest, "_source.json"), []byte(raw), 0644); err != nil {
+	tokens := make(map[string]string, len(oldFiles))
+	for name := range oldFiles {
+		if v, ok := oldTokens[name]; ok {
+			tokens[name] = v
+		} else {
+			tokens[name] = "1"
+		}
+	}
+	writeMarker(t, filepath.Join(dest), "s", tokens)
+}
+
+// writeMarker 写一个 rules 型源的 marker（token 表即「上次接受什么」的基线）
+func writeMarker(t *testing.T, dir, id string, tokens map[string]string) {
+	t.Helper()
+	body, err := json.Marshal(SourceInfo{ID: id, Type: "rules", Files: tokens})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, sourceFileName), body, 0644); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -66,12 +84,12 @@ func TestCommitLeafDirReplacesTree(t *testing.T) {
 		t.Fatal(err)
 	}
 	destDir := "src"
-	seedLeaf(t, rulesDir, destDir, 1, map[string]string{
+	seedLeaf(t, rulesDir, destDir, nil, map[string]string{
 		"old.toml":      "OLD",
 		"sub/old2.toml": "OLD2",
 	})
 
-	newRaw := `{"source_id":"src","version":2,"files":["a.toml"]}`
+	newRaw := `{"source_id":"src","files":{"a.toml":"2"}}`
 	err = commitLeafDir(staging, filepath.Join(rulesDir, destDir), map[string][]byte{
 		"a.toml":     []byte("NEW"),
 		"sub/b.toml": []byte("NEW2"),
@@ -96,8 +114,8 @@ func TestCommitLeafDirReplacesTree(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(dest, "sub", "old2.toml")); !os.IsNotExist(err) {
 		t.Error("旧的嵌套文件未被清除")
 	}
-	if v := loadLocalSourceVersion(dest); v != 2 {
-		t.Errorf("loadLocalSourceVersion = %d, want 2", v)
+	if got := loadLocalFileTokens(dest); got["a.toml"] != "2" {
+		t.Errorf("marker token 表 = %v, want a.toml=2", got)
 	}
 }
 
@@ -110,7 +128,7 @@ func TestCommitLeafDirKeepsOldTreeOnWriteFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	destDir := "src"
-	seedLeaf(t, rulesDir, destDir, 1, map[string]string{"old.toml": "OLD"})
+	seedLeaf(t, rulesDir, destDir, nil, map[string]string{"old.toml": "OLD"})
 
 	// 暂存根目录置为不可写，使 leaf-xxx 目录创建失败 → 提交必然失败
 	if err := os.Chmod(staging, 0500); err != nil {
@@ -120,7 +138,7 @@ func TestCommitLeafDirKeepsOldTreeOnWriteFailure(t *testing.T) {
 
 	err = commitLeafDir(staging, filepath.Join(rulesDir, destDir), map[string][]byte{
 		"a.toml": []byte("NEW"),
-	}, []byte(`{"source_id":"src","version":2}`))
+	}, []byte(`{"source_id":"src","files":{"a.toml":"2"}}`))
 	if err == nil {
 		t.Fatal("预期提交失败（暂存目录不可写）")
 	}
@@ -129,8 +147,8 @@ func TestCommitLeafDirKeepsOldTreeOnWriteFailure(t *testing.T) {
 	if got := mustRead(t, filepath.Join(dest, "old.toml")); got != "OLD" {
 		t.Errorf("失败后旧文件被破坏: %q", got)
 	}
-	if v := loadLocalSourceVersion(dest); v != 1 {
-		t.Errorf("失败后版本标记被推进: %d, want 1（否则下次同步会永久跳过该源）", v)
+	if got := loadLocalFileTokens(dest); got["a.toml"] != "" {
+		t.Errorf("失败后 token 表被推进: %v（否则下次同步会永久跳过该源）", got)
 	}
 }
 
@@ -143,8 +161,8 @@ func TestCommitLeavesReportsFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	leaves := []leafSrc{
-		{id: "ok", destDir: "ok", rawBody: []byte(`{"source_id":"ok","version":1}`)},
-		{id: "bad", destDir: "bad", rawBody: []byte(`{"source_id":"bad","version":1}`)},
+		{id: "ok", destDir: "ok", rawBody: []byte(`{"source_id":"ok","files":{}}`)},
+		{id: "bad", destDir: "bad", rawBody: []byte(`{"source_id":"bad","files":{}}`)},
 	}
 	contents := []map[string][]byte{
 		{"a.toml": []byte("A")},
@@ -206,11 +224,11 @@ func TestCommitLeafDirLeavesNoStagingGarbage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	seedLeaf(t, rulesDir, "src", 1, map[string]string{"old.toml": "OLD"})
+	seedLeaf(t, rulesDir, "src", nil, map[string]string{"old.toml": "OLD"})
 	for range 3 {
 		if err := commitLeafDir(staging, filepath.Join(rulesDir, "src"), map[string][]byte{
 			"a.toml": []byte("A"),
-		}, []byte(`{"source_id":"src","version":2}`)); err != nil {
+		}, []byte(`{"source_id":"src","files":{"a.toml":"2"}}`)); err != nil {
 			t.Fatal(err)
 		}
 	}

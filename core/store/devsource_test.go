@@ -18,7 +18,7 @@ func TestValidateDevSource(t *testing.T) {
     }`), 0644)
 	os.WriteFile(filepath.Join(sub, "_source.json"), []byte(`{
         "source_id": "v-test", "type": "rules", "version": 1,
-        "files": ["A.toml", "Gone.toml"]
+        "files": {"A.toml": "1", "Gone.toml": "1"}
     }`), 0644)
 	os.WriteFile(filepath.Join(sub, "A.toml"), []byte(`[info]
 app_id = "A"

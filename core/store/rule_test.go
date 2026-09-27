@@ -107,7 +107,7 @@ func TestSourceNames(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	write("s1/_source.json", `{"source_id":"S1","name":"源一","type":"rules","files":["A.toml"]}`)
+	write("s1/_source.json", `{"source_id":"S1","name":"源一","type":"rules","files":{"A.toml":"1"}}`)
 	write("s2/_source.json", `{"source_id":"S2","name":"源二"}`)
 	write("s3/_source.json", `{"source_id":"S3","name":"列表","type":"list","files":[]}`)
 

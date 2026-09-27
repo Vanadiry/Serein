@@ -31,17 +31,6 @@ const (
 	commitLockTimeout = 30 * time.Second
 )
 
-// SourceInfo 规则源的元信息（完整 _source.json 内容）
-type SourceInfo struct {
-	ID          string   `json:"source_id"`
-	Name        string   `json:"name,omitempty"`
-	Description string   `json:"description,omitempty"`
-	Type        string   `json:"type,omitempty"` // "rules"（默认）或 "list"
-	BaseURL     string   `json:"baseurl,omitempty"`
-	Version     int      `json:"version,omitempty"`
-	Files       []string `json:"files"`
-}
-
 // getHTTP GET 一个 URL，校验状态码并限长读取
 func getHTTP(ctx context.Context, url string, limit int64) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -67,6 +56,8 @@ func readURLOrFile(ctx context.Context, rawURL string, limit int64) ([]byte, err
 	return getHTTP(ctx, rawURL, limit)
 }
 
+// fetchSourceInfo 抓取并解析一个 _source.json，顺带剔除结构不合法的 files 条目。
+// 结构问题以 warn 事件上报而非报错：上游一个笔误不该挡住整个源。
 func fetchSourceInfo(ctx context.Context, url string) (*SourceInfo, []byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, nil, err
@@ -78,27 +69,35 @@ func fetchSourceInfo(ctx context.Context, url string) (*SourceInfo, []byte, erro
 
 	var s SourceInfo
 	if err := json.Unmarshal(body, &s); err != nil {
-		return nil, nil, fmt.Errorf("解析 _source.json: %w", err)
+		return nil, nil, fmt.Errorf("解析 %s: %w", sourceFileName, err)
 	}
 	if s.ID == "" {
-		return nil, nil, fmt.Errorf("_source.json 缺少 source_id")
+		return nil, nil, fmt.Errorf("%s 缺少 source_id", sourceFileName)
 	}
 	if !regexp.MustCompile(`^[a-zA-Z0-9_-]+$`).MatchString(s.ID) {
 		return nil, nil, fmt.Errorf("source_id %q 包含非法字符，仅允许大小写字母、数字、下划线和连字符", s.ID)
 	}
+	for _, is := range validateSourceFiles(&s) {
+		events.Emit("warn", "[sync]", is.Message)
+		log.LogfWarn("[sync] %s", is.Message)
+	}
 	return &s, body, nil
 }
 
-func loadLocalSourceVersion(dir string) int {
-	data, err := os.ReadFile(filepath.Join(dir, "_source.json"))
+// loadLocalFileTokens 读取本地已落盘的 marker，返回该源上次接受的 token 表。
+// 这就是比对基线——不需要额外的索引文件：本地 marker 天然记录了上次接受什么。
+// 读取失败（不存在 / 解析失败 / 格式不符）返回 nil 表示「无可信基线」，
+// 后果仅是本轮多下一些文件，不会损坏数据。
+func loadLocalFileTokens(dir string) map[string]string {
+	data, err := os.ReadFile(filepath.Join(dir, sourceFileName))
 	if err != nil {
-		return 0
+		return nil
 	}
 	var s SourceInfo
 	if json.Unmarshal(data, &s) != nil {
-		return 0
+		return nil
 	}
-	return s.Version
+	return s.Files
 }
 
 // safeRelPath 校验源内相对路径
@@ -138,9 +137,33 @@ type leafSrc struct {
 	rawBody []byte
 	destDir string
 	baseURL string
-	files   []string
+	files   map[string]string // 远端 manifest 全量条目：文件名 → token
+	need    map[string]string // 本次需要下载的条目（files 的子集）
+	carry   map[string][]byte // token 未变、沿用本地内容的条目（并入提交以免整树替换时被清掉）
 	isWeb   bool
-	version int
+}
+
+// readUnchangedFiles 读入 token 未变的本地文件，并入提交内容。
+// 两个边界都必须处理：
+//   - 只遍历远端 manifest。遍历本地表会把上游已删除的文件复活——它们正等着被整树换入清掉。
+//   - token 未变但文件已不在盘上（上次同步被中断、手工删除）时退回待下载集合，
+//     否则整树换入会连它一起清掉，造成规则永久缺失。
+func readUnchangedFiles(rulesDir string, l *leafSrc, local map[string]string) {
+	dir := filepath.Join(rulesDir, l.destDir)
+	for name, token := range l.files {
+		if _, downloading := l.need[name]; downloading {
+			continue
+		}
+		body, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			l.need[name] = token
+			continue
+		}
+		if l.carry == nil {
+			l.carry = make(map[string][]byte, len(l.files))
+		}
+		l.carry[name] = body
+	}
 }
 
 // syncFailure 一次同步中某个规则文件失败的信息
@@ -201,11 +224,20 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 		return
 	}
 
-	// 过滤版本未变的子规则源
+	// 逐文件比对 token：本地 marker 即上次接受的基线。
+	// 整源无差异则完全跳过；有差异时把 token 未变的条目读进 carry 一并提交——
+	// 提交是整树换入，只带变化的文件会把未变的旧文件一起清掉。
 	var fresh []leafSrc
 	var skipped []leafSrc
 	for _, l := range leaves {
-		if l.version > 0 && loadLocalSourceVersion(filepath.Join(rulesDir, l.destDir)) == l.version {
+		local := loadLocalFileTokens(filepath.Join(rulesDir, l.destDir))
+		l.need = make(map[string]string, len(l.files))
+		for name, token := range l.files {
+			if local[name] != token {
+				l.need[name] = token
+			}
+		}
+		if len(l.need) == 0 {
 			p.SendMap(map[string]any{
 				"step":  "skip",
 				"name":  l.id,
@@ -214,6 +246,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 			skipped = append(skipped, l)
 			continue
 		}
+		readUnchangedFiles(rulesDir, &l, local)
 		fresh = append(fresh, l)
 	}
 	leaves = fresh
@@ -222,7 +255,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 
 	totalFiles := 0
 	for _, l := range leaves {
-		totalFiles += len(l.files)
+		totalFiles += len(l.need)
 	}
 
 	if totalFiles > 0 {
@@ -230,7 +263,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 			p.SendMap(map[string]any{
 				"step":  "source",
 				"name":  l.id,
-				"files": len(l.files),
+				"files": len(l.need),
 			})
 		}
 		p.Send("start", "", 0, totalFiles)
@@ -294,7 +327,11 @@ func downloadLeaves(ctx context.Context, rulesDir string, leaves []leafSrc, conc
 	contents := make([]map[string][]byte, len(leaves))
 	leafFailed := make([]bool, len(leaves))
 	for i := range leaves {
-		contents[i] = make(map[string][]byte)
+		// 先并入 token 未变的本地内容：提交是整树换入，缺了它们旧文件会被清掉
+		contents[i] = make(map[string][]byte, len(leaves[i].need)+len(leaves[i].carry))
+		for rel, body := range leaves[i].carry {
+			contents[i][rel] = body
+		}
 	}
 
 	fileErrors := 0
@@ -303,7 +340,7 @@ func downloadLeaves(ctx context.Context, rulesDir string, leaves []leafSrc, conc
 	for i := range leaves {
 		l := leaves[i]
 		base := filepath.Join(rulesDir, l.destDir)
-		for _, f := range l.files {
+		for f := range l.need {
 			rel, ok := safeRelPath(base, f)
 			if !ok {
 				events.Emit("warn", "[sync]", fmt.Sprintf("跳过非法文件路径 %q（源 %s）", f, l.id))
@@ -515,15 +552,13 @@ func resolveLeaves(s *SourceInfo, rawBody []byte, sourceURL, destRel string, use
 			}
 		}
 	}
-	if s.Type != "list" {
-		return []leafSrc{{id: s.ID, rawBody: rawBody, destDir: destRel, baseURL: baseURL, files: s.Files, isWeb: !isLocal, version: s.Version}}, nil
+	if !s.IsList() {
+		return []leafSrc{{id: s.ID, rawBody: rawBody, destDir: destRel, baseURL: baseURL, files: s.Files, isWeb: !isLocal}}, nil
 	}
 	var result []leafSrc
 	var failures []syncFailure
-	for _, f := range s.Files {
-		if filepath.Base(f) != "_source.json" {
-			continue
-		}
+	// 结构非法的条目已在 fetchSourceInfo → validateSourceFiles 中剔除并报 warn
+	for _, f := range s.SubSources {
 		subDir := filepath.Dir(f)
 		var subURL string
 		if isLocal {
