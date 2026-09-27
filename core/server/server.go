@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"syscall"
@@ -21,6 +22,7 @@ import (
 	"github.com/vanadiry/serein/core/events"
 	"github.com/vanadiry/serein/core/httpx"
 	"github.com/vanadiry/serein/core/log"
+	"github.com/vanadiry/serein/core/progress"
 	"github.com/vanadiry/serein/core/store"
 )
 
@@ -49,6 +51,32 @@ type Server struct {
 
 	// 下载代理签名密钥；进程级随机，重启即失效
 	proxySecret []byte
+}
+
+// goSafe 启动后台任务并兜住 panic。
+//
+// net/http 只在「处理请求的那个 goroutine」上 recover，handler 自己 spawn 出来的
+// goroutine 不在保护范围内：里面 panic 一次就是整个进程静默退出，连日志都没有。
+// 规则文件是远程拉来的不可信输入（toml.DecodeFile 直接吃不可信字节），解析器 panic
+// 不该带走整个应用——用户看到的就是「检查到一半窗口突然没了，重开后任务也没了」。
+//
+// 兜住之后要把任务标记为失败并关闭进度，否则前端会一直转圈等一个永远不来的
+// 完成事件（那个 done 事件是靠 defer 里的 p.Close() 发的）。
+func goSafe(name string, p *progress.Progress, fn func()) {
+	go func() {
+		defer func() {
+			r := recover()
+			if r == nil {
+				return
+			}
+			log.LogfError("[%s] 后台任务 panic: %v\n%s", name, r, debug.Stack())
+			events.Emit("error", "["+name+"]", "任务异常终止："+fmt.Sprint(r))
+			if p != nil {
+				p.Close()
+			}
+		}()
+		fn()
+	}()
 }
 
 func loggingMiddleware(next http.Handler) http.Handler {

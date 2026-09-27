@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -85,7 +86,7 @@ func (s *Server) startCheckList(w http.ResponseWriter, list []checkAllTracker, s
 	log.Logf("[check] %d trackers, %d apps (savePartial=%v, replace=%v)", len(list), total, savePartial, replace)
 	httpx.ClearURLCache()
 	p := progress.NewProgress(total)
-	go s.runCheckAllAsync(list, p, savePartial, replace)
+	goSafe("check", p, func() { s.runCheckAllAsync(list, p, savePartial, replace) })
 	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(total)})
 }
 
@@ -415,6 +416,13 @@ func runConcurrent[T any](
 		wg.Add(1)
 		go func(it T) {
 			defer wg.Done()
+			// 同上：worker 是 handler 之外 spawn 的 goroutine，panic 会静默退出整个进程
+			defer func() {
+				if r := recover(); r != nil {
+					log.LogfError("[check] 检查条目时 panic: %v\n%s", r, debug.Stack())
+					onError(it, fmt.Errorf("panic: %v", r))
+				}
+			}()
 			select {
 			case <-ctx.Done():
 				return
