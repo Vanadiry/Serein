@@ -53,7 +53,12 @@ func InitLogger(home string) error {
 	}
 
 	logDir = filepath.Join(home, "logs")
-	if err := os.MkdirAll(logDir, 0755); err != nil {
+	// 0700：日志里可能有下载 URL，限制为仅当前用户可访问
+	if err := os.MkdirAll(logDir, 0700); err != nil {
+		return err
+	}
+	// 已存在时 MkdirAll 不改权限，补一次
+	if err := os.Chmod(logDir, 0700); err != nil {
 		return err
 	}
 
@@ -61,7 +66,7 @@ func InitLogger(home string) error {
 
 	name := time.Now().Format("20060102_150405") + ".log"
 	path := filepath.Join(logDir, name)
-	f, err := os.Create(path)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}
@@ -96,7 +101,7 @@ func rotateOnSize() {
 	}
 
 	name := time.Now().Format("20060102_150405") + ".log"
-	f, err := os.Create(filepath.Join(logDir, name))
+	f, err := os.OpenFile(filepath.Join(logDir, name), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0600)
 	if err != nil {
 		return
 	}
