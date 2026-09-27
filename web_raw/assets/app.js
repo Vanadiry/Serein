@@ -343,7 +343,7 @@ async function checkRuleErrors(dev) {
         var res = await apiPost("/api/rules/check", { dev: !!dev });
         var issues = (res && res.issues) || [];
         if (!issues.length) {
-            ld.done("未发现规则错误");
+            ld.done("未发现规则错误", "ok");
             return;
         }
         var errs = issues.filter(function (i) {
@@ -362,9 +362,9 @@ async function checkRuleErrors(dev) {
                 );
             })
             .join("<br>");
-        ld.done(html, true, errs + " 个错误 / " + warns + " 个警告");
+        ld.done(html, "err", 0, errs + " 个错误 / " + warns + " 个警告");
     } catch (e) {
-        ld.done(e.message || "请求失败", true);
+        ld.done(e.message || "请求失败", "err");
     }
 }
 
@@ -453,6 +453,16 @@ function iconImgRaw(file, alt, sz) {
 // 通知组件
 var _toastStack = [];
 
+// 各 level 的配色与默认标题
+var TOAST_STYLE = {
+    ok: { head: "bg-ok", body: "bg-ok/80", title: "成功" },
+    warn: { head: "bg-warn", body: "bg-warn/80", title: "警告" },
+    err: { head: "bg-err", body: "bg-err/80", title: "错误" }
+};
+// 各 level 的默认消失时间（秒）。0 = 常驻。
+// 需要非默认行为时在调用点显式传第三个参数，不在此处按 context 分支。
+var TOAST_TTL = { ok: 5, warn: 8, err: 0 };
+
 function _repositionToasts() {
     _toastStack = _toastStack.filter(function (t) {
         return !t.closed();
@@ -535,23 +545,36 @@ function _makeToast(title, body, titleBg, bodyBg, autoCloseSec) {
     return {
         el: el,
         close: close,
-        done: function (okBody, isError, titleText) {
-            var tb = isError ? "bg-err" : "bg-ok";
-            var bb = isError ? "bg-err/80" : "bg-ok/80";
-            var tt = titleText || (isError ? "错误" : "成功");
+        // done(body, level, ttl, title)
+        //   level: "ok" | "warn" | "err"  决定配色与默认标题
+        //   ttl:   秒；0 = 常驻不自动消失；省略则取 TOAST_TTL[level]
+        // 传 true/false 作为 level 视为旧的 isError，兼容旧调用。
+        done: function (body, level, ttl, title) {
+            if (level === true || level === false) {
+                ttl = title;
+                title = ttl;
+                level = level ? "err" : "ok";
+                ttl = undefined;
+            }
+            level = level || "ok";
+            var style = TOAST_STYLE[level] || TOAST_STYLE.ok;
+            var secs =
+                ttl === undefined || ttl === null ? TOAST_TTL[level] : ttl;
+            var tt = title || style.title;
             if (closed) {
-                _makeToast(tt, okBody, tb, bb, isError ? 0 : 5);
+                _makeToast(tt, body, style.head, style.body, secs);
                 return;
             }
-            updateToastEl(el, tt, okBody, tb, bb);
+            updateToastEl(el, tt, body, style.head, style.body);
             if (timer) clearTimeout(timer);
-            if (isError) {
-                // 错误：常驻，可复制
-            } else {
-                timer = setTimeout(close, 5000);
-                el.style.cursor = "pointer";
-                el.onclick = close;
+            if (secs > 0) {
+                timer = setTimeout(close, secs * 1000);
+                if (level !== "err") {
+                    el.style.cursor = "pointer";
+                    el.onclick = close;
+                }
             }
+            // secs <= 0：常驻，可复制
         }
     };
 }
@@ -663,13 +686,15 @@ async function downloadFile(url) {
     var ld = showLoading("下载", "正在发送到下载器...");
     try {
         var res = await apiPost("/api/download", { url: url });
+        var failed = !res || res.status === "error";
         ld.done(
-            res.message || "",
-            !res || res.status === "error",
-            res.status === "error" ? "下载失败" : "下载"
+            res && res.message ? res.message : "",
+            failed ? "err" : "ok",
+            undefined,
+            failed ? "下载失败" : "下载"
         );
     } catch (e) {
-        ld.done(e.message || "请求失败", true);
+        ld.done(e.message || "请求失败", "err");
     }
 }
 
@@ -1170,7 +1195,7 @@ function startSyncProgress(taskId) {
             var msg = parts.length > 0 ? parts.join("<br>") : "同步完成";
             var hasError =
                 d.file_errors > 0 || failedSources > 0 || sourcesFailed > 0;
-            showLoading("拉取规则", msg).done(msg, hasError);
+            showLoading("拉取规则", msg).done(msg, hasError ? "err" : "ok");
             if (typeof loadSources === "function") loadSources();
             return;
         }
@@ -1241,22 +1266,21 @@ function startSyncProgress(taskId) {
                 remember(d.id);
             }
             var body = escapeHtml(d.message).replace(/\n/g, "<br>");
-            var persistent = d.context === "[rules]";
-            if (d.level === "error") {
+            // 消失时间在此显式给出；需要常驻的由后端把 sticky 置 true，
+            // 前端不按 context 猜
+            var secs = d.sticky
+                ? 0
+                : TOAST_TTL[d.level] !== undefined
+                  ? TOAST_TTL[d.level]
+                  : 8;
+            var style = TOAST_STYLE[d.level];
+            if (style) {
                 _makeToast(
-                    "错误: " + (d.context || "后端"),
+                    style.title + ": " + (d.context || "后端"),
                     body,
-                    "bg-err",
-                    "bg-err/80",
-                    0
-                );
-            } else if (d.level === "warn") {
-                _makeToast(
-                    "警告: " + (d.context || "后端"),
-                    body,
-                    "bg-warn",
-                    "bg-warn/80",
-                    persistent ? 0 : 8
+                    style.head,
+                    style.body,
+                    secs
                 );
             }
         };

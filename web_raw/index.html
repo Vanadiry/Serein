@@ -952,7 +952,10 @@
                 var title = cancelled ? "检查已终止" : "检查完成";
                 var ld = showLoading(title, "");
                 if (!items.length) {
-                    ld.done(cancelled ? "已终止，没有发现问题" : "检查完成");
+                    ld.done(
+                        cancelled ? "已终止，没有发现问题" : "检查完成",
+                        cancelled ? "warn" : "ok"
+                    );
                     return;
                 }
                 var hasRateLimit = items.some(function (e) {
@@ -998,7 +1001,7 @@
                 });
                 if (overflow > 0) body += "…还有 " + overflow + " 条未显示<br>";
 
-                ld.done(body, true, items.length + " 个错误");
+                ld.done(body, "err", 0, items.length + " 个错误");
             }
 
             // 桶只用于渲染列表（版本号 / 更新箭头 / 状态），不再从中取错误

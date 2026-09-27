@@ -270,7 +270,8 @@ func (s *Server) loadRules(report bool) []store.RuleIssue {
 		if errs > 0 {
 			level = "error"
 		}
-		events.Emit(level, "[rules]", fmt.Sprintf("规则检查：%d 个错误、%d 个警告\n%s", errs, warns, strings.Join(lines, "\n")))
+		// 常驻：规则检查汇总需要用户逐条看完再关掉
+		events.EmitSticky(level, "[rules]", fmt.Sprintf("规则检查：%d 个错误、%d 个警告\n%s", errs, warns, strings.Join(lines, "\n")))
 	}
 	return issues
 }
