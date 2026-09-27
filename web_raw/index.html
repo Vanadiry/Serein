@@ -489,13 +489,13 @@
                 var ids = selectedTrackers.slice();
                 runCheck(
                     { scope: "trackers", tracker_ids: ids },
-                    function (cancelled) {
-                        if (cancelled) {
+                    function (cancelled, errs, overflow, empty) {
+                        showCheckDone(cancelled, errs, overflow, empty);
+                        if (cancelled || empty) {
                             loadTrackers();
                             if (multiSelect) renderMultiList();
                             return;
                         }
-                        showCheckDone([]);
                         afterCheckJump(ids);
                     },
                     "将检查选定的 " + ids.length + " 个 Tracker"
@@ -791,7 +791,10 @@
                 // 单条检查：共用进度遮罩，无需二次确认
                 runCheck(
                     { scope: "ids", ids: { [currentTracker]: [appId] } },
-                    finishCheckTracker,
+                    function (cancelled, errs, overflow, empty) {
+                        showCheckDone(cancelled, errs, overflow, empty);
+                        return finishCheckTracker(cancelled);
+                    },
                     null
                 );
             }
@@ -877,82 +880,135 @@
                 return msg;
             }
 
-            function collectErrors(data) {
-                var errs = [];
-                if (!Array.isArray(data)) return errs;
-                for (const r of data) {
-                    for (const [os, p] of Object.entries(r.platforms || {})) {
-                        if (p.error) {
-                            var msg = cleanGitHubError(p.error);
-                            msg = escapeHtml(msg);
-                            // HTTP 403：不展示 HTML 正文，检测人机验证
-                            if (/^HTTP 403/.test(msg)) {
-                                var challengePatterns = [
-                                    "challenges.cloudflare.com",
-                                    "_cf_chl_opt",
-                                    "cf_chl",
-                                    "turnstile",
-                                    "captcha",
-                                    "recaptcha",
-                                    "hcaptcha",
-                                    "/cdn-cgi/challenge-platform",
-                                    "akamai",
-                                    "challenge-platform",
-                                    "distil",
-                                    "perimeterx",
-                                    "datadome",
-                                    "imperva",
-                                    "incapsula",
-                                    "sucuri",
-                                    "Just a moment",
-                                    "Checking your browser"
-                                ];
-                                var isChallenge = false;
-                                for (
-                                    var ci = 0;
-                                    ci < challengePatterns.length;
-                                    ci++
-                                ) {
-                                    if (
-                                        msg.indexOf(challengePatterns[ci]) !==
-                                        -1
-                                    ) {
-                                        isChallenge = true;
-                                        break;
-                                    }
-                                }
-                                if (isChallenge) {
-                                    window._hasChallenge = true;
-                                    msg = "HTTP 403 (Challenge)";
-                                } else {
-                                    msg = "HTTP 403";
-                                }
+            // 本次检查的错误按 Tracker 分组。输入是 done 事件里的 CheckError[]
+            // （含 tracker / app_id / name / os / message），不再从结果缓存反推。
+            function formatCheckErrors(errs) {
+                if (!Array.isArray(errs)) return [];
+                var out = [];
+                errs.forEach(function (e) {
+                    var msg = cleanGitHubError(String(e.message || ""));
+                    msg = escapeHtml(msg);
+                    // HTTP 403：不展示 HTML 正文，检测人机验证
+                    if (/^HTTP 403/.test(msg)) {
+                        var challengePatterns = [
+                            "challenges.cloudflare.com",
+                            "_cf_chl_opt",
+                            "cf_chl",
+                            "turnstile",
+                            "captcha",
+                            "recaptcha",
+                            "hcaptcha",
+                            "/cdn-cgi/challenge-platform",
+                            "akamai",
+                            "challenge-platform",
+                            "distil",
+                            "perimeterx",
+                            "datadome",
+                            "imperva",
+                            "incapsula",
+                            "sucuri",
+                            "Just a moment",
+                            "Checking your browser"
+                        ];
+                        var isChallenge = false;
+                        for (var ci = 0; ci < challengePatterns.length; ci++) {
+                            if (msg.indexOf(challengePatterns[ci]) !== -1) {
+                                isChallenge = true;
+                                break;
                             }
-                            errs.push(
-                                '<span class="text-warn">' +
-                                    escapeHtml(r.name) +
-                                    " " +
-                                    escapeHtml(os) +
-                                    "</span>: " +
-                                    msg
-                            );
+                        }
+                        if (isChallenge) {
+                            window._hasChallenge = true;
+                            msg = "HTTP 403 (Challenge)";
+                        } else {
+                            msg = "HTTP 403";
                         }
                     }
-                }
-                return errs;
+                    // os 为空 = 整条目级或任务级，不带平台前缀
+                    var label = escapeHtml(e.name || e.app_id || "");
+                    if (e.os) label += " " + escapeHtml(e.os);
+                    out.push({
+                        tracker: e.tracker || "",
+                        text:
+                            '<span class="text-warn">' +
+                            label +
+                            "</span>: " +
+                            msg,
+                        raw: String(e.message || "")
+                    });
+                });
+                return out;
             }
 
+            // 统一的检查收口：四个入口共用，只负责把本次错误一次性展示出来。
+            // cancelled 时也展示——已检查完那部分的错误是有意义的（Q4）。
+            function showCheckDone(cancelled, errs, overflow, empty) {
+                if (empty) {
+                    // 没有可检查的内容：给一句提示，而不是关掉确认框后什么都没有
+                    showLoading("检查更新", "").done("没有可检查的内容");
+                    return;
+                }
+                var items = formatCheckErrors(errs);
+                var title = cancelled ? "检查已终止" : "检查完成";
+                var ld = showLoading(title, "");
+                if (!items.length) {
+                    ld.done(cancelled ? "已终止，没有发现问题" : "检查完成");
+                    return;
+                }
+                var hasRateLimit = items.some(function (e) {
+                    return e.raw.indexOf("API rate limit exceeded") >= 0;
+                });
+                var hasAbuse = items.some(function (e) {
+                    return e.raw.indexOf("abuse detection") >= 0;
+                });
+                var body = "";
+                if (cancelled)
+                    body += "以下是已检查完的部分发现的问题：<br><br>";
+                if (hasRateLimit)
+                    body +=
+                        "提示：你似乎达到了 GitHub 请求速率限制，查看 Serein 文档获取更多信息。<br><br>";
+                if (hasAbuse)
+                    body +=
+                        "提示：你似乎在短时间大量请求 GitHub API 导致被暂时封禁。请降低并发，不要频繁操作，稍等片刻再继续尝试。<br><br>";
+                if (window._hasChallenge)
+                    body +=
+                        "提示：似乎触发了人机验证，请尝试手动更新。<br><br>";
+                window._hasChallenge = false;
+
+                // 按 Tracker 分组
+                var groups = [];
+                var byName = {};
+                items.forEach(function (it) {
+                    var key = it.tracker || "";
+                    if (!byName[key]) {
+                        byName[key] = { name: key, lines: [] };
+                        groups.push(byName[key]);
+                    }
+                    byName[key].lines.push(it.text);
+                });
+                groups.forEach(function (g) {
+                    if (g.name) {
+                        body +=
+                            '<span class="font-semibold">' +
+                            escapeHtml(g.name) +
+                            "</span><br>";
+                    }
+                    body += g.lines.join("<br>");
+                    body += "<br>";
+                });
+                if (overflow > 0) body += "…还有 " + overflow + " 条未显示<br>";
+
+                ld.done(body, true, items.length + " 个错误");
+            }
+
+            // 桶只用于渲染列表（版本号 / 更新箭头 / 状态），不再从中取错误
             async function finishCheckTracker(cancelled) {
                 var data = await api("/api/check/temp/" + currentTracker);
-                var results = (data && data.results) || [];
-                mergeCheckResults(results);
+                mergeCheckResults((data && data.results) || []);
                 var detail = (await loadTrackerDetail(currentTracker)) || [];
                 loadTrackers();
-                // 取消时已由 asyncCheck 弹出"已终止"，不再弹"检查完成"
                 if (cancelled) return;
                 showStatusToasts(detail);
-                var errs = collectErrors(results);
-                showCheckDone(errs);
             }
 
             // 统一检查入口：共用进度遮罩；confirmMsg 为真时先二次确认
@@ -970,7 +1026,10 @@
                 console.log("[check] tracker:", currentTracker);
                 runCheck(
                     { scope: "trackers", tracker_ids: [currentTracker] },
-                    finishCheckTracker,
+                    function (cancelled, errs, overflow, empty) {
+                        showCheckDone(cancelled, errs, overflow, empty);
+                        return finishCheckTracker(cancelled);
+                    },
                     "将检查当前 Tracker 中所有软件的更新"
                 );
             }
@@ -979,8 +1038,9 @@
                 console.log("[check] all");
                 runCheck(
                     { scope: "all" },
-                    function (cancelled) {
-                        if (cancelled) {
+                    function (cancelled, errs, overflow, empty) {
+                        showCheckDone(cancelled, errs, overflow, empty);
+                        if (cancelled || empty) {
                             loadTrackers();
                             return;
                         }

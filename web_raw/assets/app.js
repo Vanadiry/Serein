@@ -80,7 +80,10 @@ function absoluteUrl(u) {
 var ALLOWED_URL_SCHEMES = ["http:", "https:"];
 function isAllowedUrl(u) {
     try {
-        return ALLOWED_URL_SCHEMES.indexOf(new URL(u, location.origin).protocol) >= 0;
+        return (
+            ALLOWED_URL_SCHEMES.indexOf(new URL(u, location.origin).protocol) >=
+            0
+        );
     } catch (e) {
         return false;
     }
@@ -92,7 +95,8 @@ function openUrl(url) {
     if (!isAllowedUrl(abs)) {
         _makeToast(
             "无法打开",
-            "已阻止非 http/https 协议的链接：" + escapeHtml(String(url).slice(0, 120)),
+            "已阻止非 http/https 协议的链接：" +
+                escapeHtml(String(url).slice(0, 120)),
             "bg-warn",
             "bg-warn/80",
             5
@@ -1059,26 +1063,35 @@ function showProgressModal(title, cancel) {
 }
 
 // SSE 进度检查（批量）
+// 检查进度。done 事件带本次检查的全部错误（见 core/server/check.go 的 checkErrs），
+// 一次性交给 onDone 展示——不逐条弹 toast，也不再从结果缓存里反推。
 async function asyncCheck(apiPath, body, onDone) {
     var res = await apiPost(apiPath, body);
     if (!res || !res.task_id) {
+        if (onDone) onDone(false, [], 0, true); // 空选择：也要给一句提示
         return;
     }
-    var total = parseInt(res.total) || 0;
-    var pm = showProgressModal(
-        "检查更新",
-        API + "/api/check/cancel/" + res.task_id
-    );
-    var evt = new EventSource(API + "/api/progress/" + res.task_id);
+    var taskId = res.task_id;
+    var pm = showProgressModal("检查更新", API + "/api/check/cancel/" + taskId);
+    var settled = false;
+    var reconnects = 0;
+    var evt = new EventSource(API + "/api/progress/" + taskId);
+
+    function finish(d) {
+        if (settled) return;
+        settled = true;
+        evt.close();
+        pm.close();
+        if (d.cancelled) {
+            _makeToast("已终止", "取消检查", "bg-warn", "bg-warn/80", 5);
+        }
+        onDone(!!d.cancelled, d.errors || [], d.overflow || 0, false);
+    }
+
     evt.onmessage = function (e) {
         var d = JSON.parse(e.data);
         if (d.step === "done") {
-            evt.close();
-            pm.close();
-            if (d.cancelled) {
-                _makeToast("已终止", "取消检查", "bg-warn", "bg-warn/80", 5);
-            }
-            onDone(d.cancelled);
+            finish(d);
             return;
         }
         if (d.step === "app") {
@@ -1086,10 +1099,16 @@ async function asyncCheck(apiPath, body, onDone) {
             pm.setStatus(d.name);
         }
     };
+
+    // 连接断了不代表检查结束，绝不能在这里报「完成」。
+    // EventSource 默认会自动重连，而服务端在任务结束后仍保留一段时间
+    // （progressRetain），期间重连能从 Replay() 拿回同一条 done（含错误列表）。
+    // 所以这里只做兜底：反复重连仍拿不到才收口。
     evt.onerror = function () {
-        evt.close();
-        pm.close();
-        onDone();
+        if (settled) return;
+        if (++reconnects >= 8) {
+            finish({ cancelled: false, errors: [], overflow: 0 });
+        }
     };
 }
 

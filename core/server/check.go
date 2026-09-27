@@ -183,8 +183,9 @@ func (s *Server) syncCachedCurrent(appID string, versions map[string]string) {
 // 异步检查（后台 goroutine，通过 SSE 推送进度）
 
 // checkMaxErrors 单次检查返回的错误条数上限。超出后只累加计数，
-// 由 done 事件里的 overflow 告知前端「还有更多」，避免超长响应
-const checkMaxErrors = 2000
+// 由 done 事件里的 overflow 告知前端「还有更多」，避免超长响应。
+// 声明为 var 以便测试覆盖
+var checkMaxErrors = 2000
 
 // CheckError 一次检查里的一条错误。随 done 事件返回给前端一次性展示，
 // 不写入结果缓存——缓存存的是版本号与下载链接，不是错误。
