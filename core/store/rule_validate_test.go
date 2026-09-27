@@ -374,3 +374,29 @@ func TestValidateRealWorldDeadFields(t *testing.T) {
 		t.Errorf("warn 总数 = %d, want 2（判据若误报会更多）", warns)
 	}
 }
+
+// github 的 owner/repo 会被拼进 API 路径，不校验字符集就能用 ? & 重塑查询串
+func TestValidateRejectsBadGitHubSlug(t *testing.T) {
+	bad := []string{"a?per_page=100&", "a/b", "a b", "a#frag", "../evil", "a%2Fb"}
+	for _, s := range bad {
+		cfg := PlatConfig{Type: "github", Owner: s, Repo: "r", DPosition: "exe"}
+		found := false
+		for _, is := range validatePlatConfig("config", cfg) {
+			if is.Level == "error" && strings.Contains(is.Message, "owner") {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("owner = %q 应报 error", s)
+		}
+	}
+	// 合法值不得误伤（含 GitHub 真实存在的 . 和 -）
+	for _, s := range []string{"vanadiry", "Vanadiry", "some.user", "a-b", "a_b", "A1"} {
+		cfg := PlatConfig{Type: "github", Owner: s, Repo: s, DPosition: "exe"}
+		for _, is := range validatePlatConfig("config", cfg) {
+			if is.Level == "error" {
+				t.Errorf("owner/repo = %q 被误判: %s", s, is.Message)
+			}
+		}
+	}
+}

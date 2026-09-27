@@ -490,6 +490,10 @@ func checkURLScheme(field, u string, allowRelative bool) (level, msg string) {
 	return "warn", field + " 不是 http(s) 链接"
 }
 
+// githubSlugRe github owner/repo 的合法字符集。会被拼进 API 路径，
+// 不校验就能通过 ? & 等字符重塑查询串
+var githubSlugRe = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+
 // validParserTypes 合法的解析器类型。type / v_type / d_type 都必须落在这个集合里。
 // 拼写错误（如 v_type = "jsno"）过去能通过全部校验，直到运行时才炸成一个
 // 字面量 "<nil>" 的"版本号"。core/store/rule.schema.json 并不存在，
@@ -534,6 +538,16 @@ func validatePlatConfig(name string, c PlatConfig) []RuleIssue {
 		}
 		if c.Repo == "" {
 			add("error", "github 规则缺少 repo")
+		}
+		// owner/repo 会被拼进 API 路径，字符集必须收紧：
+		// owner = "a?per_page=100&" 就能重塑查询串。
+		// 与 source_id 的既有约束（sync.go）同类。
+		for _, f := range []struct{ name, val string }{
+			{"owner", c.Owner}, {"repo", c.Repo},
+		} {
+			if f.val != "" && !githubSlugRe.MatchString(f.val) {
+				add("error", fmt.Sprintf("github %s %q 含非法字符，仅允许字母、数字、点、下划线和连字符", f.name, f.val))
+			}
 		}
 	}
 
