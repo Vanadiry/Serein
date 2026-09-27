@@ -30,41 +30,66 @@ func countZombies(t *testing.T) int {
 	return n
 }
 
-// 连续下载后不应留下僵尸进程
+// 连续下载后不应留下僵尸进程。
+//
+// 只测自定义下载器这条路径：未识别的下载器会回退到 OpenBrowser，而 OpenBrowser
+// 在 macOS 上是 `open <url>`，测试里跑它会真的用默认浏览器打开测试 URL。
+// OpenBrowser 用的同一个 startDetached 在下面单独测。
 func TestDownloadDoesNotLeakZombies(t *testing.T) {
-	if _, err := exec.LookPath("true"); err != nil {
+	exe, err := exec.LookPath("true")
+	if err != nil {
 		t.Skip("没有 true 命令")
 	}
-	// 两条路径都会起子进程：自定义下载器，以及未识别的下载器回退到 OpenBrowser。
-	// 两条都要试——OpenBrowser 被点链接、下载回退、错误页调用，频率更高。
-	for _, tc := range []struct{ name, downloader string }{
-		{"自定义下载器", "/usr/bin/true {url}"},
-		{"回退到 OpenBrowser", "/usr/bin/true"}, // 无 {url} → dlUnknown → OpenBrowser
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			cfg := store.Config{}
-			cfg.Download.Downloader = tc.downloader
-			s := &Server{config: cfg}
+	cfg := store.Config{}
+	// 带 {url} 才会被判定为 dlCustom，否则走 OpenBrowser 回退
+	cfg.Download.Downloader = exe + " {url}"
+	s := &Server{config: cfg}
 
-			// 预热，避免把首次调度的噪声算进来
-			for i := 0; i < 3; i++ {
-				doDownloadReq(t, s)
-			}
-			settle(t)
-			before := countZombies(t)
+	// 预热，避免把首次调度的噪声算进来
+	for i := 0; i < 3; i++ {
+		doDownloadReq(t, s)
+	}
+	settle(t)
+	before := countZombies(t)
 
-			const n = 40
-			for i := 0; i < n; i++ {
-				doDownloadReq(t, s)
-			}
-			settle(t)
-			after := countZombies(t)
+	const n = 40
+	for i := 0; i < n; i++ {
+		doDownloadReq(t, s)
+	}
+	settle(t)
+	after := countZombies(t)
 
-			t.Logf("触发 %d 次：僵尸 %d → %d", n, before, after)
-			if after > before {
-				t.Errorf("僵尸进程增加了 %d 个：Start 之后没有 Wait 回收", after-before)
-			}
-		})
+	t.Logf("下载 %d 次：僵尸 %d → %d", n, before, after)
+	if after > before {
+		t.Errorf("僵尸进程增加了 %d 个：Start 之后没有 Wait 回收", after-before)
+	}
+}
+
+// startDetached 本身：不经过 handler，不会触发任何真实的外部程序
+func TestStartDetachedReaps(t *testing.T) {
+	exe, err := exec.LookPath("true")
+	if err != nil {
+		t.Skip("没有 true 命令")
+	}
+	// 预热
+	for i := 0; i < 3; i++ {
+		_ = startDetached(exec.Command(exe))
+	}
+	settle(t)
+	before := countZombies(t)
+
+	const n = 40
+	for i := 0; i < n; i++ {
+		if err := startDetached(exec.Command(exe)); err != nil {
+			t.Fatalf("startDetached: %v", err)
+		}
+	}
+	settle(t)
+	after := countZombies(t)
+
+	t.Logf("启动 %d 次：僵尸 %d → %d", n, before, after)
+	if after > before {
+		t.Errorf("僵尸进程增加了 %d 个：Start 之后没有 Wait 回收", after-before)
 	}
 }
 
