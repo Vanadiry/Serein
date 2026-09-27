@@ -1050,34 +1050,6 @@
                 );
             }
 
-            function showCheckDone(errs) {
-                var ld = showLoading("检查完成", "");
-                if (!errs.length) {
-                    ld.done("检查完成");
-                    return;
-                }
-                var hasRateLimit = errs.some(function (e) {
-                    return e.indexOf("API rate limit exceeded") >= 0;
-                });
-                var hasAbuse = errs.some(function (e) {
-                    return e.indexOf("abuse detection") >= 0;
-                });
-                var body = "";
-                if (hasRateLimit)
-                    body +=
-                        "提示：你似乎达到了 GitHub 请求速率限制，查看 Serein 文档获取更多信息。<br><br>";
-                if (hasAbuse)
-                    body +=
-                        "提示：你似乎在短时间大量请求 GitHub API 导致被暂时封禁。请降低并发，不要频繁操作，稍等片刻再继续尝试。<br><br>";
-                var hasCloudflare = window._hasChallenge;
-                if (hasCloudflare)
-                    body +=
-                        "提示：似乎触发了人机验证，请尝试手动更新。<br><br>";
-                window._hasChallenge = false;
-                body += errs.join("<br>");
-                ld.done(body, true, errs.length + " 个错误");
-            }
-
             function mergeCheckResults(data) {
                 if (!Array.isArray(data)) return;
                 for (const r of data) checkResults[r.app_id] = r;
