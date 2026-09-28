@@ -87,7 +87,7 @@ func TestProgressRemovedAfterRetain(t *testing.T) {
 }
 
 // 核心回归：缓冲区被塞满时 Close 仍必须把 done 送达
-// 丢���的后果是前端永远等不到 done，进度遮罩永久卡住
+// 丢失的后果是前端永远等不到 done，进度遮罩永久卡住
 func TestCloseDeliversDoneWhenBufferFull(t *testing.T) {
 	p := NewProgress(0)
 	// 不消费，把 64 槽缓冲区填满

@@ -30,13 +30,16 @@ func hasIssue(issues []RuleIssue, level, sub string) bool {
 	return false
 }
 
-func TestSchemaValidation(t *testing.T) {
-	// 合法
-	if is := parseIssues(t, `[info]
+// 多数用例只关心 [config] 那段，公共前奏抽到这里
+const infoHead = `[info]
 app_id = "x"
 name = "X"
 platforms = ["macos"]
-[config]
+`
+
+func TestSchemaValidation(t *testing.T) {
+	// 合法
+	if is := parseIssues(t, infoHead+`[config]
 type = "json"
 url = "https://x"
 `); len(is) != 0 {
@@ -44,11 +47,7 @@ url = "https://x"
 	}
 
 	// 未知字段
-	if is := parseIssues(t, `[info]
-app_id = "x"
-name = "X"
-platforms = ["macos"]
-[config]
+	if is := parseIssues(t, infoHead+`[config]
 type = "json"
 url = "https://x"
 force_downloader = true
@@ -57,11 +56,7 @@ force_downloader = true
 	}
 
 	// 枚举非法
-	if is := parseIssues(t, `[info]
-app_id = "x"
-name = "X"
-platforms = ["macos"]
-[config]
+	if is := parseIssues(t, infoHead+`[config]
 type = "json"
 download_method = "downlaoder"
 `); !hasIssue(is, "warn", "download_method") {
@@ -77,11 +72,7 @@ platforms = ["macos"]
 	}
 
 	// 数值超范围
-	if is := parseIssues(t, `[info]
-app_id = "x"
-name = "X"
-platforms = ["macos"]
-[config]
+	if is := parseIssues(t, infoHead+`[config]
 type = "github"
 owner = "o"
 repo = "r"

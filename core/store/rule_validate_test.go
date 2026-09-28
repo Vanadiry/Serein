@@ -10,11 +10,7 @@ import (
 
 func TestRuleSemanticValidation(t *testing.T) {
 	// v_type / d_type 覆盖时无需 type
-	if is := parseIssues(t, `[info]
-app_id = "p"
-name = "P"
-platforms = ["windows"]
-[config]
+	if is := parseIssues(t, infoHead+`[config]
 v_url = "https://x/v"
 v_type = "regex"
 v_position = "v([0-9.]+)"
@@ -26,11 +22,7 @@ d_position = { selector = "a", attr = "href" }
 	}
 
 	// github 缺 owner
-	if is := parseIssues(t, `[info]
-app_id = "g"
-name = "G"
-platforms = ["macos"]
-[config]
+	if is := parseIssues(t, infoHead+`[config]
 type = "github"
 repo = "r"
 `); !hasIssue(is, "error", "缺少 owner") {
@@ -38,11 +30,7 @@ repo = "r"
 	}
 
 	// regex 类型但 position 非字符串
-	if is := parseIssues(t, `[info]
-app_id = "r"
-name = "R"
-platforms = ["macos"]
-[config]
+	if is := parseIssues(t, infoHead+`[config]
 type = "regex"
 url = "https://x"
 v_position = { selector = "a" }
@@ -51,11 +39,7 @@ v_position = { selector = "a" }
 	}
 
 	// 正则无法编译
-	if is := parseIssues(t, `[info]
-app_id = "r2"
-name = "R2"
-platforms = ["macos"]
-[config]
+	if is := parseIssues(t, infoHead+`[config]
 type = "regex"
 url = "https://x"
 v_position = "([0-9"
@@ -64,11 +48,7 @@ v_position = "([0-9"
 	}
 
 	// url 缺少 scheme
-	if is := parseIssues(t, `[info]
-app_id = "u"
-name = "U"
-platforms = ["macos"]
-[config]
+	if is := parseIssues(t, infoHead+`[config]
 type = "json"
 url = "example.com/api"
 `); !hasIssue(is, "warn", "不是 http(s) 链接") {
@@ -91,13 +71,7 @@ func TestValidateRejectsUnknownParserType(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			issues := validatePlatConfig("config", tc.cfg)
-			found := false
-			for _, is := range issues {
-				if is.Level == "error" && strings.Contains(is.Message, tc.want) {
-					found = true
-				}
-			}
-			if !found {
+			if !hasIssue(issues, "error", tc.want) {
 				t.Errorf("未报出未知类型 %q: %+v", tc.want, issues)
 			}
 		})
@@ -115,10 +89,8 @@ func TestValidateAcceptsAllParserTypes(t *testing.T) {
 			cfg.VPosition = map[string]any{"selector": ".v"}
 			cfg.DPosition = map[string]any{"selector": ".d"}
 		}
-		for _, is := range validatePlatConfig("config", cfg) {
-			if is.Level == "error" && strings.Contains(is.Message, "解析器") {
-				t.Errorf("%s 被误判: %s", typ, is.Message)
-			}
+		if issues := validatePlatConfig("config", cfg); hasIssue(issues, "error", "解析器") {
+			t.Errorf("%s 被误判: %+v", typ, issues)
 		}
 	}
 }
@@ -207,14 +179,9 @@ func TestValidateRejectsNonHTTPSchemeInConfig(t *testing.T) {
 		case "d_url":
 			cfg.DURL = "javascript:alert(1)"
 		}
-		found := false
-		for _, is := range validatePlatConfig("config", cfg) {
-			if is.Level == "error" && strings.Contains(is.Message, field) {
-				found = true
-			}
-		}
-		if !found {
-			t.Errorf("%s = javascript: 未报 error: %+v", field, validatePlatConfig("config", cfg))
+		issues := validatePlatConfig("config", cfg)
+		if !hasIssue(issues, "error", field) {
+			t.Errorf("%s = javascript: 未报 error: %+v", field, issues)
 		}
 	}
 }
@@ -224,15 +191,9 @@ func TestValidateRejectsNonHTTPSchemeInConfig(t *testing.T) {
 func TestValidateConfigURLMustBeAbsolute(t *testing.T) {
 	for _, u := range []string{"example.com/api", "/relative", "not a url at all"} {
 		cfg := PlatConfig{Type: "json", VPosition: []any{"v"}, DPosition: []any{"d"}, URL: u}
-		found := false
-		for _, is := range validatePlatConfig("config", cfg) {
-			if is.Level == "warn" && strings.Contains(is.Message, "url") {
-				found = true
-			}
-		}
-		if !found {
-			t.Errorf("config.url = %q 应报 warn（取数目标必须是绝对 http(s)）: %+v",
-				u, validatePlatConfig("config", cfg))
+		issues := validatePlatConfig("config", cfg)
+		if !hasIssue(issues, "warn", "url") {
+			t.Errorf("config.url = %q 应报 warn（取数目标必须是绝对 http(s)）: %+v", u, issues)
 		}
 	}
 	// 空字段不报

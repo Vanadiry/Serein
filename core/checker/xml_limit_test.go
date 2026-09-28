@@ -2,8 +2,6 @@ package checker
 
 import (
 	"bytes"
-	"fmt"
-	"os"
 	"strings"
 	"testing"
 )
@@ -139,5 +137,4 @@ func TestParseXMLLimitsHaveHeadroom(t *testing.T) {
 	if xmlMaxNodes > 1000000 {
 		t.Errorf("xmlMaxNodes = %d，按实测 ~478 字节/节点会放到 ~478MB", xmlMaxNodes)
 	}
-	fmt.Fprintf(os.Stderr, "xmlMaxDepth=%d xmlMaxNodes=%d\n", xmlMaxDepth, xmlMaxNodes)
 }
