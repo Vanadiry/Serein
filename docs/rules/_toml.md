@@ -10,7 +10,7 @@ app_id = "vanadiry-seshat"         # 唯一标识，更推荐直接用 UUID。�
 name = "Seshat"                    # 名称，会在前端显示
 platforms = ["macos", "windows"]   # 平台
 description = "番组计划 Tracker 管理工具"   # 可选，描述
-status = ["维护中", "warn"]         # 可选，状态：[消息, 等级]。等级可省略
+status = ["维护中", "warn"]         # 可选，状态：[消息, 等级]，等级可省略
 official_website = "https://github.com/Vanadiry/Seshat"   # 可选，官网
 
 # 全局 config，在当前规则表中通用，不论平台
@@ -58,7 +58,7 @@ url = "https://vanadiry.com/check{{token}}"
 
 用户配置时，需要在 `[rule_values]` 段，以 `app_id.value_name` 作为键名，配置变量值。  
 程序将根据 `app_id` 来限制规则能够访问的变量，以防止数据泄露。  
-规则引用了、但用户未配置的变量，程序会跳过该规则，并在「规则错误检查」中告警。
+规则引用了、但用户未配置的变量，程序会跳过该规则，并在“校验规则”中告警。
 
 ```toml
 [rule_values]

@@ -139,7 +139,7 @@ Tracker 中的 `platforms` 优先级高于配置文件中的 `platforms`。
 不写此字段，将继承 `[tracker]` 节中的 `platforms` 设置。
 
 在规则页选中规则源后，可为规则勾选平台：  
-点「追踪」把它加入默认 Tracker，或点「复制」复制一段 `[[tracker]]` 片段，自行粘贴到你的 Tracker 文件。  
+点“追踪”把它加入默认 Tracker，或点“复制”复制一段 `[[tracker]]` 片段，自行粘贴到你的 Tracker 文件。  
 推荐你根据 Tracker 格式，手动创建和管理。
 
 对于 VSCode 使用的 VSIX 扩展，Serein 内置了一套规则。  
