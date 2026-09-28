@@ -84,7 +84,7 @@ func fetchSourceInfo(ctx context.Context, url string) (*SourceInfo, []byte, erro
 		return nil, nil, fmt.Errorf("%s 缺少 source_id", sourceFileName)
 	}
 	if !regexp.MustCompile(`^[a-zA-Z0-9_-]+$`).MatchString(s.ID) {
-		return nil, nil, fmt.Errorf("source_id %q 包含非法字符，仅允许大小写字母、数字、下划线和连字符", s.ID)
+		return nil, nil, fmt.Errorf("source_id %q 包含不合法字符，仅允许大小写字母、数字、下划线和连字符", s.ID)
 	}
 	issues, rejected := validateSourceFiles(&s)
 	for _, is := range issues {
@@ -353,7 +353,7 @@ func walkSource(ctx context.Context, s *SourceInfo, rawBody []byte, sourceURL, d
 			}
 			// 目录名即该子源的 ID，不一致则无法确定落盘位置
 			if subInfo.ID != subDir {
-				msg := fmt.Sprintf("子源 %s 的 source_id(%s) 与目录名(%s) 不一致，已忽略", subURL, subInfo.ID, subDir)
+				msg := fmt.Sprintf("子源 %s 的 source_id %s 与目录名 %s 不一致，已忽略", subURL, subInfo.ID, subDir)
 				log.LogfWarn("[sync] %s", msg)
 				resultFails[i] = []syncFailure{{Source: subURL, Error: msg}}
 				return
@@ -593,7 +593,7 @@ func downloadLeaves(ctx context.Context, rulesDir string, leaves []leafSrc, conc
 						overBudget[task.leaf] = true
 						leafFailed[task.leaf] = true
 						fileErrors++
-						msg := fmt.Sprintf("本轮下载体积超过上限 %d 字节，已放弃该源（保留本地现有规则）", maxSourceBytes)
+						msg := fmt.Sprintf("本轮下载体积超过上限 %d 字节，已放弃该源，本地现有规则保留", maxSourceBytes)
 						failures = append(failures, syncFailure{Source: task.id, Error: msg})
 						events.Emit("warn", "[sync]", msg)
 						log.LogfWarn("[sync] %s: %s", task.id, msg)
@@ -614,7 +614,7 @@ func downloadLeaves(ctx context.Context, rulesDir string, leaves []leafSrc, conc
 		for f := range l.need {
 			rel, ok := safeRelPath(base, f)
 			if !ok {
-				events.Emit("warn", "[sync]", fmt.Sprintf("跳过非法文件路径 %q（源 %s）", f, l.id))
+				events.Emit("warn", "[sync]", fmt.Sprintf("跳过非法文件路径 %q，源 %s", f, l.id))
 				leafFailed[i] = true
 				fileErrors++
 				failures = append(failures, syncFailure{Source: l.id, File: f, Error: "非法文件路径"})
@@ -661,7 +661,7 @@ func commitLeaves(rulesDir string, leaves []leafSrc, contents []map[string][]byt
 		l := leaves[i]
 		dest := filepath.Join(rulesDir, l.destDir)
 		if err := commitLeafInPlace(dest, contents[i], l.files, l.rawBody); err != nil {
-			events.Emit("error", "[sync]", fmt.Sprintf("提交 %s 失败: %v", l.id, err))
+			events.Emit("error", "[sync]", fmt.Sprintf("提交 %s 失败：%v", l.id, err))
 			log.LogfWarn("[sync] 提交 %s 失败: %v", l.id, err)
 			failures = append(failures, syncFailure{Source: l.id, Error: err.Error()})
 			continue
@@ -696,8 +696,8 @@ func commitLeafInPlace(dest string, files map[string][]byte, manifest map[string
 		if err := os.Remove(filepath.Join(dest, e.Name())); err != nil {
 			return fmt.Errorf("删除未列出的 %s: %w", e.Name(), err)
 		}
-		log.Logf("[sync] 删除 %s/%s（上游已不再列出）", l2a(dest), e.Name())
-		events.Emit("warn", "[sync]", fmt.Sprintf("已删除 %s（上游 manifest 不再列出）", e.Name()))
+		log.Logf("[sync] 删除 %s/%s，因为上游已不再列出", l2a(dest), e.Name())
+		events.Emit("warn", "[sync]", fmt.Sprintf("已删除 %s，因为上游 manifest 不再列出", e.Name()))
 	}
 	// 3. 版本标记最后写
 	if err := writeFileSync(filepath.Join(dest, sourceFileName), rawBody, 0644); err != nil {
@@ -737,8 +737,8 @@ func pruneOrphanSubSources(rulesDir string, n *sourceNode) []string {
 					log.LogfWarn("[sync] 删除孤儿子源 %s 失败: %v", child, err)
 					continue
 				}
-				log.Logf("[sync] 删除孤儿子源 %s（上游已不再列出）", l2a(child))
-				events.Emit("warn", "[sync]", fmt.Sprintf("已删除孤儿子源 %s（上游已不再列出）", e.Name()))
+				log.Logf("[sync] 删除孤儿子源 %s，因为上游已不再列出", l2a(child))
+				events.Emit("warn", "[sync]", fmt.Sprintf("已删除孤儿子源 %s，因为上游已不再列出", e.Name()))
 				removed = append(removed, e.Name())
 			}
 		}

@@ -33,14 +33,14 @@ func AcquireFileLock(ctx context.Context, home string, timeout, retry time.Durat
 	path := filepath.Join(home, lockFileName)
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
-		return nil, fmt.Errorf("打开锁文件失败: %w", err)
+		return nil, fmt.Errorf("打开锁文件失败：%w", err)
 	}
 	deadline := time.Now().Add(timeout)
 	for {
 		locked, err := tryLockFile(f)
 		if err != nil {
 			f.Close()
-			return nil, fmt.Errorf("加锁失败: %w", err)
+			return nil, fmt.Errorf("加锁失败：%w", err)
 		}
 		if locked {
 			return &FileLock{f: f, path: path}, nil

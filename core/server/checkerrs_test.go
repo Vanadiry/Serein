@@ -151,9 +151,9 @@ func TestDirectCheckResponseRejectsEmpty(t *testing.T) {
 		t.Errorf("正常情况不该报错: %v", err)
 	}
 	if _, err := directCheckResponse(ctx, noVer, c, "a.b", "msvsix", nil); err == nil {
-		t.Error("未取到版本号应报错")
+		t.Error("未能提取版本号应报错")
 	}
 	if _, err := directCheckResponse(ctx, noURL, c, "a.b", "openvsx", nil); err == nil {
-		t.Error("未取到下载链接应报错")
+		t.Error("未能提取下载链接应报错")
 	}
 }

@@ -49,7 +49,7 @@ func (s *Server) handleRules(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, list)
 }
 
-// POST /api/rules/check 手动触发一次规则错误检查；body {dev:true} 则校验本地开发规则源
+// POST /api/rules/check 手动触发一次规则校验；body {dev:true} 则校验本地开发规则源
 func (s *Server) handleRulesCheck(w http.ResponseWriter, r *http.Request) {
 	limitBody(w, r)
 	var body struct {

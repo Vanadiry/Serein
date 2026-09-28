@@ -15,7 +15,7 @@ func extractSelectorValue(body []byte, pos any, baseURL string) (any, error) {
 	}
 	posMap, ok := pos.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("html_selector position must be map, got %T", pos)
+		return nil, fmt.Errorf("html_selector 的 position 值为 %T，不合法，应当为表", pos)
 	}
 
 	selector, _ := posMap["selector"].(string)
@@ -24,7 +24,7 @@ func extractSelectorValue(body []byte, pos any, baseURL string) (any, error) {
 
 	el := doc.Find(selector).First()
 	if el.Length() == 0 {
-		return nil, fmt.Errorf("selector %q not found", selector)
+		return nil, fmt.Errorf("未找到选择器 %q", selector)
 	}
 
 	var val string

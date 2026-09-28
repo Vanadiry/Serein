@@ -62,8 +62,8 @@ func TestValidateSourceFilesList(t *testing.T) {
 			t.Errorf("级别应为 warn: %+v", is)
 		}
 	}
-	if !strings.Contains(issues[0].Message, "type 从 list 改成 rules") {
-		t.Errorf("提示语应指向改 type: %s", issues[0].Message)
+	if !strings.Contains(issues[0].Message, "已忽略") {
+		t.Errorf("提示语应说明已忽略该条目: %s", issues[0].Message)
 	}
 }
 

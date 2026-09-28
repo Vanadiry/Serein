@@ -21,7 +21,7 @@ func ValidateDevSource(path string, ruleValues map[string]map[string]string) ([]
 	}
 	info, err := loadSourceJSONFile(p)
 	if err != nil {
-		return nil, fmt.Errorf("读取 %s 失败: %w", path, err)
+		return nil, fmt.Errorf("读取 %s 失败：%w", path, err)
 	}
 	var issues []RuleIssue
 	validateSourceDir(filepath.Dir(p), "", info, ruleValues, &issues)

@@ -17,13 +17,13 @@ func stepJSON(root any, pos any, join string) (any, error) {
 	if join != "" {
 		paths, ok := pos.([]any)
 		if !ok {
-			return nil, fmt.Errorf("json multi-path: want [][]any, got %T", pos)
+			return nil, fmt.Errorf("json 多路径的 position 值为 %T，不合法，应当为 [][]any", pos)
 		}
 		var typedPaths [][]any
 		for _, p := range paths {
 			typed, ok := p.([]any)
 			if !ok {
-				return nil, fmt.Errorf("json multi-path: inner must be []any, got %T", p)
+				return nil, fmt.Errorf("json 多路径的每一项值为 %T，不合法，应当为 []any", p)
 			}
 			typedPaths = append(typedPaths, typed)
 		}
@@ -32,7 +32,7 @@ func stepJSON(root any, pos any, join string) (any, error) {
 
 	path, ok := pos.([]any)
 	if !ok {
-		return nil, fmt.Errorf("json position must be []any, got %T", pos)
+		return nil, fmt.Errorf("json 的 position 值为 %T，不合法，应当为 []any", pos)
 	}
 	return Step(root, path)
 }

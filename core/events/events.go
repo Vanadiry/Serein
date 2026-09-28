@@ -15,7 +15,7 @@ type Event struct {
 	Context string `json:"context,omitempty"`
 	Message string `json:"message"`
 	// Sticky 表示这条不该自动消失，交由用户手动关掉
-	// 由产生方决定，如规则检查汇总。交给前端按 context 猜则改一处就得同步一处
+	// 由产生方决定，如规则校验汇总。交给前端按 context 猜则改一处就得同步一处
 	Sticky bool  `json:"sticky,omitempty"`
 	TS     int64 `json:"ts"`
 }
@@ -63,7 +63,7 @@ func Unsubscribe(ch chan []byte) {
 func Emit(level, context, message string) { emitEvent(level, context, message, false) }
 
 // EmitSticky 发送一条常驻事件：toast 不自动消失，需用户手动关掉
-// 用于需要用户留意的运行期问题，如规则检查汇总
+// 用于需要用户留意的运行期问题，如规则校验汇总
 func EmitSticky(level, context, message string) { emitEvent(level, context, message, true) }
 
 func emitEvent(level, context, message string, sticky bool) {

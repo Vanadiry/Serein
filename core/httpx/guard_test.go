@@ -28,7 +28,7 @@ func TestGuardBlocksPrivateTargets(t *testing.T) {
 	}
 	if _, err := NewClient().Do(req); err == nil {
 		t.Fatal("私网目标应被守卫拦下")
-	} else if !strings.Contains(err.Error(), "private address") {
+	} else if !strings.Contains(err.Error(), "私网地址") {
 		t.Errorf("错误信息应说明是私网地址: %v", err)
 	}
 }

@@ -63,7 +63,7 @@ func isBlockedIP(ip net.IP) bool {
 func resolveAndCheck(host string) ([]net.IP, error) {
 	if ip := net.ParseIP(host); ip != nil {
 		if isBlockedIP(ip) {
-			return nil, fmt.Errorf("blocked: %s is a private address", host)
+			return nil, fmt.Errorf("%s 是私网地址，已拦截", host)
 		}
 		return []net.IP{ip}, nil
 	}
@@ -76,7 +76,7 @@ func resolveAndCheck(host string) ([]net.IP, error) {
 	}
 	for _, ip := range ips {
 		if isBlockedIP(ip) {
-			return nil, fmt.Errorf("blocked: %s resolves to private address %s", host, ip)
+			return nil, fmt.Errorf("%s 解析到私网地址 %s，已拦截", host, ip)
 		}
 	}
 	return ips, nil
@@ -86,7 +86,7 @@ func resolveAndCheck(host string) ([]net.IP, error) {
 func BlockPrivate(rawURL string) error {
 	u, err := url.Parse(rawURL)
 	if err != nil {
-		return fmt.Errorf("invalid url: %w", err)
+		return fmt.Errorf("url 不合法：%w", err)
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
 		return nil

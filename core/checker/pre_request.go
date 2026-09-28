@@ -29,7 +29,7 @@ func RunPreRequests(ctx context.Context, steps []store.PreRequestStep, client *h
 		switch step.Type {
 		case "json", "xml", "regex", "html_selector":
 		default:
-			return "", fmt.Errorf("pre_request %d: unknown type %q", i, step.Type)
+			return "", fmt.Errorf("pre_request 第 %d 步的 type %q 未知", i, step.Type)
 		}
 
 		respBody, err := httpx.Request(ctx, client, url, step.UA, step.Headers)

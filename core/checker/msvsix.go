@@ -41,7 +41,7 @@ type vsixResp struct {
 func CheckMSVSIX(ctx context.Context, extID string, client *http.Client) (PlatformResult, error) {
 	parts := strings.SplitN(extID, ".", 2)
 	if len(parts) != 2 {
-		return PlatformResult{}, fmt.Errorf("msvsix: 无效的扩展 ID %q，应为 publisher.extension 格式", extID)
+		return PlatformResult{}, fmt.Errorf("msvsix: 扩展 ID %q 不合法，应当为 publisher.extension 格式", extID)
 	}
 
 	body := vsixBody{

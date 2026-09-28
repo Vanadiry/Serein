@@ -51,11 +51,11 @@ func stepString(cur any, s string) (any, error) {
 	// 普通 key
 	m, ok := cur.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("want object for key %q, got %T", s, cur)
+		return nil, fmt.Errorf("键 %q 值为 %T，不合法，应当为表", s, cur)
 	}
 	v, ok := m[s]
 	if !ok {
-		return nil, fmt.Errorf("key %q not found", s)
+		return nil, fmt.Errorf("未找到键 %q", s)
 	}
 	return v, nil
 }
@@ -63,7 +63,7 @@ func stepString(cur any, s string) (any, error) {
 func stepIndex(cur any, idx int) (any, error) {
 	arr, ok := cur.([]any)
 	if !ok {
-		return nil, fmt.Errorf("want array for index %d, got %T", idx, cur)
+		return nil, fmt.Errorf("下标 %d 值为 %T，不合法，应当为数组", idx, cur)
 	}
 	if idx < 0 {
 		idx = len(arr) + idx
@@ -77,7 +77,7 @@ func stepIndex(cur any, idx int) (any, error) {
 func filterArray(cur any, key, val string, useRegex bool) (any, error) {
 	arr, ok := cur.([]any)
 	if !ok {
-		return nil, fmt.Errorf("want array for filter %q=%q, got %T", key, val, cur)
+		return nil, fmt.Errorf("筛选 %q=%q 值为 %T，不合法，应当为数组", key, val, cur)
 	}
 
 	var re *regexp.Regexp

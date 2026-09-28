@@ -292,8 +292,8 @@ function renderTopbar(current) {
           `
                   : isRules
                     ? `
-          <button id="btn-rule-check-dev" style="display:none" class="no-underline px-3 py-1.5 rounded-control text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">检查规则 [Dev]</button>
-          <button id="btn-rule-check" class="no-underline px-3 py-1.5 rounded-control text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">检查错误</button>
+          <button id="btn-rule-check-dev" style="display:none" class="no-underline px-3 py-1.5 rounded-control text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">校验规则 [Dev]</button>
+          <button id="btn-rule-check" class="no-underline px-3 py-1.5 rounded-control text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">校验规则</button>
           <button id="btn-sync-profile" class="no-underline px-3 py-1.5 rounded-control text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">拉取动态配置</button>
           <button id="btn-sync" class="no-underline px-3 py-1.5 rounded-control text-sm text-sub hover:bg-active hover:text-text cursor-pointer border-0 bg-transparent">拉取规则</button>
           `
@@ -336,9 +336,9 @@ async function syncRules() {
     startSyncProgress(res.task_id);
 }
 
-// 手动检查规则错误（结果直接展示，不经事件总线）；dev 为真时校验本地开发规则源
+// 手动校验规则（结果直接展示，不经事件总线）；dev 为真时校验本地开发规则源
 async function checkRuleErrors(dev) {
-    var ld = showLoading(dev ? "规则检查 [Dev]" : "规则检查", "正在检查...");
+    var ld = showLoading(dev ? "校验规则 [Dev]" : "校验规则", "正在校验...");
     try {
         var res = await apiPost("/api/rules/check", { dev: !!dev });
         var issues = (res && res.issues) || [];
@@ -1210,7 +1210,7 @@ function startSyncProgress(taskId) {
         }
         if (d.step === "skip") {
             sourcesSkipped++;
-            pm.setStatus(d.name + "（已是最新，跳过）");
+            pm.setStatus(d.name + "，已是最新，跳过");
             return;
         }
         if (d.step === "source") {

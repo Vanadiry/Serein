@@ -133,7 +133,7 @@ func writeUpstream(w http.ResponseWriter, resp *http.Response, name, rawURL stri
 		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
 		log.LogfWarn("[file] 上游返回 %d: %s", resp.StatusCode, rawURL)
 		writeError(w, proxyErrorStatus(resp.StatusCode),
-			fmt.Sprintf("上游返回 %d，文件没有下载到", resp.StatusCode))
+			fmt.Sprintf("文件未能下载，因为上游返回 %d", resp.StatusCode))
 		// 拿这个 URL 的要么是浏览器标签页、要么是下载器（浏览器扩展拦截），两者都不经过前端的 api()
 		// Serein 窗口只能靠事件总线知道出事了，少了这条用户点了下载之后界面毫无反应
 		label := sanitizeFilename(name)
@@ -173,7 +173,7 @@ func proxyErrorStatus(upstream int) int {
 	return http.StatusBadGateway
 }
 
-// sanitizeFilename 清洗落盘文件名：去控制字符 / 路径分隔 / Windows 非法字符，限长
+// sanitizeFilename 清洗落盘文件名：去控制字符、路径分隔符与 Windows 禁用字符，并限长
 func sanitizeFilename(name string) string {
 	name = strings.Map(func(r rune) rune {
 		switch {

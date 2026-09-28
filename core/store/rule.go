@@ -495,14 +495,14 @@ var githubSlugRe = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 // validParserTypes 合法的解析器类型。type / v_type / d_type 都必须落在这个集合里
 // 拼写错误（如 v_type = "jsno"）过去能通过全部校验，直到运行时才炸成一个
 // 字面量 "<nil>" 的"版本号"
-// rule.schema.json 并不存在，所以这个 enum 由代码定义并在规则检查时校验
+// rule.schema.json 并不存在，所以这个 enum 由代码定义并在规则校验时检查
 var validParserTypes = map[string]bool{
 	"json": true, "xml": true, "regex": true,
 	"html_selector": true, "github": true, "direct": true,
 }
 
 // IsValidParserType 报告 t 是否为受支持的解析器类型
-// 规则检查与运行时检查共用这一份定义，避免两处枚举漂移
+// 规则校验与运行时检查共用这一份定义，避免两处枚举漂移
 func IsValidParserType(t string) bool { return validParserTypes[t] }
 
 func validatePlatConfig(name string, c PlatConfig) []RuleIssue {
@@ -544,7 +544,7 @@ func validatePlatConfig(name string, c PlatConfig) []RuleIssue {
 			{"owner", c.Owner}, {"repo", c.Repo},
 		} {
 			if f.val != "" && !githubSlugRe.MatchString(f.val) {
-				add("error", fmt.Sprintf("github %s %q 含非法字符，仅允许字母、数字、点、下划线和连字符", f.name, f.val))
+				add("error", fmt.Sprintf("github %s %q 含不合法字符，仅允许字母、数字、点、下划线和连字符", f.name, f.val))
 			}
 		}
 	}

@@ -182,7 +182,7 @@
                         html:
                             '<p class="text-sm text-sub leading-relaxed mb-3">Serein 依赖<strong class="text-text">规则表</strong>和<strong class="text-text">Tracker</strong>运行。</p>' +
                             '<p class="text-sm text-sub leading-relaxed mb-2">Tracker 是由你创建的追踪列表，记录你希望追踪的软件和平台。你可以创建多个 Tracker，并自由命名和排序。</p>' +
-                            '<p class="text-sm text-sub leading-relaxed mb-2">规则表记录了 Serein 应该如何检查一个软件的更新。Serein 默认订阅了我维护的规则源 ' +
+                            '<p class="text-sm text-sub leading-relaxed mb-2">规则表记录了 Serein 应该如何检查一个软件的更新。Serein 默认配置了我维护的规则源 ' +
                             extLink(
                                 "https://github.com/Vanadiry/SereinRulesList",
                                 "SereinRulesList"
@@ -528,7 +528,7 @@
                 if (!data.length) {
                     placeholder.innerHTML = emptyState(
                         "空的 Tracker",
-                        '这个 Tracker 还没有添加任何软件。前往<a href="/rules" class="text-accent hover:underline">规则页</a>搜索并添加软件。'
+                        '这个 Tracker 尚未添加任何软件。前往<a href="/rules" class="text-accent hover:underline">规则页</a>搜索并添加软件。'
                     );
                     swapView(list, placeholder);
                     return data;
@@ -953,7 +953,7 @@
                 var ld = showLoading(title, "");
                 if (!items.length) {
                     ld.done(
-                        cancelled ? "已终止，没有发现问题" : "检查完成",
+                        cancelled ? "已终止，未发现问题" : "检查完成",
                         cancelled ? "warn" : "ok"
                     );
                     return;

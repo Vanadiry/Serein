@@ -119,7 +119,7 @@ func validateSourceFiles(s *SourceInfo) ([]RuleIssue, bool) {
 		for _, f := range s.SubSources {
 			if !listEntryRe.MatchString(f) {
 				issues = append(issues, RuleIssue{Level: "warn", Message: fmt.Sprintf(
-					"%s: 子源条目 %q 不符合 <name>/%s，已忽略（子源只支持一层；若上游已改为规则表，请把 type 从 list 改成 rules）",
+					"%s: 子源条目 %q 不符合 <name>/%s，已忽略，子源只支持一层",
 					s.label(), f, sourceFileName)})
 				continue
 			}
@@ -133,12 +133,12 @@ func validateSourceFiles(s *SourceInfo) ([]RuleIssue, bool) {
 	for name, token := range s.Files {
 		if !bareNameRe.MatchString(name) || name == "." || name == ".." {
 			issues = append(issues, RuleIssue{Level: "warn", Message: fmt.Sprintf(
-				"%s: 规则条目 %q 含路径分隔符，已忽略（files 只接受裸文件名）", s.label(), name)})
+				"%s: 规则条目 %q 含路径分隔符，已忽略，files 只接受裸文件名", s.label(), name)})
 			continue
 		}
 		if name == sourceFileName {
 			issues = append(issues, RuleIssue{Level: "warn", Message: fmt.Sprintf(
-				"%s: files 中出现 %s，已忽略（它会覆盖本源的版本标记）", s.label(), sourceFileName)})
+				"%s: files 中出现 %s，已忽略，会覆盖本源的版本标记", s.label(), sourceFileName)})
 			continue
 		}
 		kept[name] = token

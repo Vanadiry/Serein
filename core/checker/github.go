@@ -4,6 +4,7 @@ package checker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -97,7 +98,7 @@ func pickLatestRelease(root any, arr []any, cfg GitHubConfig, perPage int) (Plat
 
 	if !latestFound {
 		// 版本号与下载链接同时取不到时根因唯一，即没有可用的 release
-		// 拆成"未取到版本"与"未取到链接"两条会让用户以为是两个问题
+		// 拆成"未能提取版本"与"未能提取链接"两条会让用户以为是两个问题
 		reason := "仓库没有任何 release"
 		if len(arr) > 0 {
 			if cfg.AllowPrerelease {
@@ -113,12 +114,12 @@ func pickLatestRelease(root any, arr []any, cfg GitHubConfig, perPage int) (Plat
 	// 取到版本号但没有下载链接：同样算失败。否则 UI 会显示"有更新"
 	// 用户点确认后版本落盘，软件却永远装不上，且没有任何提示
 	if urlEmpty(latest.URL) {
-		why := "d_position 的正则没有匹配到任何 asset"
+		why := "未能匹配到 d_position 的下载链接"
 		if cfg.DPosition == nil {
 			why = "规则缺少 d_position"
 		}
 		latest.Warnings = warns
-		return latest, fmt.Errorf("已取到版本号 %s，但没有下载链接：%s", latest.LatestVersion, why)
+		return latest, errors.New(why)
 	}
 
 	latest.Warnings = warns
@@ -143,13 +144,13 @@ func extractGitHubAssets(root any, idx int, dPosition any, warn func(string)) an
 	}
 	assetRe, err := regexp.Compile(assetReStr)
 	if err != nil {
-		warn(fmt.Sprintf("规则正则表达式编译失败: %v", err))
+		warn(fmt.Sprintf("规则正则表达式编译失败：%v", err))
 		return nil
 	}
 
 	assets, err := stepJSON(root, []any{int64(idx), "assets"}, "")
 	if err != nil {
-		warn(fmt.Sprintf("GitHub assets JSON 解析失败: %v", err))
+		warn(fmt.Sprintf("GitHub assets JSON 解析失败：%v", err))
 		return nil
 	}
 	assetArr, ok := assets.([]any)
@@ -182,7 +183,7 @@ func extractGitHubAssets(root any, idx int, dPosition any, warn func(string)) an
 func isGitHubPrerelease(root any, idx int, warn func(string)) bool {
 	pr, err := stepJSON(root, []any{int64(idx), "prerelease"}, "")
 	if err != nil {
-		warn(fmt.Sprintf("无法判断 release #%d 是否为预发布: %v", idx, err))
+		warn(fmt.Sprintf("无法判断 release #%d 是否为预发布：%v", idx, err))
 		return false
 	}
 	b, ok := pr.(bool)

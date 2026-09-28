@@ -46,12 +46,12 @@ func LoadUserData(home string) (UserData, error) {
 	if err := json.NewDecoder(f).Decode(&top); err != nil && !errors.Is(err, io.EOF) {
 		backup, qerr := quarantineUserData(path)
 		if qerr != nil {
-			reportBroken(fmt.Sprintf("已确认版本数据无法解析，留档也失败了：%v", err))
-			return ud, fmt.Errorf("decode user data: %w；留档失败: %v", err, qerr)
+			reportBroken(fmt.Sprintf("已确认版本数据无法解析，且无法留档：%v", err))
+			return ud, fmt.Errorf("software.json 不合法，且无法留档：%w；留档失败：%v", err, qerr)
 		}
 		// 原文件已移走，下次读不会再走到这里，所以这条提示天然只报一次
-		reportBroken(fmt.Sprintf("已确认版本数据无法解析，已留档为 %s。\n其中的版本记录不再生效，可手动改回来。", backup))
-		return ud, fmt.Errorf("decode user data: %w（已留档为 %s）", err, backup)
+		reportBroken(fmt.Sprintf("已确认版本数据无法解析，已留档为 %s，原文件可从该路径取回", backup))
+		return ud, fmt.Errorf("software.json 不合法，已留档为 %s：%w", backup, err)
 	}
 
 	var bad []string
@@ -76,9 +76,9 @@ func LoadUserData(home string) (UserData, error) {
 	}
 	if len(bad) > 0 {
 		sort.Strings(bad)
-		log.LogfWarn("[user] software.json 有 %d 个条目格式不对，已跳过：%s",
+		log.LogfWarn("[user] software.json 有 %d 个条目格式不对，已忽略：%s",
 			len(bad), strings.Join(bad, ", "))
-		return ud, fmt.Errorf("software.json 有 %d 个条目格式不对，已跳过：%s",
+		return ud, fmt.Errorf("software.json 有 %d 个条目格式不对，已忽略：%s",
 			len(bad), strings.Join(bad, ", "))
 	}
 	return ud, nil

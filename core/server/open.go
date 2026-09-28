@@ -17,7 +17,7 @@ import (
 func parseHTTPURL(raw string) (string, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return "", fmt.Errorf("empty url")
+		return "", fmt.Errorf("url 为空")
 	}
 	// 协议相对：交给下游自己解析，这里只确认 host 部分非空
 	if strings.HasPrefix(raw, "//") {

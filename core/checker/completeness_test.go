@@ -23,17 +23,17 @@ func TestCheckCompleteness(t *testing.T) {
 		{"都取到", PlatformResult{LatestVersion: "1.0", URL: "https://x/y.zip"},
 			"json", anyPos, "json", anyPos, ""},
 		{"版本空", PlatformResult{URL: "https://x/y.zip"},
-			"json", anyPos, "json", anyPos, "未取到版本号"},
+			"json", anyPos, "json", anyPos, "未能提取版本号"},
 		{"版本只有空白", PlatformResult{LatestVersion: "  ", URL: "https://x/y.zip"},
-			"json", anyPos, "json", anyPos, "未取到版本号"},
+			"json", anyPos, "json", anyPos, "未能提取版本号"},
 		{"链接 nil", PlatformResult{LatestVersion: "1.0"},
-			"json", anyPos, "json", anyPos, "未取到下载链接"},
+			"json", anyPos, "json", anyPos, "未能提取下载链接"},
 		{"链接空串", PlatformResult{LatestVersion: "1.0", URL: ""},
-			"json", anyPos, "json", anyPos, "未取到下载链接"},
+			"json", anyPos, "json", anyPos, "未能提取下载链接"},
 		{"链接空数组", PlatformResult{LatestVersion: "1.0", URL: []string{}},
-			"json", anyPos, "json", anyPos, "未取到下载链接"},
+			"json", anyPos, "json", anyPos, "未能提取下载链接"},
 		{"两个都空", PlatformResult{},
-			"json", anyPos, "json", anyPos, "未取到版本号"},
+			"json", anyPos, "json", anyPos, "未能提取版本号"},
 		// 规则没要求某个字段时不算失败
 		{"只要求版本", PlatformResult{LatestVersion: "1.0"},
 			"json", anyPos, "json", nil, ""},
@@ -42,9 +42,9 @@ func TestCheckCompleteness(t *testing.T) {
 		{"都没要求", PlatformResult{}, "json", nil, "json", nil, ""},
 		// direct 恒算尝试过：值就是配置里的字面量，为空即配置缺失
 		{"direct 版本字面量为空", PlatformResult{URL: "https://x"},
-			"direct", nil, "direct", nil, "未取到版本号"},
+			"direct", nil, "direct", nil, "未能提取版本号"},
 		{"direct 链接字面量为空", PlatformResult{LatestVersion: "1.0"},
-			"direct", nil, "direct", nil, "未取到下载链接"},
+			"direct", nil, "direct", nil, "未能提取下载链接"},
 		{"direct 都齐", PlatformResult{LatestVersion: "1.0", URL: "https://x/1.0.zip"},
 			"direct", nil, "direct", nil, ""},
 	}
@@ -128,7 +128,7 @@ func TestGitHubNoUsableReleaseIsOneError(t *testing.T) {
 		if !strings.Contains(err.Error(), "未找到可用的 release") {
 			t.Errorf("%s → 错误信息 = %v", body, err)
 		}
-		if strings.Contains(err.Error(), "未取到版本号") || strings.Contains(err.Error(), "未取到下载链接") {
+		if strings.Contains(err.Error(), "未能提取版本号") || strings.Contains(err.Error(), "未能提取下载链接") {
 			t.Errorf("应合并成一条而非拆成两条: %v", err)
 		}
 	}
@@ -142,10 +142,10 @@ func TestGitHubVersionWithoutAsset(t *testing.T) {
 	if err == nil {
 		t.Fatal("取到版本但无 asset 应报错")
 	}
-	if !strings.Contains(err.Error(), "没有下载链接") || !strings.Contains(err.Error(), "v1.0") {
-		t.Errorf("错误信息应含版本号与原因: %v", err)
+	if !strings.Contains(err.Error(), "未能匹配到 d_position 的下载链接") {
+		t.Errorf("错误信息应说明是 d_position 没匹配上: %v", err)
 	}
-	// 规则完全没写 d_position：同样是"有更新却装不上"
+	// 规则没写 d_position 与匹配不上是两回事，提示要能分辨
 	_, err = pickLatestRelease(mustParse(t, body), mustArr(t, body),
 		GitHubConfig{Owner: "o", Repo: "r"}, 3)
 	if err == nil || !strings.Contains(err.Error(), "缺少 d_position") {

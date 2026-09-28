@@ -282,7 +282,7 @@ func (s *Server) buildCheckJobs(ctx context.Context, entries []store.TrackerEntr
 	rules := s.getRules()
 	userData, udErr := s.loadUserDataErr()
 	if udErr != nil {
-		report(CheckError{Message: fmt.Sprintf("加载用户数据失败: %v", udErr)})
+		report(CheckError{Message: fmt.Sprintf("加载用户数据失败：%v", udErr)})
 	}
 
 	conc := s.config.Download.Concurrency
@@ -377,10 +377,10 @@ func directCheckResponse(ctx context.Context, checkFn func(context.Context, stri
 	// 与其它取值路径同一标准：尝试过却取不到就报错
 	// openvsx 的 files.download 缺失时 URL 会是空串，此前一路静默
 	if strings.TrimSpace(pr.LatestVersion) == "" {
-		return checker.CheckResponse{}, fmt.Errorf("%s: 未取到版本号", typ)
+		return checker.CheckResponse{}, fmt.Errorf("%s: 未能提取版本号", typ)
 	}
 	if checker.URLEmpty(pr.URL) {
-		return checker.CheckResponse{}, fmt.Errorf("%s: 未取到下载链接", typ)
+		return checker.CheckResponse{}, fmt.Errorf("%s: 未能提取下载链接", typ)
 	}
 	currentVer := ""
 	if ud, ok := userData[appID]; ok {

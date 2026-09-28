@@ -205,10 +205,10 @@ func RunPlatformCheck(ctx context.Context, cfg PlatformCheckConfig, client *http
 // （position 为 nil）不算失败，那种情况是配置只关心另一半
 func checkCompleteness(vr PlatformResult, vType string, vPos any, dType string, dPos any) error {
 	if vAttempted(vType, vPos) && strings.TrimSpace(vr.LatestVersion) == "" {
-		return fmt.Errorf("未取到版本号：%s 没能取到内容", vType)
+		return fmt.Errorf("未能提取版本号：%s", vType)
 	}
 	if dAttempted(dType, dPos) && urlEmpty(vr.URL) {
-		return fmt.Errorf("未取到下载链接：%s 没能取到内容", dType)
+		return fmt.Errorf("未能提取下载链接：%s", dType)
 	}
 	return nil
 }
@@ -220,7 +220,7 @@ func resolveDirectURL(durl, version string) (string, error) {
 		return durl, nil
 	}
 	if version == "" {
-		return "", fmt.Errorf("d_url 包含 {version} 但未能获取到版本号")
+		return "", fmt.Errorf("d_url 包含 {version} 但未能提取版本号")
 	}
 	return strings.ReplaceAll(durl, "{version}", version), nil
 }

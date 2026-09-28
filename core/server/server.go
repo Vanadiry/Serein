@@ -282,7 +282,7 @@ func New(home string, webFS fs.FS) (*Server, error) {
 func (s *Server) loadRules(report bool) []store.RuleIssue {
 	rules, issues, err := store.LoadRules(s.home)
 	if err != nil {
-		events.Emit("error", "[rules]", fmt.Sprintf("加载规则失败: %v", err))
+		events.Emit("error", "[rules]", fmt.Sprintf("加载规则失败：%v", err))
 		return issues
 	}
 	s.rulesMu.Lock()
@@ -305,8 +305,8 @@ func (s *Server) loadRules(report bool) []store.RuleIssue {
 		if errs > 0 {
 			level = "error"
 		}
-		// 常驻：规则检查汇总需要用户逐条看完再关掉
-		events.EmitSticky(level, "[rules]", fmt.Sprintf("规则检查：%d 个错误、%d 个警告\n%s", errs, warns, strings.Join(lines, "\n")))
+		// 常驻：规则校验汇总需要用户逐条看完再关掉
+		events.EmitSticky(level, "[rules]", fmt.Sprintf("规则校验：%d 个错误、%d 个警告\n%s", errs, warns, strings.Join(lines, "\n")))
 	}
 	return issues
 }

@@ -172,7 +172,7 @@ func trackerPath(home, name string) (string, error) {
 	p := filepath.Join(dir, name+".toml")
 	rel, err := filepath.Rel(dir, p)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return "", fmt.Errorf("invalid tracker name %q", name)
+		return "", fmt.Errorf("tracker 名称 %q 不合法", name)
 	}
 	return p, nil
 }
