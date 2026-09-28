@@ -20,6 +20,7 @@ func TestSanitizingWriter(t *testing.T) {
 }
 
 func TestInitAndWrite(t *testing.T) {
+	t.Cleanup(CloseLogger)
 	home := t.TempDir()
 	logDir := filepath.Join(home, "logs")
 	if err := os.MkdirAll(logDir, 0755); err != nil {

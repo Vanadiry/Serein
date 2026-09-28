@@ -35,15 +35,19 @@ func LoadUserData(home string) (UserData, error) {
 		}
 		return ud, fmt.Errorf("read user data: %w", err)
 	}
-	defer f.Close()
 
 	info, _ := f.Stat()
 	if info.Size() == 0 {
+		f.Close()
 		return ud, nil // 空文件视为"还没确认过任何版本"
 	}
 
 	var top map[string]json.RawMessage
-	if err := json.NewDecoder(f).Decode(&top); err != nil && !errors.Is(err, io.EOF) {
+	decodeErr := json.NewDecoder(f).Decode(&top)
+	// Windows 不允许 rename 打开的文件，句柄不关留档必然失败
+	f.Close()
+	if decodeErr != nil && !errors.Is(decodeErr, io.EOF) {
+		err := decodeErr
 		backup, qerr := quarantineUserData(path)
 		if qerr != nil {
 			reportBroken(fmt.Sprintf("已确认版本数据无法解析，且无法留档：%v", err))

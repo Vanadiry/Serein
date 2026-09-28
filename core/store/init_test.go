@@ -3,7 +3,10 @@ package store
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
+
+	"github.com/vanadiry/serein/core/log"
 )
 
 func modeOf(t *testing.T, path string) os.FileMode {
@@ -17,7 +20,8 @@ func modeOf(t *testing.T, path string) os.FileMode {
 
 // config.toml 里有 GitHub token，目录与文件都应仅当前用户可访问
 func TestInitPermissions(t *testing.T) {
-	if os.Getenv("GOOS") == "windows" {
+	t.Cleanup(log.CloseLogger)
+	if runtime.GOOS == "windows" {
 		t.Skip("Windows 上权限位无效")
 	}
 	home := t.TempDir()
@@ -59,7 +63,7 @@ func TestInitPermissions(t *testing.T) {
 
 // 首次创建时也应是 0600
 func TestInitConfigPermOnCreate(t *testing.T) {
-	if os.Getenv("GOOS") == "windows" {
+	if runtime.GOOS == "windows" {
 		t.Skip("Windows 上权限位无效")
 	}
 	home := t.TempDir()

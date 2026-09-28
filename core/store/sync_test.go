@@ -8,16 +8,17 @@ import (
 )
 
 func TestSafeRelPath(t *testing.T) {
-	base := "/tmp/base"
+	base := filepath.Join(string(filepath.Separator), "tmp", "base")
 	cases := map[string]bool{
 		"a/b.toml":         true,
 		"sub/_source.json": true,
 		"a.toml":           true,
 		"../x":             false,
 		"a/../../x":        false,
-		"/abs":             false,
-		"":                 false,
-		"./":               false,
+		// 绝对路径各平台形态不同，Windows 要盘符，用 TempDir 拿真的那个
+		filepath.Join(base, "abs"): false,
+		"":                         false,
+		"./":                       false,
 	}
 	for rel, want := range cases {
 		if _, got := safeRelPath(base, rel); got != want {

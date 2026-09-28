@@ -80,6 +80,23 @@ func InitLogger(home string) error {
 	return nil
 }
 
+// CloseLogger 关闭日志文件并复位
+// Windows 上文件被打开时无法删除，测试的 TempDir 清理会失败
+func CloseLogger() {
+	logMu.Lock()
+	defer logMu.Unlock()
+	if !logInited {
+		return
+	}
+	// 先置空，Close 之后再有日志调用会因 infoLogger 为 nil 直接返回
+	infoLogger, warnLogger, errorLogger = nil, nil, nil
+	if logFile != nil {
+		logFile.Close()
+		logFile = nil
+	}
+	logInited = false
+}
+
 func rotateIfNeeded() {
 	files, _ := filepath.Glob(filepath.Join(logDir, "*.log"))
 	sort.Sort(sort.Reverse(sort.StringSlice(files)))
