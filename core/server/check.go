@@ -572,9 +572,9 @@ func (s *Server) signURLs(u any, name string) any {
 	return nil
 }
 
-// GET /api/check/temp/{tracker_id}
+// GET /api/check/result/{tracker_id}
 
-func (s *Server) handleCheckTemp(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleCheckResult(w http.ResponseWriter, r *http.Request) {
 	trackerID := r.PathValue("tracker_id")
 	if trackerID == "" {
 		writeError(w, http.StatusBadRequest, "missing tracker_id")

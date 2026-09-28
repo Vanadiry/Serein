@@ -60,7 +60,7 @@ func startDetached(c *exec.Cmd) error {
 	return nil
 }
 
-func (s *Server) handleOpenURL(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleCallBrowser(w http.ResponseWriter, r *http.Request) {
 	if !isLoopback(r) {
 		writeError(w, http.StatusForbidden, "仅本机可用")
 		return

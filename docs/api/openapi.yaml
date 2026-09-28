@@ -154,7 +154,7 @@ paths:
                     additionalProperties: { type: string }
         "400": { description: 缺少 app_id }
         "500": { description: 写入失败 }
-  /api/check/temp/{tracker_id}:
+  /api/check/result/{tracker_id}:
     get:
       tags: [Check]
       summary: 读取检查结果缓存
@@ -204,7 +204,7 @@ paths:
           in: path
           required: true
           schema: { type: string }
-  /api/check/cancel/{task_id}:
+  /api/progress/cancel/{task_id}:
     post:
       tags: [Progress]
       summary: 终止任务
@@ -306,6 +306,7 @@ paths:
       summary: 列出规则源或筛选规则
       description: |
         无参数时返回规则源列表，带 q 或 source 时返回规则列表。
+        同时传 q 与 source 时，以 q 为准。q 不限制返回条数。
       parameters:
         - name: q
           in: query
@@ -423,7 +424,7 @@ paths:
         "400": { description: 缺少 url，或非 http(s) 地址 }
         "403": { description: 签名无效或已过期，或目标地址被私网拦截 }
         "502": { description: 上游请求失败或返回 5xx }
-  /api/download:
+  /api/call/downloader:
     post:
       tags: [Download]
       summary: 发送到下载器
@@ -449,7 +450,7 @@ paths:
                   message: { type: string }
         "400": { description: 缺少 url，或非 http(s) 地址 }
         "403": { description: 仅本机可用 }
-  /api/open-url:
+  /api/call/browser:
     post:
       tags: [Download]
       summary: 在浏览器中打开地址

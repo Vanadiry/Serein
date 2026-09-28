@@ -174,7 +174,7 @@ func TestCheckResultsCacheIsolatesPlatforms(t *testing.T) {
 	}
 }
 
-// 复现 #1 的原始崩溃路径：GET /api/check/temp 编码结果的同时 POST /api/check/confirm 写回缓存。
+// 复现 #1 的原始崩溃路径：GET /api/check/result 编码结果的同时 POST /api/check/confirm 写回缓存。
 // 需配合 go test -race 运行
 func TestCheckResultsCacheConcurrentReadWrite(t *testing.T) {
 	s := newTestServer(t.TempDir())
@@ -187,7 +187,7 @@ func TestCheckResultsCacheConcurrentReadWrite(t *testing.T) {
 	stop := make(chan struct{})
 
 	wg.Add(1)
-	go func() { // 读方：模拟 handleCheckTemp 的锁外 JSON 编码
+	go func() { // 读方：模拟 handleCheckResult 的锁外 JSON 编码
 		defer wg.Done()
 		for {
 			select {
@@ -221,9 +221,9 @@ func TestHandleCheckTemp(t *testing.T) {
 	s.setCheckResults("t1", []checker.CheckResponse{{AppID: "a"}})
 
 	rec := httptest.NewRecorder()
-	r := httptest.NewRequest("GET", "/api/check/temp/t1", nil)
+	r := httptest.NewRequest("GET", "/api/check/result/t1", nil)
 	r.SetPathValue("tracker_id", "t1")
-	s.handleCheckTemp(rec, r)
+	s.handleCheckResult(rec, r)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("code=%d", rec.Code)
 	}
@@ -238,9 +238,9 @@ func TestHandleCheckTemp(t *testing.T) {
 	}
 
 	rec2 := httptest.NewRecorder()
-	r2 := httptest.NewRequest("GET", "/api/check/temp/a/b", nil)
+	r2 := httptest.NewRequest("GET", "/api/check/result/a/b", nil)
 	r2.SetPathValue("tracker_id", "a/b")
-	s.handleCheckTemp(rec2, r2)
+	s.handleCheckResult(rec2, r2)
 	if rec2.Code != http.StatusBadRequest {
 		t.Fatalf("含斜杠的 tracker_id 应 400，得到 %d", rec2.Code)
 	}
@@ -397,7 +397,7 @@ func TestHandleProgressCancel(t *testing.T) {
 	defer p.Close()
 
 	rec := httptest.NewRecorder()
-	r := httptest.NewRequest("POST", "/api/check/cancel/"+p.ID, nil)
+	r := httptest.NewRequest("POST", "/api/progress/cancel/"+p.ID, nil)
 	r.SetPathValue("task_id", p.ID)
 	handleProgressCancel(rec, r)
 	if rec.Code != http.StatusOK {
@@ -408,7 +408,7 @@ func TestHandleProgressCancel(t *testing.T) {
 	}
 
 	rec2 := httptest.NewRecorder()
-	r2 := httptest.NewRequest("POST", "/api/check/cancel/nope", nil)
+	r2 := httptest.NewRequest("POST", "/api/progress/cancel/nope", nil)
 	r2.SetPathValue("task_id", "nope")
 	handleProgressCancel(rec2, r2)
 	if rec2.Code != http.StatusNotFound {

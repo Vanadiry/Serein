@@ -514,7 +514,7 @@
                 var _tc = document.getElementById("btn-tracker-check");
                 if (_tc) _tc.style.display = "";
                 // 读取该 Tracker 的内存缓存（若有），切回来时直接渲染
-                var cache = await api("/api/check/temp/" + id);
+                var cache = await api("/api/check/result/" + id);
                 mergeCheckResults((cache && cache.results) || []);
                 loadTrackers();
                 hideView(document.getElementById("placeholder"));
@@ -1006,7 +1006,7 @@
 
             // 桶只用于渲染列表（版本号 / 更新箭头 / 状态），不再从中取错误
             async function finishCheckTracker(cancelled) {
-                var data = await api("/api/check/temp/" + currentTracker);
+                var data = await api("/api/check/result/" + currentTracker);
                 mergeCheckResults((data && data.results) || []);
                 var detail = (await loadTrackerDetail(currentTracker)) || [];
                 loadTrackers();

@@ -128,8 +128,8 @@ func sameOriginGuard(next http.Handler) http.Handler {
 }
 
 func (s *Server) registerRoutes() {
-	s.mux.HandleFunc("POST /api/open-url", s.handleOpenURL)
-	s.mux.HandleFunc("POST /api/download", s.handleDownload)
+	s.mux.HandleFunc("POST /api/call/browser", s.handleCallBrowser)
+	s.mux.HandleFunc("POST /api/call/downloader", s.handleCallDownloader)
 	s.mux.HandleFunc("GET /api/file", s.handleFile)
 
 	s.mux.HandleFunc("GET /api/tracker/list/all", s.handleTrackerListAll)
@@ -140,9 +140,9 @@ func (s *Server) registerRoutes() {
 
 	s.mux.HandleFunc("POST /api/check", s.handleCheck)
 	s.mux.HandleFunc("POST /api/check/confirm", s.handleCheckConfirm)
-	s.mux.HandleFunc("GET /api/check/temp/{tracker_id}", s.handleCheckTemp)
+	s.mux.HandleFunc("GET /api/check/result/{tracker_id}", s.handleCheckResult)
 	s.mux.HandleFunc("GET /api/progress/{task_id}", handleProgressSSE)
-	s.mux.HandleFunc("POST /api/check/cancel/{task_id}", handleProgressCancel)
+	s.mux.HandleFunc("POST /api/progress/cancel/{task_id}", handleProgressCancel)
 	s.mux.HandleFunc("GET /api/events", handleEvents)
 	s.mux.HandleFunc("GET /api/config", s.handleConfig)
 	s.mux.HandleFunc("POST /api/sync", s.handleSync)

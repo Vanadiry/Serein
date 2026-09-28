@@ -7,7 +7,7 @@ import (
 	"github.com/vanadiry/serein/core/progress"
 )
 
-// POST /api/check/cancel/{task_id}
+// POST /api/progress/cancel/{task_id}
 // 取消任务：中断其 context，由任务自身收尾。跨站请求由 server 的 sameOriginGuard 统一拦截
 func handleProgressCancel(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("task_id")

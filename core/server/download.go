@@ -12,7 +12,7 @@ import (
 	"github.com/vanadiry/serein/core/log"
 )
 
-func (s *Server) handleDownload(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleCallDownloader(w http.ResponseWriter, r *http.Request) {
 	if !isLoopback(r) {
 		writeError(w, http.StatusForbidden, "仅本机可用")
 		return

@@ -104,7 +104,7 @@ function openUrl(url) {
         return;
     }
     if (isDesktop()) {
-        apiPost("/api/open-url", { url: abs });
+        apiPost("/api/call/browser", { url: abs });
     } else {
         window.open(abs, "_blank");
     }
@@ -685,7 +685,7 @@ async function downloadFile(url) {
     url = absoluteUrl(url);
     var ld = showLoading("下载", "正在发送到下载器...");
     try {
-        var res = await apiPost("/api/download", { url: url });
+        var res = await apiPost("/api/call/downloader", { url: url });
         var failed = !res || res.status === "error";
         ld.done(
             res && res.message ? res.message : "",
@@ -1097,7 +1097,7 @@ async function asyncCheck(apiPath, body, onDone) {
         return;
     }
     var taskId = res.task_id;
-    var pm = showProgressModal("检查更新", API + "/api/check/cancel/" + taskId);
+    var pm = showProgressModal("检查更新", API + "/api/progress/cancel/" + taskId);
     var settled = false;
     var reconnects = 0;
     var evt = new EventSource(API + "/api/progress/" + taskId);
@@ -1144,7 +1144,7 @@ function startSyncProgress(taskId) {
         sourcesFailed = 0,
         filesTotal = 0,
         fileErrors = 0;
-    var pm = showProgressModal("拉取规则", API + "/api/check/cancel/" + taskId);
+    var pm = showProgressModal("拉取规则", API + "/api/progress/cancel/" + taskId);
     var evt = new EventSource(API + "/api/progress/" + taskId);
     evt.onmessage = function (e) {
         var d = JSON.parse(e.data);

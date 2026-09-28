@@ -108,10 +108,10 @@ func settle(t *testing.T) {
 func doDownloadReq(t *testing.T, s *Server) {
 	t.Helper()
 	body, _ := json.Marshal(map[string]string{"url": "https://example.com/x.zip"})
-	req := httptest.NewRequest("POST", "/api/download", bytes.NewReader(body))
+	req := httptest.NewRequest("POST", "/api/call/downloader", bytes.NewReader(body))
 	req.RemoteAddr = "127.0.0.1:12345" // isLoopback 要求
 	rec := httptest.NewRecorder()
-	s.handleDownload(rec, req)
+	s.handleCallDownloader(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("code = %d body = %s", rec.Code, rec.Body.String())
 	}
