@@ -68,7 +68,7 @@ func TestValidateSourceFilesList(t *testing.T) {
 }
 
 // rules 里含路径的 key 与 _source.json：剔除 + warn（Q3）
-// 路径是"删除未列出文件"能安全执行的前提，否则一个规则子源的目录可以成为
+// 路径是“删除未列出文件”能安全执行的前提，否则一个规则子源的目录可以成为
 // 另一个规则子源目录的祖先，后者扫描未列出文件时会删掉前者的 marker
 func TestValidateSourceFilesRules(t *testing.T) {
 	var s SourceInfo

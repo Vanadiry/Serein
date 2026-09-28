@@ -70,7 +70,7 @@ type CheckPlatform struct {
 	DownloadName     string `json:"download_name,omitempty"`
 	ProxyURL         any    `json:"proxy_url,omitempty"`
 	// Warnings 非致命异常，取不到正式版、asset 解析失败等
-	// 与 Error 分开是因为 Error 会让 hasUpdate 与 checkedAny 判定为"没结果"，Warnings 不会
+	// 与 Error 分开是因为 Error 会让 hasUpdate 与 checkedAny 判定为“没结果”，Warnings 不会
 	Warnings []string `json:"warnings,omitempty"`
 }
 

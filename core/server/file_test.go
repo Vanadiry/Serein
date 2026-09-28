@@ -97,7 +97,7 @@ func TestProxyErrorStatus(t *testing.T) {
 }
 
 // 拿 /api/file 的要么是浏览器标签页、要么是下载器，都不经过前端 api()
-// 事件总线因此是 Serein 窗口唯一能知道"下载失败了"的途径
+// 事件总线因此是 Serein 窗口唯一能知道“下载失败了”的途径
 func TestUpstreamErrorEmitsEvent(t *testing.T) {
 	ch := events.Subscribe()
 	defer events.Unsubscribe(ch)

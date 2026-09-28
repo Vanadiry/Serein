@@ -1,13 +1,13 @@
 // 规则源元信息（_source.json）的格式定义、解析与结构校验
 // files 按 type 分形态
-// type = "rules"（默认）：{"文件名": "token"}
+// type = "rules"（默认）：{“文件名”: "token"}
 // type = "list"：["<name>/_source.json", ...]，规则子源 marker 列表
 // token 是不透明字符串，程序只比较它与本地已接受的值是否相同，不同即重新拉取
 // 版本精度到单文件，因此不再有顶层 version 字段
 // 两条结构约束，违反者剔除条目并报 warn，不阻断整个源
 // list  的条目必须匹配 ^[^/\\]+/_source\.json$（恰好一层）
 // rules 的 key 必须是裸文件名，且不得为 _source.json
-// 这两条约束是"删除 manifest 未列出文件"能安全执行的前提
+// 这两条约束是“删除 manifest 未列出文件”能安全执行的前提
 // 一个规则子源的目录可以成为另一个规则子源目录的祖先，后者扫描未列出文件时会删掉前者的 marker
 // 那个 marker 一旦丢失就永久失去被更新与被列出的资格
 package store
@@ -109,7 +109,7 @@ func (s SourceInfo) MarshalJSON() ([]byte, error) {
 	return json.Marshal(out)
 }
 
-// validateSourceFiles 就地剔除结构不合法的 files 条目，返回问题列表与"是否整体拒绝"
+// validateSourceFiles 就地剔除结构不合法的 files 条目，返回问题列表与“是否整体拒绝”
 // 单条结构问题只剔除不报错，上游一个笔误不该挡住整个源
 // 条目数超限则整体拒绝，剔除一部分会让规则集不完整，比整体失败更难排查
 func validateSourceFiles(s *SourceInfo) ([]RuleIssue, bool) {

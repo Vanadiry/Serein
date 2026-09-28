@@ -58,7 +58,7 @@
                     </h2>
                     <p class="mb-4">
                         点击左侧 Tracker
-                        进行选择，再点取消；顶栏「检查已选定」执行检查。
+                        进行选择，再点取消；顶栏“检查已选定”执行检查。
                     </p>
                     <div
                         id="multi-list"
@@ -76,14 +76,14 @@
                         在左侧栏选择一个 Tracker 来查看对应列表中追踪的软件。
                     </p>
                     <p class="mb-2">
-                        按 / 或顶栏「搜索」，可全局搜索应用与规则。
+                        按 / 或顶栏“搜索”，可全局搜索应用与规则。
                     </p>
                     <p class="mb-8">
                         若是你第一次启动，请前往<a
                             href="/rules"
                             class="text-accent hover:underline"
                             >规则页</a
-                        >，点击右上角的「拉取规则」来拉取内置的规则表。
+                        >，点击右上角的“拉取规则”来拉取内置的规则表。
                     </p>
 
                     <h2 class="text-lg font-semibold text-text mb-3">下载器</h2>
@@ -199,8 +199,8 @@
                         title: "界面速览",
                         html:
                             '<div class="text-sm text-sub leading-relaxed space-y-2">' +
-                            '<div>按 <kbd class="px-1 rounded-chip border border-bord text-text">/</kbd> 或顶栏「搜索」，可全局搜索应用与规则，点击结果即可跳转。</div>' +
-                            "<div>开启应用页面侧栏「多选」按钮，可以选择多个 Tracker 并批量检查。</div>" +
+                            '<div>按 <kbd class="px-1 rounded-chip border border-bord text-text">/</kbd> 或顶栏“搜索”，可全局搜索应用与规则，点击结果即可跳转。</div>' +
+                            "<div>开启应用页面侧栏“多选”按钮，可以选择多个 Tracker 并批量检查。</div>" +
                             '<div>侧栏 Tracker 后的 <span class="text-warn">(3/15)</span> 表示共有 15 条记录，其中 3 个有更新。</div>' +
                             "</div>"
                     },
@@ -214,9 +214,9 @@
                                 "文档 - 入门"
                             ) +
                             "</div>" +
-                            '<div><span class="text-accent font-semibold">1. </span>前往「规则」页面，在右上角拉取规则和动态配置</div>' +
+                            '<div><span class="text-accent font-semibold">1. </span>前往“规则”页面，在右上角拉取规则和动态配置</div>' +
                             '<div><span class="text-accent font-semibold">2. </span>添加你想要追踪的软件，这会自动创建默认 Tracker</div>' +
-                            '<div><span class="text-accent font-semibold">3. </span>前往「应用」页面，点击「检查全部」或「检查当前 Tracker」</div>' +
+                            '<div><span class="text-accent font-semibold">3. </span>前往“应用”页面，点击“检查全部”或“检查当前 Tracker”</div>' +
                             "</div>" +
                             '<p class="text-sm text-sub leading-relaxed mt-4">就是这么简单！谢谢你的使用，请随意探索吧。</p>'
                     }
@@ -510,7 +510,7 @@
                 currentTracker = id;
                 currentTrackerType = _trackerTypes[id] || "app";
                 checkResults = {};
-                // 选中后才显示「检查当前 Tracker」
+                // 选中后才显示“检查当前 Tracker”
                 var _tc = document.getElementById("btn-tracker-check");
                 if (_tc) _tc.style.display = "";
                 // 读取该 Tracker 的内存缓存（若有），切回来时直接渲染

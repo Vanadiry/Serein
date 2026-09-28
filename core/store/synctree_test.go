@@ -477,7 +477,7 @@ func TestPruneOrphanSubSources(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(rulesDir, "T", "usermanual"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	// 先手工补一个"上游已删但本地还在"的孤立规则子源
+	// 先手工补一个“上游已删但本地还在”的孤立规则子源
 	writeJSON(t, filepath.Join(rulesDir, "T", "orphan", sourceFileName),
 		SourceInfo{ID: "orphan", Files: map[string]string{"o.toml": "1"}})
 	writeFixture(t, filepath.Join(rulesDir, "T", "orphan", "o.toml"), "O")
@@ -499,7 +499,7 @@ func TestPruneOrphanSubSources(t *testing.T) {
 }
 
 // 门禁 1：本轮有规则子源抓取失败时，不变量 C 一律不执行
-// 无法区分"上游删掉了它"与"这次没抓到"
+// 无法区分“上游删掉了它”与“这次没抓到”
 func TestPruneSkippedWhenWalkFailed(t *testing.T) {
 	home := t.TempDir()
 	rulesDir := filepath.Join(home, "rules")
@@ -536,7 +536,7 @@ func TestPruneSkippedWhenWalkFailed(t *testing.T) {
 	if len(d.failures) == 0 {
 		t.Fatal("本应有规则子源抓取失败")
 	}
-	// 门禁 1：flaky 已从上游消失，但不得因为"没抓到"就当成孤儿删掉
+	// 门禁 1：flaky 已从上游消失，但不得因为“没抓到”就当成孤儿删掉
 	if _, err := os.Stat(filepath.Join(rulesDir, "T", "flaky", "f.toml")); err != nil {
 		t.Errorf("门禁 1 未生效，flaky 被当成孤儿删除: %v", err)
 	}

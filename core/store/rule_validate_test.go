@@ -77,7 +77,7 @@ url = "example.com/api"
 }
 
 // 拼写错误的解析器类型必须在规则检查阶段就报出来
-// 旧实现一路放行，直到运行时才炸出一个字面量 "<nil>" 的"版本号"
+// 旧实现一路放行，直到运行时才炸出一个字面量 "<nil>" 的“版本号”
 func TestValidateRejectsUnknownParserType(t *testing.T) {
 	cases := []struct {
 		name string

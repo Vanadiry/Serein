@@ -2,7 +2,7 @@ package httpx
 
 import "testing"
 
-// URLScheme 必须按 scheme 语法判断，不能用"第一个冒号"
+// URLScheme 必须按 scheme 语法判断，不能用“第一个冒号”
 // 判据是与浏览器一致：new URL(raw, base).protocol 对同一字符串必须给出同一个协议名
 func TestURLScheme(t *testing.T) {
 	cases := map[string]string{

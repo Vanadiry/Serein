@@ -31,7 +31,7 @@ func TestParseHTTPURLPassesThroughUnchanged(t *testing.T) {
 	}
 }
 
-// 有协议但非 http(s) 的必须仍被拒绝，不能借"补前缀"一并放行
+// 有协议但非 http(s) 的必须仍被拒绝，不能借“补前缀”一并放行
 func TestParseHTTPURLStillRejectsBadScheme(t *testing.T) {
 	for _, u := range []string{
 		"javascript:alert(1)",
@@ -52,8 +52,8 @@ func TestParseHTTPURL(t *testing.T) {
 			t.Errorf("parseHTTPURL(%q) 应通过: %v", u, err)
 		}
 	}
-	// "a.com/x"与"//cdn.com/x"曾在此处被列为非法。现按"校验层不改写
-	// 协议相对原样放行"处理；完整用例见 TestParseHTTPURLPassesThroughUnchanged
+	// "a.com/x"与"//cdn.com/x"曾在此处被列为非法。现按“校验层不改写
+	// 协议相对原样放行”处理；完整用例见 TestParseHTTPURLPassesThroughUnchanged
 	bad := []string{"", "ftp://a.com", "javascript:alert(1)"}
 	for _, u := range bad {
 		if _, err := parseHTTPURL(u); err == nil {

@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// "配了却取不到"必须报错：平台判失败时用户知道要重试，"有更新"却装不上最难查
+// “配了却取不到”必须报错：平台判失败时用户知道要重试，“有更新”却装不上最难查
 // 直接测判定函数，避免走网络（SSRF 守卫会拦 httptest 的 127.0.0.1）
 func TestCheckCompleteness(t *testing.T) {
 	const anyPos = 1 // 任意非 nil 的 position
@@ -134,7 +134,7 @@ func TestGitHubNoUsableReleaseIsOneError(t *testing.T) {
 	}
 }
 
-// github 取到版本但 d_position 匹配不到 asset 时报错，属于"有更新却装不上"的典型
+// github 取到版本但 d_position 匹配不到 asset 时报错，属于“有更新却装不上”的典型
 func TestGitHubVersionWithoutAsset(t *testing.T) {
 	body := `[{"tag_name":"v1.0","prerelease":false,"assets":[{"name":"a.dmg","browser_download_url":"https://x/a.dmg"}]}]`
 	_, err := pickLatestRelease(mustParse(t, body), mustArr(t, body),
@@ -165,7 +165,7 @@ func TestGitHubOK(t *testing.T) {
 		t.Errorf("结果 = %+v", pr)
 	}
 	// runGitHubCheck 对 direct 会把 DPosition 置 nil、链接改由 d_url 决定
-	// 此时必须报错，给出"有版本没链接"会掩盖配置缺失
+	// 此时必须报错，给出“有版本没链接”会掩盖配置缺失
 	pr, err = pickLatestRelease(mustParse(t, body), mustArr(t, body),
 		GitHubConfig{Owner: "o", Repo: "r"}, 3)
 	if err == nil || !strings.Contains(err.Error(), "缺少 d_position") {

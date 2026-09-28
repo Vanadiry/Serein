@@ -25,7 +25,7 @@ const (
 	lockRangeHigh = 0xFFFFFFFF
 	// ERROR_LOCK_VIOLATION：别的进程已持有同区域排他锁
 	errLockViolation = syscall.Errno(33)
-	// ERROR_IO_PENDING：FAIL_IMMEDIATELY 下偶发的重试信号，同样按"被占用"处理
+	// ERROR_IO_PENDING：FAIL_IMMEDIATELY 下偶发的重试信号，同样按“被占用”处理
 	errIOPending = syscall.Errno(997)
 )
 

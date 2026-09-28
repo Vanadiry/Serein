@@ -1125,7 +1125,7 @@ async function asyncCheck(apiPath, body, onDone) {
         }
     };
 
-    // 连接断了不代表检查结束，绝不能在这里报「完成」。
+    // 连接断了不代表检查结束，绝不能在这里报“完成”。
     // EventSource 默认会自动重连，而服务端在任务结束后仍保留一段时间
     // （progressRetain），期间重连能从 Replay() 拿回同一条 done（含错误列表）。
     // 所以这里只做兜底：反复重连仍拿不到才收口。

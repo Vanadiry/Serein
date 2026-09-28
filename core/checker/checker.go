@@ -20,9 +20,9 @@ type PlatformResult struct {
 	Warnings      []string // 非致命的异常（不影响结果可用性）
 }
 
-// "配了却取不到"必须报错。判定依据是"本次是否尝试提取该字段"
+// “配了却取不到”必须报错。判定依据是“本次是否尝试提取该字段”
 // 规则没要求某个字段（position 为 nil）不算失败；要求了却拿到空值才算
-// direct 模式没有"提取"这回事：值就是配置里的字面量，所以它恒算尝试过
+// direct 模式没有“提取”这回事：值就是配置里的字面量，所以它恒算尝试过
 // 为空即配置缺失。隐式取值的 github 不走这里，由 runGitHubCheck 负责
 func vAttempted(vType string, vPos any) bool {
 	if vType == "direct" {
@@ -193,7 +193,7 @@ func RunPlatformCheck(ctx context.Context, cfg PlatformCheckConfig, client *http
 	}
 
 	// 尝试过却取不到时报错
-	// 平台判失败时用户知道要重试，"有更新"却装不上最难查
+	// 平台判失败时用户知道要重试，“有更新”却装不上最难查
 	// 前者列表里不显示版本号、没有下载按钮；后者用户会以为有更新并去确认
 	if err := checkCompleteness(vr, vType, cfg.VPosition, dType, cfg.DPosition); err != nil {
 		return vr, err
@@ -201,7 +201,7 @@ func RunPlatformCheck(ctx context.Context, cfg PlatformCheckConfig, client *http
 	return vr, nil
 }
 
-// checkCompleteness 判定"尝试过却取不到"的字段。规则没要求某个字段
+// checkCompleteness 判定“尝试过却取不到”的字段。规则没要求某个字段
 // （position 为 nil）不算失败，那种情况是配置只关心另一半
 func checkCompleteness(vr PlatformResult, vType string, vPos any, dType string, dPos any) error {
 	if vAttempted(vType, vPos) && strings.TrimSpace(vr.LatestVersion) == "" {
@@ -241,7 +241,7 @@ func extractValue(body []byte, typ string, pos any, join, baseURL string) (any, 
 		return extractSelectorValue(body, pos, baseURL)
 	case "github", "direct":
 		// 这两类不经由本函数取值：github 由 CheckGitHub 处理
-		// direct 的"值"就是配置里的字面量（见 RunPlatformCheck）
+		// direct 的“值”就是配置里的字面量（见 RunPlatformCheck）
 		return nil, fmt.Errorf("提取类型 %q 不经由 extractValue 取值", typ)
 	default:
 		return nil, fmt.Errorf("未知提取类型 %q", typ)

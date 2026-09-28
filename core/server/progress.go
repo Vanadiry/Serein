@@ -30,7 +30,7 @@ func handleProgressSSE(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "task not found"})
 		return
 	}
-	// 只在"任务已结束且缓冲区已读空"时补发结束事件：这时读通道会立刻返回关闭
+	// 只在“任务已结束且缓冲区已读空”时补发结束事件：这时读通道会立刻返回关闭
 	// 客户端一条都收不到。否则不补发，缓冲区里还有事件时会与正常读取重复
 	var replay string
 	if p.Drained() {

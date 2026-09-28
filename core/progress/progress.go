@@ -109,7 +109,7 @@ func (p *Progress) SendMap(m map[string]any) {
 // 调用方往往直到收尾才知道汇总数字，而结束事件只能在 Close 里发，所以让它能携带载荷
 // 调用方自己先发一条 done 会与 Close 发的收尾 done 重复，客户端会把重复的那条当成两次结束
 // 前端在第一条就 close，这个 bug 才没有暴露出来
-// 载荷丢失的那条只剩 {"step":"done"}，客户端会把它渲染成"同步完成"，把失败静默吞掉
+// 载荷丢失的那条只剩 {"step":"done"}，客户端会把它渲染成“同步完成”，把失败静默吞掉
 func (p *Progress) SetFinalEvent(payload map[string]any) {
 	p.mu.Lock()
 	p.final = payload
@@ -171,7 +171,7 @@ func (p *Progress) retain() {
 	})
 }
 
-// Drained 报告"任务已结束且缓冲区已被读空"，此时新订阅者再读通道会立刻
+// Drained 报告“任务已结束且缓冲区已被读空”，此时新订阅者再读通道会立刻
 // 拿到关闭信号，一条事件都收不到，必须靠 Replay 补发结束事件
 // 任务仍在进行、或缓冲区里还有未读事件时都要返回 false
 // 那些事件会由正常的读取路径送出，此时再补发会让同一帧被消费两次

@@ -61,7 +61,7 @@ func fileExists(p string) bool {
 
 // validateSourceDir 递归校验；display 为该目录相对根的展示路径
 func validateSourceDir(dir, display string, s *SourceInfo, ruleValues map[string]map[string]string, issues *[]RuleIssue) {
-	// 结构非法的条目先剔除，dev 检查要如实报告而非重复报"文件不存在"
+	// 结构非法的条目先剔除，dev 检查要如实报告而非重复报“文件不存在”
 	is, rejected := validateSourceFiles(s)
 	*issues = append(*issues, is...)
 	if rejected {

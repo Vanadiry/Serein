@@ -7,7 +7,7 @@ import (
 	"github.com/vanadiry/serein/core/progress"
 )
 
-// seedCache 往结果缓存里塞若干 app，模拟"之前检查过一次"
+// seedCache 往结果缓存里塞若干 app，模拟“之前检查过一次”
 func seedCache(s *Server, tracker string, appIDs ...string) {
 	m := make(map[string]checker.CheckResponse, len(appIDs))
 	for _, id := range appIDs {
@@ -30,13 +30,13 @@ func runOne(s *Server, savePartial, replace bool, fn func() []checker.CheckRespo
 	s.runCheckAllAsync([]checkAllTracker{{
 		id: "A", name: "A", typ: "app",
 		// runCheckAllAsync 内部自己调 buildCheckJobs/runAppJobs，这里用空 entries
-		// 走"没有可用结果"分支；需要真实结果时由测试直接调 setCheckResults
+		// 走“没有可用结果”分支；需要真实结果时由测试直接调 setCheckResults
 		entries: nil,
 	}}, progress.NewProgress(0), savePartial, replace)
 	_ = fn
 }
 
-// 零结果时不得把桶替换成空：未检查的 app 会看起来像"无更新"，而实际是"没查到"
+// 零结果时不得把桶替换成空：未检查的 app 会看起来像“无更新”，而实际是“没查到”
 func TestEmptyResultKeepsCache(t *testing.T) {
 	s := newTestServer(t.TempDir())
 	seedCache(s, "A", "a1", "a2")

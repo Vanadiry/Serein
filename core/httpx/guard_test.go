@@ -37,7 +37,7 @@ func TestGuardBlocksPrivateTargets(t *testing.T) {
 // 这是 #10 的核心：safeDialContext 在配置了代理时会主动放弃拨号层校验
 // （那一层看到的只是代理地址），校验责任落到上层，而 core/store 的 getHTTP
 // 恰好没做，于是恶意规则源的 baseurl 可以经代理把内网响应取回来
-// 断言用"代理是否被要求去取内网地址"。只看有没有报错是不够的，配了代理后
+// 断言用“代理是否被要求去取内网地址”。只看有没有报错是不够的，配了代理后
 // 真实代理可能刚好不可达而报错，那与 SSRF 无关，会让测试失去意义
 func TestGuardBlocksPrivateTargetsWithProxy(t *testing.T) {
 	var mu sync.Mutex
@@ -111,7 +111,7 @@ func TestGuardRunsBeforeAuthInjection(t *testing.T) {
 
 // 放行正常目标：守卫不能误伤
 func TestGuardAllowsPublicTargets(t *testing.T) {
-	// 用一个"解析到公网地址"的方式避免测试依赖外网
+	// 用一个“解析到公网地址”的方式避免测试依赖外网
 	// 直接验证 BlockPrivate 的判定，不真的发请求
 	for _, u := range []string{
 		"https://raw.githubusercontent.com/a/b",

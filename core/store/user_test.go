@@ -200,7 +200,7 @@ func drainEvents(ch chan []byte) {
 	}
 }
 
-// 坏文件必须推事件，用户看到的现象是"所有软件都有更新"
+// 坏文件必须推事件，用户看到的现象是“所有软件都有更新”
 // 不告诉他原因就会以为全部过期了。走常驻事件，且只推一次
 func TestLoadUserDataEmitsEvent(t *testing.T) {
 	home := t.TempDir()
@@ -240,7 +240,7 @@ func TestLoadUserDataEmitsEvent(t *testing.T) {
 	}
 }
 
-// 数据正常时不推事件，否则用户会一直看到"注意"
+// 数据正常时不推事件，否则用户会一直看到“注意”
 func TestLoadUserDataNoEventWhenOK(t *testing.T) {
 	home := t.TempDir()
 	writeSoftware(t, home, `{"a": {"windows": "1.0"}}`)

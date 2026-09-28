@@ -7,7 +7,7 @@ import (
 
 // 结束事件只能有一条。调用方自行 SendMap("done") 会与 Close 发的收尾 done 重复
 // 客户端只取到其中一条，而重复的那条若载荷丢失只剩 {"step":"done"}
-// 前端会把它渲染成"同步完成"，把失败静默吞掉
+// 前端会把它渲染成“同步完成”，把失败静默吞掉
 func TestCloseSendsExactlyOneDone(t *testing.T) {
 	p := NewProgress(0)
 	p.Send("app", "a", 1, 2)
@@ -105,7 +105,7 @@ func TestSendAfterCloseIsNoop(t *testing.T) {
 	}
 }
 
-// 只有"已结束且缓冲区读空"才需要补发结束事件
+// 只有“已结束且缓冲区读空”才需要补发结束事件
 // 否则缓冲区里还有事件时会与正常读取路径重复送出同一帧
 func TestDrainedOnlyWhenClosedAndEmpty(t *testing.T) {
 	p := NewProgress(0)

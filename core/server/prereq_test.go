@@ -48,7 +48,7 @@ func newPreReqServer(t *testing.T, home string) *Server {
 
 // 预请求失败时绝不能拿规则里的原始 URL 去检查
 // 那并非版本页，请求它多半拿到一个错误页，解析器会从里面抠出一个版本号
-// （比如 "v2.1.0 not found" 里的 2.1.0）当成成功结果。用户点一下"确认这个更新"
+// （比如 "v2.1.0 not found" 里的 2.1.0）当成成功结果。用户点一下“确认这个更新”
 // 错的值就写进 software.json，之后这个应用再也不会提示更新
 func TestPreRequestFailureSkipsPlatform(t *testing.T) {
 	home := t.TempDir()
@@ -68,7 +68,7 @@ func TestPreRequestFailureSkipsPlatform(t *testing.T) {
 	if len(jobs) != 0 {
 		t.Errorf("预请求失败后不应产生任何 job（否则会拿原始 URL 去查），实际 %d 个: %+v", len(jobs), jobs)
 	}
-	// 错误必须上报，否则用户只看到"没检查"却不知道为什么
+	// 错误必须上报，否则用户只看到“没检查”却不知道为什么
 	if len(errs) == 0 {
 		t.Fatal("应上报预请求失败")
 	}

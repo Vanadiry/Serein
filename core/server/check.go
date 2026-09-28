@@ -171,7 +171,7 @@ func (s *Server) syncCachedCurrent(appID string, versions map[string]string) {
 // 异步检查（后台 goroutine，通过 SSE 推送进度）
 
 // checkMaxErrors 单次检查返回的错误条数上限。超出后只累加计数
-// 由 done 事件里的 overflow 告知前端"还有更多"，避免超长响应
+// 由 done 事件里的 overflow 告知前端“还有更多”，避免超长响应
 // 声明为 var 以便测试覆盖
 var checkMaxErrors = 2000
 
@@ -242,7 +242,7 @@ type checkJob struct {
 	name string
 }
 
-// loadUserData 读"已确认安装到哪个版本"
+// loadUserData 读“已确认安装到哪个版本”
 // 出错不中断，software.json 坏了不该让检查、搜索、列表整个打不开，用户还能把留档文件手工改回来
 // LoadUserData 出错时也会返回可用的空数据，并且已经把问题通过事件总线推给前端，这里不用再报一遍
 func (s *Server) loadUserData() store.UserData {
@@ -259,7 +259,7 @@ func (s *Server) loadUserDataErr() (store.UserData, error) {
 // confirmVersion 确认或修改某个 app 的版本号，返回该 app 确认后的平台版本
 // 整段 load-modify-save 都在写锁里
 // 两个并发确认各自加载、各自保存，后写的会用自己那份旧快照覆盖掉先写的那份，先确认的版本就永久丢了
-// UI 上"确认更新"和"手动改版本"是两个入口，相邻点击会触发并发
+// UI 上“确认更新”和“手动改版本”是两个入口，相邻点击会触发并发
 func (s *Server) confirmVersion(appID string, versions map[string]string) (map[string]string, error) {
 	s.userMu.Lock()
 	defer s.userMu.Unlock()
@@ -765,12 +765,12 @@ func (s *Server) runCheckAllAsync(list []checkAllTracker, p *progress.Progress, 
 				}
 			case len(merged) == 0:
 				// 跑了但一个结果都没有：规则全被过滤（removed / 变量缺失 / 无可用平台）
-				// 或全部整条目失败。此时整桶替换成空 = 未检查的 app 看起来像"无更新"
-				// 而实际是"没查到"。保留旧结果，错误由本次的汇总弹窗报出
+				// 或全部整条目失败。此时整桶替换成空 = 未检查的 app 看起来像“无更新”
+				// 而实际是“没查到”。保留旧结果，错误由本次的汇总弹窗报出
 				log.LogfWarn("[check] %s 未产出任何结果，保留原缓存", t.id)
 			case savePartial && ctx.Err() != nil:
 				// 取消：只 upsert 已完成的部分，其余 app 保留历史结果
-				// 整桶替换会把未检查的 150 个 app 一起清掉，侧栏全部回退成"有更新"
+				// 整桶替换会把未检查的 150 个 app 一起清掉，侧栏全部回退成“有更新”
 				for _, r := range merged {
 					s.setCheckResult(t.id, r)
 				}

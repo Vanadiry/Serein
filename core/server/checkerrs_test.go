@@ -134,7 +134,7 @@ func TestCheckErrsLimitAndEmpty(t *testing.T) {
 	}
 }
 
-// msvsix / openvsix 走 directCheckResponse，同样要判定"取到了没有"
+// msvsix / openvsix 走 directCheckResponse，同样要判定“取到了没有”
 func TestDirectCheckResponseRejectsEmpty(t *testing.T) {
 	ok := func(ctx context.Context, appID string, c *http.Client) (checker.PlatformResult, error) {
 		return checker.PlatformResult{LatestVersion: "1.0", URL: "https://x/1.0.vsix"}, nil

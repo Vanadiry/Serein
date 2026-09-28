@@ -16,7 +16,7 @@ func TestDownloaderKind(t *testing.T) {
 		}
 	}
 
-	// 未知值：类型按浏览器处理、描述统一"无（未识别）"
+	// 未知值：类型按浏览器处理、描述统一“无（未识别）”
 	if got := parseDownloaderType("aria2c"); got != "browser" {
 		t.Errorf("unknown type = %q, want browser", got)
 	}

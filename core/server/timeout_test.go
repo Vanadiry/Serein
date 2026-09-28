@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// 零值 http.Server 的三项超时都是"无限制"，慢速滴灌 header 的连接
+// 零值 http.Server 的三项超时都是“无限制”，慢速滴灌 header 的连接
 // 可永久占用 goroutine 与 fd，而本服务无鉴权、没有限流手段可用
 func TestServerTimeoutsAreSet(t *testing.T) {
 	srv := newHTTPServer(http.NewServeMux())

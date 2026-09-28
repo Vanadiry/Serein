@@ -53,7 +53,7 @@ func seedLeaf(t *testing.T, rulesDir, destDir string, oldTokens map[string]strin
 	writeMarker(t, filepath.Join(dest), "s", tokens)
 }
 
-// writeMarker 写一个 rules 型源的 marker（token 表即"上次接受什么"的基线）
+// writeMarker 写一个 rules 型源的 marker（token 表即“上次接受什么”的基线）
 func writeMarker(t *testing.T, dir, id string, tokens map[string]string) {
 	t.Helper()
 	body, err := json.Marshal(SourceInfo{ID: id, Type: "rules", Files: tokens})
@@ -117,8 +117,8 @@ func TestCommitLeafInPlaceWritesAndPrunes(t *testing.T) {
 }
 
 // 核心回归：写文件失败必须放弃本源剩余步骤，版本标记绝不推进
-// 原地写拿不到"整树换入"那种"旧内容原样保留"的更强保证，文件可能已部分更新
-// 但"标记不推进"这条必须保住，推进了就永久缺失
+// 原地写拿不到“整树换入”那种“旧内容原样保留”的更强保证，文件可能已部分更新
+// 但“标记不推进”这条必须保住，推进了就永久缺失
 func TestCommitLeafInPlaceKeepsMarkerOnWriteFailure(t *testing.T) {
 	home := t.TempDir()
 	rulesDir := filepath.Join(home, "rules")
@@ -126,7 +126,7 @@ func TestCommitLeafInPlaceKeepsMarkerOnWriteFailure(t *testing.T) {
 	seedLeaf(t, rulesDir, destDir, nil, map[string]string{"old.toml": "OLD"})
 
 	dest := filepath.Join(rulesDir, destDir)
-	// 造一个"文件"形态的目录，使写入它必然失败
+	// 造一个“文件”形态的目录，使写入它必然失败
 	if err := os.MkdirAll(filepath.Join(dest, "blocker"), 0755); err != nil {
 		t.Fatal(err)
 	}

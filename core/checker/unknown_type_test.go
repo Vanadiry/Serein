@@ -13,7 +13,7 @@ import (
 // user/software.json。全程无任何错误
 func TestUnknownTypeNeverYieldsLiteralNil(t *testing.T) {
 	// URL 指向一个必然失败的地址：前置校验必须早于任何网络请求
-	// 否则拿到的是网络错误而非"未知类型"，真实原因被掩盖
+	// 否则拿到的是网络错误而非“未知类型”，真实原因被掩盖
 	cfg := PlatformCheckConfig{
 		OS:             "windows",
 		Type:           "jsno", // 拼写错误

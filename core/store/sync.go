@@ -24,7 +24,7 @@ const maxFetchBytes = 8 << 20 // 8MB
 
 // 规则同步的总量闸门。manifest 里的文件数与体积都由远程决定，不设上限时
 // 一份声明 20 万条目的 _source.json 就能让进程 OOM（#35）
-// 峰值内存 ≈ 一个顶层源内所有"本轮有变更"的源之和，所以预算按源计
+// 峰值内存 ≈ 一个顶层源内所有“本轮有变更”的源之和，所以预算按源计
 // 声明为 var 而非 const，便于测试覆盖
 var (
 	// 单个源允许声明的文件数上限
@@ -103,7 +103,7 @@ func fetchSourceInfo(ctx context.Context, url string) (*SourceInfo, []byte, erro
 
 // loadLocalFileTokens 读取本地已落盘的 marker，返回该源上次接受的 token 表
 // 这就是比对基线，不需要额外的索引文件：本地 marker 天然记录了上次接受什么
-// 读取失败（不存在 / 解析失败 / 格式不符）返回 nil 表示"无可信基线"
+// 读取失败（不存在 / 解析失败 / 格式不符）返回 nil 表示“无可信基线”
 // 后果仅是本轮多下一些文件，不会损坏数据
 func loadLocalFileTokens(dir string) map[string]string {
 	data, err := os.ReadFile(filepath.Join(dir, sourceFileName))
@@ -159,7 +159,7 @@ type leafSrc struct {
 	isWeb   bool
 }
 
-// queueMissingFiles 把"token 未变但文件已不在盘上"的条目退回待下载集合
+// queueMissingFiles 把“token 未变但文件已不在盘上”的条目退回待下载集合
 // token 记录为已接受而文件却不见了（上次同步被中断、手工删除、清理脚本误删）
 // 不补写就会留下一个永久缺失的规则，而下次同步的 token 比对会认为它已是最新
 // 只做存在性检查，不把未变的内容读进内存：原地写只写变化的文件
@@ -249,7 +249,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 		leaves := flattenLeaves(root)
 		// 抓取失败的规则子源既不在 leaves 里也不计入 failed 的话
 		// sources_total 与 sources_failed 都是 0 时前端把 hasError 判成 false
-		// 随后用绿色"同步完成"渲染，被拒绝的源看起来像成功了
+		// 随后用绿色“同步完成”渲染，被拒绝的源看起来像成功了
 		st.total += len(leaves) + len(fails)
 		st.failed += len(fails)
 		if len(leaves) == 0 {
@@ -445,7 +445,7 @@ func syncLeaves(ctx context.Context, rulesDir, home string, root *sourceNode, le
 				l.need[name] = token
 			}
 		}
-		// 本地有、远端已删除的条目也算需要处理：否则"上游只做了删除"时
+		// 本地有、远端已删除的条目也算需要处理：否则“上游只做了删除”时
 		// 本源 token 全部匹配而被整体跳过，陈旧文件永远留在盘上
 		stale := false
 		for name := range local {
@@ -457,7 +457,7 @@ func syncLeaves(ctx context.Context, rulesDir, home string, root *sourceNode, le
 		if len(l.need) == 0 && !stale && local != nil {
 			// local != nil 表示有可信基线，即 marker 存在且可解析
 			// 没有基线时即使无差异也要走一次提交把源物化出来，否则 marker 永不落盘
-			// 该源在界面上不可见，且每次同步都被当成"已是最新"
+			// 该源在界面上不可见，且每次同步都被当成“已是最新”
 			p.SendMap(map[string]any{"step": "skip", "name": l.id, "files": len(l.files)})
 			skipped++
 			continue
@@ -498,7 +498,7 @@ func syncLeaves(ctx context.Context, rulesDir, home string, root *sourceNode, le
 		return false
 	}
 	// 临界区是整个 rules/ 树的写入
-	// 跨进程互斥，两个实例并发写同一棵树会交错出"文件已删而 marker 声称最新"的永久缺失，见 lock.go
+	// 跨进程互斥，两个实例并发写同一棵树会交错出“文件已删而 marker 声称最新”的永久缺失，见 lock.go
 	// 拿不到锁就整体放弃本次提交，不做任何修改
 	lock, err := AcquireFileLock(ctx, home, commitLockTimeout, commitLockRetry)
 	if err != nil {
@@ -511,7 +511,7 @@ func syncLeaves(ctx context.Context, rulesDir, home string, root *sourceNode, le
 	st.updated += updated
 	st.failures = append(st.failures, commitFailures...)
 	st.failed += len(commitFailures)
-	// 不变量 C 加门禁 1：本轮有任何规则子源没抓成功，就无法区分"上游删掉了它"与"这次没抓到"
+	// 不变量 C 加门禁 1：本轮有任何规则子源没抓成功，就无法区分“上游删掉了它”与“这次没抓到”
 	// 此时一律不动目录，误删的代价远大于留下一个陈旧目录
 	if walkFailed {
 		if root != nil {
@@ -647,8 +647,8 @@ func downloadLeaves(ctx context.Context, rulesDir string, leaves []leafSrc, conc
 // (2) 删除 manifest 未列出的 .toml（不变量 B）
 // (3) 写入版本标记（不变量 A）
 // marker 必须最后写，它是下次同步唯一的跳过判据
-// 先写标记再落文件，中途崩溃会留下"标记声称最新、内容却缺失"的状态
-// 下次同步据此跳过，该规则文件永久缺失。放在两步之后则退化成"标记未推进"，可自愈
+// 先写标记再落文件，中途崩溃会留下“标记声称最新、内容却缺失”的状态
+// 下次同步据此跳过，该规则文件永久缺失。放在两步之后则退化成“标记未推进”，可自愈
 // 任一文件写失败即放弃本源剩余步骤：目标目录可能已写入部分新内容，但标记不推进
 // 下次同步会重做本源。不返回“整树换入”那种“旧内容原样保留”的更强保证。原地写拿不到那个保证，代价是崩溃后需要一次重拉而非零成本回滚
 func commitLeaves(rulesDir string, leaves []leafSrc, contents []map[string][]byte, leafFailed []bool) (int, []syncFailure) {
@@ -709,7 +709,7 @@ func commitLeafInPlace(dest string, files map[string][]byte, manifest map[string
 // l2a 把目录绝对路径缩成便于日志阅读的形式
 func l2a(dir string) string { return filepath.ToSlash(dir) }
 
-// pruneOrphanSubSources 递归删除"本地存在但本轮未声明"的规则子源目录（不变量 C）
+// pruneOrphanSubSources 递归删除“本地存在但本轮未声明”的规则子源目录（不变量 C）
 // 逐层进行：每个 list 型节点的目录下，一级子目录必须与本轮声明的规则子源一一对应
 // 只删含合法 _source.json 的目录（门禁 2），用户手动放置的目录一律不动
 func pruneOrphanSubSources(rulesDir string, n *sourceNode) []string {

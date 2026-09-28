@@ -7,7 +7,7 @@ import (
 )
 
 // URLScheme 返回 raw 的协议名（小写、不含冒号）；没有协议时返回 ""
-// 按 scheme 语法逐字符判断，取"第一个冒号之前"的话会把 scheme 的冒号误当成路径里的冒号
+// 按 scheme 语法逐字符判断，取“第一个冒号之前”的话会把 scheme 的冒号误当成路径里的冒号
 // 判据与浏览器一致，new URL(raw, base).protocol 对同一字符串必须给出同一个协议名
 func URLScheme(raw string) string {
 	i := strings.IndexByte(raw, ':')
