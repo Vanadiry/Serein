@@ -28,7 +28,7 @@ func writeJSON(t *testing.T, path string, v any) {
 	}
 }
 
-// seedUpstream 造一个本地源树：list 顶层 + 若干 rules 子源
+// seedUpstream 造一个本地源树：list 顶层 + 若干 rules 规则子源
 func seedUpstream(t *testing.T, dir string, top SourceInfo, subs map[string]SourceInfo) {
 	t.Helper()
 	writeJSON(t, filepath.Join(dir, sourceFileName), top)
@@ -37,7 +37,7 @@ func seedUpstream(t *testing.T, dir string, top SourceInfo, subs map[string]Sour
 	}
 }
 
-// 走树：list 顶层 + 3 个 rules 子源，其中一个子源本身是 list（嵌套）
+// 走树：list 顶层 + 3 个 rules 规则子源，其中一个规则子源本身是 list（嵌套）
 func TestWalkSourceBuildsTree(t *testing.T) {
 	home := t.TempDir()
 	up := filepath.Join(home, "up")
@@ -76,7 +76,7 @@ func TestWalkSourceBuildsTree(t *testing.T) {
 	}
 }
 
-// 子源 source_id 与目录名不一致时记失败且不认领，否则无法确定落盘位置
+// 规则子源 source_id 与目录名不一致时记失败且不认领，否则无法确定落盘位置
 func TestWalkSourceRejectsIDMismatch(t *testing.T) {
 	home := t.TempDir()
 	up := filepath.Join(home, "up")
@@ -98,11 +98,11 @@ func TestWalkSourceRejectsIDMismatch(t *testing.T) {
 		t.Errorf("不应产出叶子: %+v", leaves)
 	}
 	if claimed.claim("other") != true {
-		t.Error("ID 不一致的子源不应被认领，否则会挡住后续同名源")
+		t.Error("ID 不一致的规则子源不应被认领，否则会挡住后续同名源")
 	}
 }
 
-// list 型但子源全都没抓到时不视为叶子，否则会拿空 manifest 覆盖整棵树
+// list 型但规则子源全都没抓到时不视为叶子，否则会拿空 manifest 覆盖整棵树
 func TestFlattenLeavesListWithoutChildren(t *testing.T) {
 	n := &sourceNode{info: &SourceInfo{ID: "T", Type: "list"}}
 	if leaves := flattenLeaves(n); leaves != nil {
@@ -452,7 +452,7 @@ func TestSyncAllowsEmptyManifestOnFreshSource(t *testing.T) {
 	}
 }
 
-// 不变量 C：上游从 list 里删掉某个子源后，本地孤儿子源目录应被清除
+// 不变量 C：上游从 list 里删掉某个规则子源后，本地孤立规则子源目录应被清除
 func TestPruneOrphanSubSources(t *testing.T) {
 	home := t.TempDir()
 	rulesDir := filepath.Join(home, "rules")
@@ -477,7 +477,7 @@ func TestPruneOrphanSubSources(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(rulesDir, "T", "usermanual"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	// 先手工补一个"上游已删但本地还在"的孤儿子源
+	// 先手工补一个"上游已删但本地还在"的孤立规则子源
 	writeJSON(t, filepath.Join(rulesDir, "T", "orphan", sourceFileName),
 		SourceInfo{ID: "orphan", Files: map[string]string{"o.toml": "1"}})
 	writeFixture(t, filepath.Join(rulesDir, "T", "orphan", "o.toml"), "O")
@@ -487,10 +487,10 @@ func TestPruneOrphanSubSources(t *testing.T) {
 	collectDone(p2, &doneEvent{})
 
 	if _, err := os.Stat(filepath.Join(rulesDir, "T", "orphan")); !os.IsNotExist(err) {
-		t.Error("孤儿子源目录未被清除")
+		t.Error("孤立规则子源目录未被清除")
 	}
 	if got := mustRead(t, filepath.Join(rulesDir, "T", "gone", "g.toml")); got != "G" {
-		t.Errorf("新子源未落盘: %q", got)
+		t.Errorf("新规则子源未落盘: %q", got)
 	}
 	// 门禁 2：无 marker 的用户目录不得被动
 	if _, err := os.Stat(filepath.Join(rulesDir, "T", "usermanual")); err != nil {
@@ -498,7 +498,7 @@ func TestPruneOrphanSubSources(t *testing.T) {
 	}
 }
 
-// 门禁 1：本轮有子源抓取失败时，不变量 C 一律不执行
+// 门禁 1：本轮有规则子源抓取失败时，不变量 C 一律不执行
 // 无法区分"上游删掉了它"与"这次没抓到"
 func TestPruneSkippedWhenWalkFailed(t *testing.T) {
 	home := t.TempDir()
@@ -534,7 +534,7 @@ func TestPruneSkippedWhenWalkFailed(t *testing.T) {
 	collectDone(p2, d)
 
 	if len(d.failures) == 0 {
-		t.Fatal("本应有子源抓取失败")
+		t.Fatal("本应有规则子源抓取失败")
 	}
 	// 门禁 1：flaky 已从上游消失，但不得因为"没抓到"就当成孤儿删掉
 	if _, err := os.Stat(filepath.Join(rulesDir, "T", "flaky", "f.toml")); err != nil {

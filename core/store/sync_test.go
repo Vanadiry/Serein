@@ -26,7 +26,7 @@ func TestSafeRelPath(t *testing.T) {
 	}
 }
 
-// seedLeaf 造一个已提交过的子规则源：目标目录里有旧文件 + 旧 token 标记
+// seedLeaf 造一个已提交过的规则子源：目标目录里有旧文件 + 旧 token 标记
 // oldTokens 显式给出上次接受的 token（缺省用文件名当 token）
 func seedLeaf(t *testing.T, rulesDir, destDir string, oldTokens map[string]string, oldFiles map[string]string) {
 	t.Helper()

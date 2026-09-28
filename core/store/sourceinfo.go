@@ -1,14 +1,14 @@
 // 规则源元信息（_source.json）的格式定义、解析与结构校验
 // files 按 type 分形态
 // type = "rules"（默认）：{"文件名": "token"}
-// type = "list"：["<name>/_source.json", ...]，子源 marker 列表
+// type = "list"：["<name>/_source.json", ...]，规则子源 marker 列表
 // token 是不透明字符串，程序只比较它与本地已接受的值是否相同，不同即重新拉取
 // 版本精度到单文件，因此不再有顶层 version 字段
 // 两条结构约束，违反者剔除条目并报 warn，不阻断整个源
 // list  的条目必须匹配 ^[^/\\]+/_source\.json$（恰好一层）
 // rules 的 key 必须是裸文件名，且不得为 _source.json
 // 这两条约束是"删除 manifest 未列出文件"能安全执行的前提
-// 一个子源的目录可以成为另一个子源目录的祖先，后者扫描未列出文件时会删掉前者的 marker
+// 一个规则子源的目录可以成为另一个规则子源目录的祖先，后者扫描未列出文件时会删掉前者的 marker
 // 那个 marker 一旦丢失就永久失去被更新与被列出的资格
 package store
 
@@ -39,7 +39,7 @@ type SourceInfo struct {
 	SubSources  []string          `json:"-"`               // list 型：files 数组
 }
 
-// IsList 报告是否为 list 型（列出子源而非规则文件）
+// IsList 报告是否为 list 型（列出规则子源而非规则文件）
 func (s *SourceInfo) IsList() bool { return s.Type == "list" }
 
 // UnmarshalJSON 按 type 分派 files 的形态：list 解析为数组，其余解析为对象
@@ -83,7 +83,7 @@ func sourceTypeName(t string) string {
 }
 
 // MarshalJSON 与 UnmarshalJSON 对称：按 type 输出对应形态的 files
-// 没有它则 SubSources（json:"-"）无法往返，任何 marshal 出的 list 型源都会丢掉子源列表
+// 没有它则 SubSources（json:"-"）无法往返，任何 marshal 出的 list 型源都会丢掉规则子源列表
 func (s SourceInfo) MarshalJSON() ([]byte, error) {
 	out := struct {
 		ID          string `json:"source_id"`
@@ -119,7 +119,7 @@ func validateSourceFiles(s *SourceInfo) ([]RuleIssue, bool) {
 		for _, f := range s.SubSources {
 			if !listEntryRe.MatchString(f) {
 				issues = append(issues, RuleIssue{Level: "warn", Message: fmt.Sprintf(
-					"%s: 子源条目 %q 不符合 <name>/%s，已忽略，子源只支持一层",
+					"%s: 规则子源条目 %q 不符合 <name>/%s，已忽略，规则子源只支持一层",
 					s.label(), f, sourceFileName)})
 				continue
 			}

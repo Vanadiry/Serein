@@ -39,7 +39,7 @@ func TestSourceInfoFilesDispatch(t *testing.T) {
 	}
 }
 
-// list 里的非 <name>/_source.json 条目：剔除 + warn，不阻断其余子源（Q2）
+// list 里的非 <name>/_source.json 条目：剔除 + warn，不阻断其余规则子源（Q2）
 func TestValidateSourceFilesList(t *testing.T) {
 	var s SourceInfo
 	raw := `{"source_id":"S","type":"list","files":["ok/_source.json","also-ok/_source.json","a.toml","x/y/_source.json","_source.json"]}`
@@ -68,8 +68,8 @@ func TestValidateSourceFilesList(t *testing.T) {
 }
 
 // rules 里含路径的 key 与 _source.json：剔除 + warn（Q3）
-// 路径是"删除未列出文件"能安全执行的前提，否则一个子源的目录可以成为
-// 另一个子源目录的祖先，后者扫描未列出文件时会删掉前者的 marker
+// 路径是"删除未列出文件"能安全执行的前提，否则一个规则子源的目录可以成为
+// 另一个规则子源目录的祖先，后者扫描未列出文件时会删掉前者的 marker
 func TestValidateSourceFilesRules(t *testing.T) {
 	var s SourceInfo
 	raw := `{"source_id":"S","files":{"ok.toml":"1","sub/b.toml":"2","_source.json":"3","..":"4","a\\b.toml":"5"}}`
@@ -158,7 +158,7 @@ func TestPerFileDiffDoesNotReaddRemoved(t *testing.T) {
 	}
 }
 
-// token 未变但文件已不在盘上：必须退回待下载，否则该规则永久缺失
+// token 未变但文件已不在盘上：必须退回待下载，否则该规则文件永久缺失
 // （下次同步的 token 比对会认为它已是最新）
 func TestPerFileDiffRefetchesMissingFile(t *testing.T) {
 	rulesDir := t.TempDir()

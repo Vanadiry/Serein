@@ -779,7 +779,7 @@ func (r Rule) PreRequestChain(os string) []PreRequestStep {
 	return chain
 }
 
-// SourceNames 返回 rules/ 下子规则源的 source_id 到名称的映射，一次遍历得出
+// SourceNames 返回 rules/ 下规则子源的 source_id 到名称的映射，一次遍历得出
 func SourceNames(home string) map[string]string {
 	summaries, err := ListSourceInfos(home)
 	if err != nil {
@@ -793,7 +793,7 @@ func SourceNames(home string) map[string]string {
 }
 
 // ListSourceInfos 遍历 rules/ 下所有 _source.json，跳过 type=list
-// 返回子规则源（type=rules）的元信息
+// 返回规则子源（type=rules）的元信息
 func ListSourceInfos(home string) ([]SourceSummary, error) {
 	ruleDir := filepath.Join(home, "rules")
 	var result []SourceSummary

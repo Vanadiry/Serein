@@ -134,7 +134,7 @@ func safeRelPath(base, rel string) (string, bool) {
 	return cleaned, true
 }
 
-// readLeafFile 读取子规则源的一个文件内容：web 源走网络，本地源读文件
+// readLeafFile 读取规则子源的一个文件内容：web 源走网络，本地源读文件
 func readLeafFile(ctx context.Context, base string, isWeb bool, rel string) ([]byte, error) {
 	if !isWeb {
 		return os.ReadFile(filepath.Join(base, rel))
@@ -247,7 +247,7 @@ func SyncAllSourcesAsync(home string, sources []RuleSource, concurrency int, p *
 		root, fails := walkSource(ctx, info, raw, src.URL, info.ID, concurrency, claimed, p)
 		st.failures = append(st.failures, fails...)
 		leaves := flattenLeaves(root)
-		// 抓取失败的子源既不在 leaves 里也不计入 failed 的话
+		// 抓取失败的规则子源既不在 leaves 里也不计入 failed 的话
 		// sources_total 与 sources_failed 都是 0 时前端把 hasError 判成 false
 		// 随后用绿色"同步完成"渲染，被拒绝的源看起来像成功了
 		st.total += len(leaves) + len(fails)
@@ -302,8 +302,8 @@ func (c *idClaimer) claim(id string) bool {
 	return true
 }
 
-// walkSource 抓取一个源的子源 marker 并递归展开，返回树节点
-// 同一层的兄弟并行抓取，9 个子源串行就是 9 个往返，且全部发生在任何规则文件
+// walkSource 抓取一个源的规则子源 marker 并递归展开，返回树节点
+// 同一层的兄弟并行抓取，9 个规则子源串行就是 9 个往返，且全部发生在任何规则文件
 // 下载开始之前
 func walkSource(ctx context.Context, s *SourceInfo, rawBody []byte, sourceURL, destRel string, conc int, claimed *idClaimer, p *progress.Progress) (*sourceNode, []syncFailure) {
 	isLocal := !strings.HasPrefix(sourceURL, "http://") && !strings.HasPrefix(sourceURL, "https://")
@@ -351,9 +351,9 @@ func walkSource(ctx context.Context, s *SourceInfo, rawBody []byte, sourceURL, d
 				resultFails[i] = []syncFailure{{Source: subURL, Error: err.Error()}}
 				return
 			}
-			// 目录名即该子源的 ID，不一致则无法确定落盘位置
+			// 目录名即该规则子源的 ID，不一致则无法确定落盘位置
 			if subInfo.ID != subDir {
-				msg := fmt.Sprintf("子源 %s 的 source_id %s 与目录名 %s 不一致，已忽略", subURL, subInfo.ID, subDir)
+				msg := fmt.Sprintf("规则子源 %s 的 source_id %s 与目录名 %s 不一致，已忽略", subURL, subInfo.ID, subDir)
 				log.LogfWarn("[sync] %s", msg)
 				resultFails[i] = []syncFailure{{Source: subURL, Error: msg}}
 				return
@@ -386,7 +386,7 @@ func flattenLeaves(n *sourceNode) []leafSrc {
 	}
 	if len(n.children) == 0 {
 		if n.info.IsList() {
-			// list 型但子源全都没抓到，不作为叶子
+			// list 型但规则子源全都没抓到，不作为叶子
 			return nil
 		}
 		return []leafSrc{{
@@ -511,11 +511,11 @@ func syncLeaves(ctx context.Context, rulesDir, home string, root *sourceNode, le
 	st.updated += updated
 	st.failures = append(st.failures, commitFailures...)
 	st.failed += len(commitFailures)
-	// 不变量 C 加门禁 1：本轮有任何子源没抓成功，就无法区分"上游删掉了它"与"这次没抓到"
+	// 不变量 C 加门禁 1：本轮有任何规则子源没抓成功，就无法区分"上游删掉了它"与"这次没抓到"
 	// 此时一律不动目录，误删的代价远大于留下一个陈旧目录
 	if walkFailed {
 		if root != nil {
-			log.LogfWarn("[sync] %s 有子源未抓取成功，跳过孤儿子源清理", root.destRel)
+			log.LogfWarn("[sync] %s 有规则子源未抓取成功，跳过孤立规则子源清理", root.destRel)
 		}
 		return updated > 0
 	}
@@ -535,7 +535,7 @@ type downloadTask struct {
 	rel   string // 源内相对文件名
 }
 
-// downloadLeaves 并发下载各子规则源的文件（内存暂存）；返回失败标记、失败明细与文件错误数
+// downloadLeaves 并发下载各规则子源的文件（内存暂存）；返回失败标记、失败明细与文件错误数
 // 用固定数量的 worker 从带缓冲 channel 取任务。每个文件起一个 goroutine 的话
 // 10000 条规则就是 10000 个 goroutine 与闭包，只为并发跑 concurrency 个
 func downloadLeaves(ctx context.Context, rulesDir string, leaves []leafSrc, concurrency int, p *progress.Progress, pg *progState) ([]map[string][]byte, []bool, []syncFailure, int) {
@@ -642,13 +642,13 @@ func downloadLeaves(ctx context.Context, rulesDir string, leaves []leafSrc, conc
 }
 
 // commitLeaves 原地提交
-// 每个子源分三步，顺序不可调换
+// 每个规则子源分三步，顺序不可调换
 // (1) 写入全部规则文件
 // (2) 删除 manifest 未列出的 .toml（不变量 B）
 // (3) 写入版本标记（不变量 A）
 // marker 必须最后写，它是下次同步唯一的跳过判据
 // 先写标记再落文件，中途崩溃会留下"标记声称最新、内容却缺失"的状态
-// 下次同步据此跳过，该规则永久缺失。放在两步之后则退化成"标记未推进"，可自愈
+// 下次同步据此跳过，该规则文件永久缺失。放在两步之后则退化成"标记未推进"，可自愈
 // 任一文件写失败即放弃本源剩余步骤：目标目录可能已写入部分新内容，但标记不推进
 // 下次同步会重做本源。不返回“整树换入”那种“旧内容原样保留”的更强保证。原地写拿不到那个保证，代价是崩溃后需要一次重拉而非零成本回滚
 func commitLeaves(rulesDir string, leaves []leafSrc, contents []map[string][]byte, leafFailed []bool) (int, []syncFailure) {
@@ -709,8 +709,8 @@ func commitLeafInPlace(dest string, files map[string][]byte, manifest map[string
 // l2a 把目录绝对路径缩成便于日志阅读的形式
 func l2a(dir string) string { return filepath.ToSlash(dir) }
 
-// pruneOrphanSubSources 递归删除"本地存在但本轮未声明"的子源目录（不变量 C）
-// 逐层进行：每个 list 型节点的目录下，一级子目录必须与本轮声明的子源一一对应
+// pruneOrphanSubSources 递归删除"本地存在但本轮未声明"的规则子源目录（不变量 C）
+// 逐层进行：每个 list 型节点的目录下，一级子目录必须与本轮声明的规则子源一一对应
 // 只删含合法 _source.json 的目录（门禁 2），用户手动放置的目录一律不动
 func pruneOrphanSubSources(rulesDir string, n *sourceNode) []string {
 	if n == nil {
@@ -734,11 +734,11 @@ func pruneOrphanSubSources(rulesDir string, n *sourceNode) []string {
 					continue // 门禁 2：无 marker 的目录是用户放置的，不动
 				}
 				if err := os.RemoveAll(child); err != nil {
-					log.LogfWarn("[sync] 删除孤儿子源 %s 失败: %v", child, err)
+					log.LogfWarn("[sync] 删除孤立规则子源 %s 失败: %v", child, err)
 					continue
 				}
-				log.Logf("[sync] 删除孤儿子源 %s，因为上游已不再列出", l2a(child))
-				events.Emit("warn", "[sync]", fmt.Sprintf("已删除孤儿子源 %s，因为上游已不再列出", e.Name()))
+				log.Logf("[sync] 删除孤立规则子源 %s，因为上游已不再列出", l2a(child))
+				events.Emit("warn", "[sync]", fmt.Sprintf("已删除孤立规则子源 %s，因为上游已不再列出", e.Name()))
 				removed = append(removed, e.Name())
 			}
 		}

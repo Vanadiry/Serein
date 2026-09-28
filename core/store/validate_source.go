@@ -10,7 +10,7 @@ import (
 
 // ValidateDevSource 校验本地开发规则源
 func ValidateDevSource(path string, ruleValues map[string]map[string]string) ([]RuleIssue, error) {
-	// 只支持本地路径。远端 dev 源不会工作：子源地址用 filepath.Join 拼接
+	// 只支持本地路径。远端 dev 源不会工作：规则子源地址用 filepath.Join 拼接
 	// 会把 "http://" 压成 "http:/"，请求发不出去。远端地址在这里直接拒绝，避免事后出现难懂的报错
 	if l := strings.ToLower(path); strings.HasPrefix(l, "http://") || strings.HasPrefix(l, "https://") {
 		return nil, fmt.Errorf("rule_source_dev 只支持本地路径，不支持远端地址：%s", path)
