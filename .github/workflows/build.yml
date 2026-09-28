@@ -27,8 +27,12 @@ jobs:
             echo "build=false" >> "$GITHUB_OUTPUT"
           fi
 
-  build:
+  test:
     needs: check
+    if: needs.check.outputs.build == 'true'
+    uses: ./.github/workflows/test.yml
+  build:
+    needs: [check, test]
     if: needs.check.outputs.build == 'true'
     strategy:
       matrix:
@@ -46,10 +50,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "stable"
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+          go-version-file: go.mod
+      - uses: pnpm/setup@5d160c5bc68a09337ad0d5654e237e03253b5879 # v1
         with:
-          version: "9"
+          version: "12"
+          runtime: node@26
+          install: false
+          cache: true
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -92,17 +99,20 @@ jobs:
           path: dist/
 
   server:
-    needs: check
+    needs: [check, test]
     if: needs.check.outputs.build == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "stable"
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+          go-version-file: go.mod
+      - uses: pnpm/setup@5d160c5bc68a09337ad0d5654e237e03253b5879 # v1
         with:
-          version: "9"
+          version: "12"
+          runtime: node@26
+          install: false
+          cache: true
       - run: pnpm install && pnpm run build
 
       - name: Build Server
@@ -125,7 +135,7 @@ jobs:
           path: dist/server/
 
   release:
-    needs: [build, server]
+    needs: [test, build, server]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:

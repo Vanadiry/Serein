@@ -3,7 +3,7 @@ package server
 import "testing"
 
 // 校验层只确认 host 可用，不改写协议。协议相对地址原样放行，因为消费方是
-// 浏览器与外部下载器，两者都认 //host；需要绝对地址的只有 Go 的 http.Client，
+// 浏览器与外部下载器，两者都认 //host
 // 由调用方在取数前显式补，见 httpx.ResolveScheme
 func TestParseHTTPURL(t *testing.T) {
 	pass := []struct{ in, want string }{
@@ -26,7 +26,7 @@ func TestParseHTTPURL(t *testing.T) {
 		}
 	}
 
-	// 有协议但非 http(s) 必须仍被拒绝，不能借“补前缀”一并放行。
+	// 有协议但非 http(s) 必须仍被拒绝，不能借“补前缀”一并放行
 	// 空与只剩斜杠同理，没有 host 可校验
 	reject := []string{
 		"", "   ", "//", "///",

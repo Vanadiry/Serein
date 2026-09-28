@@ -8,7 +8,7 @@ import (
 )
 
 func TestSafeRelPath(t *testing.T) {
-	base := filepath.Join(string(filepath.Separator), "tmp", "base")
+	base := t.TempDir()
 	cases := map[string]bool{
 		"a/b.toml":         true,
 		"sub/_source.json": true,

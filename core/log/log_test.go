@@ -20,8 +20,10 @@ func TestSanitizingWriter(t *testing.T) {
 }
 
 func TestInitAndWrite(t *testing.T) {
-	t.Cleanup(CloseLogger)
 	home := t.TempDir()
+	// cleanup 是 LIFO，TempDir 的 RemoveAll 会先于它执行
+	// 注册在 TempDir 前面的话句柄还没关，Windows 上删不掉
+	t.Cleanup(CloseLogger)
 	logDir := filepath.Join(home, "logs")
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		t.Fatal(err)

@@ -20,11 +20,12 @@ func modeOf(t *testing.T, path string) os.FileMode {
 
 // config.toml 里有 GitHub token，目录与文件都应仅当前用户可访问
 func TestInitPermissions(t *testing.T) {
-	t.Cleanup(log.CloseLogger)
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows 上权限位无效")
 	}
 	home := t.TempDir()
+	// Init 会开日志句柄。cleanup 是 LIFO，必须注册在 TempDir 之后
+	t.Cleanup(log.CloseLogger)
 	// 模拟旧版本留下的宽权限
 	if err := os.Chmod(home, 0755); err != nil {
 		t.Fatal(err)

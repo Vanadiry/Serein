@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
 
 concurrency:
   group: test-${{ github.ref }}
@@ -30,6 +31,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: gofmt
+        if: runner.os == 'Linux'
         run: |
           out=$(gofmt -l .)
           if [ -n "$out" ]; then
