@@ -105,14 +105,14 @@ func TestHandleRulesCheck(t *testing.T) {
 	os.MkdirAll(filepath.Join(home, "rules"), 0755)
 	s := newTestServer(home)
 
-	// 未配置 dev 源 → 400
+	// 未配置 dev 源时返回 400
 	rec := httptest.NewRecorder()
 	s.handleRulesCheck(rec, httptest.NewRequest("POST", "/api/rules/check", strings.NewReader(`{"dev":true}`)))
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("未配置 dev 源应 400，得到 %d", rec.Code)
 	}
 
-	// 普通检查 → 200
+	// 普通检查返回 200
 	rec2 := httptest.NewRecorder()
 	s.handleRulesCheck(rec2, httptest.NewRequest("POST", "/api/rules/check", strings.NewReader(`{}`)))
 	if rec2.Code != http.StatusOK {
@@ -137,8 +137,8 @@ func TestCheckResultsCache(t *testing.T) {
 	}
 }
 
-// getCheckResults 必须返回 Platforms 的深拷贝：调用方会在锁外 JSON 编码这些表，
-// 而 syncCachedCurrent 会写回同一个 app，原地共享会触发不可 recover 的
+// getCheckResults 必须返回 Platforms 的深拷贝，调用方会在锁外 JSON 编码这些表
+// syncCachedCurrent 会写回同一个 app，原地共享会触发不可 recover 的竞争
 // fatal error: concurrent map read and map write
 func TestCheckResultsCacheIsolatesPlatforms(t *testing.T) {
 	s := newTestServer(t.TempDir())
@@ -174,7 +174,7 @@ func TestCheckResultsCacheIsolatesPlatforms(t *testing.T) {
 	}
 }
 
-// 复现 #1 的原始崩溃路径：GET /api/check/result 编码结果的同时 POST /api/check/confirm 写回缓存。
+// 复现 #1 的原始崩溃路径：GET /api/check/result 编码结果的同时 POST /api/check/confirm 写回缓存
 // 需配合 go test -race 运行
 func TestCheckResultsCacheConcurrentReadWrite(t *testing.T) {
 	s := newTestServer(t.TempDir())

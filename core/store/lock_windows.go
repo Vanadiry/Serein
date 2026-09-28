@@ -9,7 +9,7 @@ import (
 	"unsafe"
 )
 
-// Windows 无 flock，用 LockFileEx / UnlockFileEx 走 stdlib 的 LazyDLL，
+// Windows 无 flock，用 LockFileEx / UnlockFileEx 走 stdlib 的 LazyDLL
 // 避免为此引入 golang.org/x/sys 依赖
 var (
 	kernel32         = syscall.NewLazyDLL("kernel32.dll")
@@ -25,7 +25,7 @@ const (
 	lockRangeHigh = 0xFFFFFFFF
 	// ERROR_LOCK_VIOLATION：别的进程已持有同区域排他锁
 	errLockViolation = syscall.Errno(33)
-	// ERROR_IO_PENDING：FAIL_IMMEDIATELY 下偶发的重试信号，同样按「被占用」处理
+	// ERROR_IO_PENDING：FAIL_IMMEDIATELY 下偶发的重试信号，同样按"被占用"处理
 	errIOPending = syscall.Errno(997)
 )
 

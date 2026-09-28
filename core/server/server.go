@@ -42,31 +42,26 @@ type Server struct {
 	resultsMu sync.RWMutex
 	results   map[string]map[string]checker.CheckResponse
 
-	// userMu 保护 user/software.json（已确认的版本号）的读—改—写。
-	//
-	// 读和写都要加锁，不只是防「后写覆盖先写」：LoadUserData 读到解析不了的
-	// 文件会把它改名留档，如果这时另一个请求正在往同一路径里写，数据会跟着
-	// 被写进 .corrupt- 文件，正式路径反而空了。
+	// userMu 保护 user/software.json（已确认的版本号）的读改写全过程
+	// 读和写都要加锁，不只是防"后写覆盖先写"
+	// LoadUserData 读到解析不了的文件会把它改名留档，这时另一个请求若正在往同一路径写
+	// 数据会跟着进 .corrupt- 文件，正式路径反而空了
 	userMu sync.RWMutex
 
-	// runPreRequests 便于测试替换：真实实现要联网，而测试里指向 127.0.0.1 的
-	// 地址会被 SSRF 防护正确拦掉，没法构造「预请求失败」这个场景。
-	// 为 nil 时用 checker.RunPreRequests。
+	// runPreRequests 便于测试替换，真实实现要联网
+	// 测试里指向 127.0.0.1 的地址会被 SSRF 防护正确拦掉，没法构造"预请求失败"这个场景
+	// 为 nil 时用 checker.RunPreRequests
 	runPreRequests func(ctx context.Context, steps []store.PreRequestStep, client *http.Client) (string, error)
 
 	// 下载代理签名密钥；进程级随机，重启即失效
 	proxySecret []byte
 }
 
-// goSafe 启动后台任务并兜住 panic。
-//
-// net/http 只在「处理请求的那个 goroutine」上 recover，handler 自己 spawn 出来的
-// goroutine 不在保护范围内：里面 panic 一次就是整个进程静默退出，连日志都没有。
-// 规则文件是远程拉来的不可信输入（toml.DecodeFile 直接吃不可信字节），解析器 panic
-// 不该带走整个应用——用户看到的就是「检查到一半窗口突然没了，重开后任务也没了」。
-//
-// 兜住之后要把任务标记为失败并关闭进度，否则前端会一直转圈等一个永远不来的
-// 完成事件（那个 done 事件是靠 defer 里的 p.Close() 发的）。
+// goSafe 启动后台任务并兜住 panic
+// net/http 只在"处理请求的那个 goroutine"上 recover
+// handler 自己 spawn 出来的 goroutine 不在保护范围内，panic 一次就是整个进程静默退出
+// 规则文件是远程拉来的不可信输入，解析器 panic 不该带走整个应用
+// 兜住后要关闭进度，否则前端会一直转圈等一个永远不来的完成事件
 func goSafe(name string, p *progress.Progress, fn func()) {
 	go func() {
 		defer func() {
@@ -347,7 +342,7 @@ func (s *Server) Addr() string {
 	return fmt.Sprintf("%s:%d", s.config.Serein.Host, s.config.Serein.Port)
 }
 
-// Listen 绑定端口，并向Tauri报告实际监听地址。
+// Listen 绑定端口，并向Tauri报告实际监听地址
 func (s *Server) Listen() error {
 	addr := fmt.Sprintf("%s:%d", s.config.Serein.Host, s.config.Serein.Port)
 	ln, err := net.Listen("tcp", addr)
@@ -361,18 +356,17 @@ func (s *Server) Listen() error {
 }
 
 // 服务端连接级超时。零值 http.Server 的 ReadHeaderTimeout / ReadTimeout 都是
-// 「无限制」，IdleTimeout 为 0 时回落到 ReadTimeout（同样是 0）——于是三者全无限制：
-// 慢速滴灌 header 的连接可永久占用一个 goroutine 与 fd，而本服务无鉴权、
-// 可被本机任意进程访问，没有限流手段可用。
-//
-// WriteTimeout 刻意不设：/api/events 与 /api/progress/{id} 是长连接 SSE，
-// 任何写超时都会把它们掐断。声明为 var 以便测试缩短。
+// "无限制"，IdleTimeout 为 0 时回落到 ReadTimeout（同样是 0），于是三者全无限制
+// 慢速滴灌 header 的连接可永久占用一个 goroutine 与 fd，而本服务无鉴权
+// 可被本机任意进程访问，没有限流手段可用
+// WriteTimeout 刻意不设：/api/events 与 /api/progress/{id} 是长连接 SSE
+// 任何写超时都会把它们掐断。声明为 var 以便测试缩短
 var (
 	readHeaderTimeout = 10 * time.Second
 	readTimeout       = 30 * time.Second
 	idleTimeout       = 120 * time.Second
 	// maxHeaderBytes 与 Go 的 DefaultMaxHeaderBytes 一致，写明以免默认值变化后
-	// 悄悄放宽。请求体另有 limitBody 的 1MB 上限，与此无关。
+	// 悄悄放宽。请求体另有 limitBody 的 1MB 上限，与此无关
 	maxHeaderBytes = 1 << 20
 )
 

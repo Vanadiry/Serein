@@ -21,7 +21,7 @@ func upstreamResp(status int, body string) *http.Response {
 	}
 }
 
-// 上游 4xx/5xx 的错误页面绝不能被当附件存下来：那会得到一个损坏的 .vsix，
+// 上游 4xx/5xx 的错误页面绝不能被当附件存下来：那会得到一个损坏的 .vsix
 // 用户装的时候才报错，还以为是扩展本身有问题
 func TestUpstreamErrorNotSavedAsAttachment(t *testing.T) {
 	for _, status := range []int{400, 401, 403, 404, 410, 429, 500, 502, 503} {
@@ -67,7 +67,7 @@ func TestUpstreamOKStillAttachment(t *testing.T) {
 	}
 }
 
-// 错误路径不能把上游的 Content-Type / Content-Length 带出去，
+// 错误路径不能把上游的 Content-Type / Content-Length 带出去
 // 否则浏览器会按上游的类型解释这段错误提示
 func TestUpstreamErrorNoUpstreamHeaders(t *testing.T) {
 	resp := upstreamResp(404, "<html>404</html>")
@@ -96,8 +96,8 @@ func TestProxyErrorStatus(t *testing.T) {
 	}
 }
 
-// 拿 /api/file 的要么是浏览器标签页、要么是下载器，都不经过前端 api()，
-// 所以事件总线是 Serein 窗口唯一能知道「下载失败了」的途径
+// 拿 /api/file 的要么是浏览器标签页、要么是下载器，都不经过前端 api()
+// 事件总线因此是 Serein 窗口唯一能知道"下载失败了"的途径
 func TestUpstreamErrorEmitsEvent(t *testing.T) {
 	ch := events.Subscribe()
 	defer events.Unsubscribe(ch)

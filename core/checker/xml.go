@@ -1,5 +1,5 @@
-// XML 解析器：position 为层级数组，- 前缀取属性。
-// 与 JSON 共用同一套步进引擎，支持单路径和多路径拼接。
+// XML 解析器，position 为层级数组，- 前缀取属性
+// 与 JSON 共用同一套步进引擎，支持单路径和多路径拼接
 package checker
 
 import "fmt"

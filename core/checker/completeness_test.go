@@ -7,8 +7,8 @@ import (
 	"testing"
 )
 
-// 「配了却取不到」必须报错：宁可整个平台判失败，也不能显示「有更新」却装不上。
-// 直接测判定函数，避免走网络（SSRF 守卫会拦 httptest 的 127.0.0.1）。
+// "配了却取不到"必须报错：平台判失败时用户知道要重试，"有更新"却装不上最难查
+// 直接测判定函数，避免走网络（SSRF 守卫会拦 httptest 的 127.0.0.1）
 func TestCheckCompleteness(t *testing.T) {
 	const anyPos = 1 // 任意非 nil 的 position
 	cases := []struct {
@@ -34,7 +34,7 @@ func TestCheckCompleteness(t *testing.T) {
 			"json", anyPos, "json", anyPos, "未取到下载链接"},
 		{"两个都空", PlatformResult{},
 			"json", anyPos, "json", anyPos, "未取到版本号"},
-		// 规则没要求某个字段 → 不算失败
+		// 规则没要求某个字段时不算失败
 		{"只要求版本", PlatformResult{LatestVersion: "1.0"},
 			"json", anyPos, "json", nil, ""},
 		{"只要求链接", PlatformResult{URL: "https://x/y.zip"},
@@ -79,7 +79,7 @@ func TestDirectLinkFallsBackToURL(t *testing.T) {
 	if pr.URL != "https://cdn/1.0" || pr.LatestVersion != "https://cdn/1.0" {
 		t.Errorf("回落结果 = %+v", pr)
 	}
-	// d_url 有值时优先用它；含 {version} 且版本非空 → 替换
+	// d_url 有值时优先用它，含 {version} 且版本非空时替换
 	pr, err = RunPlatformCheck(context.Background(), PlatformCheckConfig{
 		OS: "windows", Type: "direct", URL: "1.0", DType: "direct", DURL: "https://cdn/{version}.zip",
 	}, http.DefaultClient)
@@ -89,7 +89,7 @@ func TestDirectLinkFallsBackToURL(t *testing.T) {
 	if pr.URL != "https://cdn/1.0.zip" || pr.LatestVersion != "1.0" {
 		t.Errorf("替换结果 = %+v", pr)
 	}
-	// 只填 v_url：链接无来源 → 报错
+	// 只填 v_url 时链接无来源，报错
 	if _, err := RunPlatformCheck(context.Background(), PlatformCheckConfig{
 		OS: "windows", Type: "direct", VURL: "1.0", DType: "direct", DURL: "",
 	}, http.DefaultClient); err == nil {
@@ -112,7 +112,7 @@ func TestURLEmpty(t *testing.T) {
 	}
 }
 
-// github：版本与链接同时取不到 → 合并成一条（一个根因一条错）
+// github 的版本与链接同时取不到时合并成一条，一个根因一条错
 func TestGitHubNoUsableReleaseIsOneError(t *testing.T) {
 	for _, body := range []string{
 		`[]`, // 仓库没有任何 release
@@ -134,7 +134,7 @@ func TestGitHubNoUsableReleaseIsOneError(t *testing.T) {
 	}
 }
 
-// github：取到版本但 d_position 匹配不到 asset → 报错（「有更新却装不上」的典型）
+// github 取到版本但 d_position 匹配不到 asset 时报错，属于"有更新却装不上"的典型
 func TestGitHubVersionWithoutAsset(t *testing.T) {
 	body := `[{"tag_name":"v1.0","prerelease":false,"assets":[{"name":"a.dmg","browser_download_url":"https://x/a.dmg"}]}]`
 	_, err := pickLatestRelease(mustParse(t, body), mustArr(t, body),
@@ -145,7 +145,7 @@ func TestGitHubVersionWithoutAsset(t *testing.T) {
 	if !strings.Contains(err.Error(), "没有下载链接") || !strings.Contains(err.Error(), "v1.0") {
 		t.Errorf("错误信息应含版本号与原因: %v", err)
 	}
-	// 规则完全没写 d_position：同样是「有更新却装不上」
+	// 规则完全没写 d_position：同样是"有更新却装不上"
 	_, err = pickLatestRelease(mustParse(t, body), mustArr(t, body),
 		GitHubConfig{Owner: "o", Repo: "r"}, 3)
 	if err == nil || !strings.Contains(err.Error(), "缺少 d_position") {
@@ -164,8 +164,8 @@ func TestGitHubOK(t *testing.T) {
 	if pr.LatestVersion != "v1.0" || pr.URL != "https://x/a.exe" {
 		t.Errorf("结果 = %+v", pr)
 	}
-	// runGitHubCheck 对 direct 会把 DPosition 置 nil、链接改由 d_url 决定，
-	// 所以这里必须报错而不是给出「有版本没链接」
+	// runGitHubCheck 对 direct 会把 DPosition 置 nil、链接改由 d_url 决定
+	// 此时必须报错，给出"有版本没链接"会掩盖配置缺失
 	pr, err = pickLatestRelease(mustParse(t, body), mustArr(t, body),
 		GitHubConfig{Owner: "o", Repo: "r"}, 3)
 	if err == nil || !strings.Contains(err.Error(), "缺少 d_position") {

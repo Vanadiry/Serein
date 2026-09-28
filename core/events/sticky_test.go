@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-// EmitSticky 的事件必须带 sticky:true，前端据此决定 toast 不自动消失。
-// 之前是前端按 context === "[rules]" 猜，后端与前端两处枚举会漂移。
+// EmitSticky 的事件必须带 sticky:true，前端据此决定 toast 不自动消失
+// 之前是前端按 context === "[rules]" 猜，后端与前端两处枚举会漂移
 func TestEmitSticky(t *testing.T) {
 	const mineS = "sticky-test-persistent"
 	const mineP = "sticky-test-plain"

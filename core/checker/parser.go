@@ -1,4 +1,4 @@
-// 响应体解析器：JSON/XML 转 tree、HTML 转 goquery、正则捕获。
+// 响应体解析器：JSON/XML 转 tree、HTML 转 goquery、正则捕获
 package checker
 
 import (
@@ -53,21 +53,19 @@ func convertNumbers(v any) any {
 }
 
 // XML 解析
-//
-// encoding/json 内建 10000 层嵌套限制，encoding/xml 没有，而 decodeXMLElement
-// 是逐元素递归的。实测（2026-09-27，本机）：深度 100 万（7MB 输入，在 8MB 的
-// maxFetchBytes 之内）直接 `fatal error: stack overflow`——不可 recover，整进程死。
-// 规则的 url 来自远程规则源，可远程触发，因此深度必须有上限。
-//
+// encoding/json 内建 10000 层嵌套限制，encoding/xml 没有，而 decodeXMLElement 是逐元素递归的
+// 实测 2026-09-27 本机，深度 100 万、7MB 输入直接 fatal error: stack overflow
+// 该错误不可 recover，整进程死。规则的 url 来自远程规则源，可远程触发，因此深度必须有上限
+// 规则的 url 来自远程规则源，可远程触发，因此深度必须有上限
 // 节点数同理：每个元素都会分配一个 map[string]any，实测 62 倍堆放大
-// （8MB 输入 → 478MB 堆）。两个上限声明为 var 以便测试覆盖。
+// （8MB 输入放大成 478MB 堆）。两个上限声明为 var 以便测试覆盖
 var (
-	// xmlMaxDepth 嵌套深度上限。真实 feed 都在个位数层（RSS/Atom 3~5、VSIX
-	// manifest 3~5），OPML 嵌套 outline 可到几十层，256 有 50~80 倍余量，
-	// 距实测崩溃点约 4000 倍。
+	// xmlMaxDepth 嵌套深度上限
+	// 真实 feed 都在个位数层（RSS/Atom 3~5、VSIX manifest 3~5），OPML 嵌套 outline 可到几十层
+	// 256 有 50~80 倍余量，距实测崩溃点约 4000 倍
 	xmlMaxDepth = 256
-	// xmlMaxNodes 单个文档的元素总数上限。按实测约 478 字节/节点，
-	// 该上限把单份文档的堆占用钉在 ~100MB（不设限时同一输入是 478MB）。
+	// xmlMaxNodes 单个文档的元素总数上限，实测每节点 478 字节
+	// 该上限把单份文档的堆占用钉在 100MB 上下，不设限时同一输入是 478MB
 	xmlMaxNodes = 200000
 )
 
@@ -85,8 +83,8 @@ func parseXML(body []byte) (any, error) {
 	return root, nil
 }
 
-// decodeXMLElement 解析一个元素及其子树。depth 为当前嵌套深度（根为 0），
-// b 为整篇文档共享的配额。超限返回错误而不是继续递归。
+// decodeXMLElement 解析一个元素及其子树。depth 为当前嵌套深度（根为 0）
+// b 为整篇文档共享的配额。超限返回错误而非继续递归
 func decodeXMLElement(decoder *xml.Decoder, stopAt string, depth int, b *xmlBudget) (any, error) {
 	if depth > xmlMaxDepth {
 		return nil, fmt.Errorf("嵌套深度超过上限 %d", xmlMaxDepth)

@@ -76,8 +76,8 @@ url = "example.com/api"
 	}
 }
 
-// 拼写错误的解析器类型必须在规则检查阶段就报出来。
-// 旧实现一路放行，直到运行时才炸出一个字面量 "<nil>" 的"版本号"。
+// 拼写错误的解析器类型必须在规则检查阶段就报出来
+// 旧实现一路放行，直到运行时才炸出一个字面量 "<nil>" 的"版本号"
 func TestValidateRejectsUnknownParserType(t *testing.T) {
 	cases := []struct {
 		name string
@@ -147,8 +147,8 @@ func TestIsValidParserType(t *testing.T) {
 	}
 }
 
-// official_website 会被前端直接送进 openUrl。new URL() 对 "javascript:..." 不抛错，
-// 浏览器分支一旦无校验就会执行规则里带来的脚本。
+// official_website 会被前端直接送进 openUrl。new URL() 对 "javascript:..." 不抛错
+// 浏览器分支一旦无校验就会执行规则里带来的脚本
 func TestValidateRejectsNonHTTPScheme(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -219,7 +219,7 @@ func TestValidateRejectsNonHTTPSchemeInConfig(t *testing.T) {
 	}
 }
 
-// config 的 url / v_url / d_url 是服务端取数目标，必须是绝对 http(s)：
+// config 的 url / v_url / d_url 是服务端取数目标，必须是绝对 http(s)
 // 无 scheme 与协议相对都会被 http.NewRequest 拒绝
 func TestValidateConfigURLMustBeAbsolute(t *testing.T) {
 	for _, u := range []string{"example.com/api", "/relative", "not a url at all"} {
@@ -340,8 +340,8 @@ func keysOf(m map[string]string) []string {
 	return out
 }
 
-// 端到端：PPSSPP 的 android 把 type 覆盖成 html_selector 后，owner/repo 变成死字段。
-// 这是真实规则集里唯一的两处死字段，用它守住判据不误报。
+// 端到端：PPSSPP 的 android 把 type 覆盖成 html_selector 后，owner/repo 变成死字段
+// 这是真实规则集里唯一的两处死字段，用它守住判据不误报
 func TestValidateRealWorldDeadFields(t *testing.T) {
 	p := filepath.Join(os.Getenv("HOME"),
 		".vSoft/Serein/rules/SereinRulesList_Official/v-github/PPSSPP.toml")

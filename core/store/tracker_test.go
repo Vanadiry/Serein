@@ -62,7 +62,7 @@ func TestVsixLegacyFormatSkipped(t *testing.T) {
 [[tracker]]
 app_id = "a.b"
 `)
-	// 不再兼容旧格式：解析失败 → 该文件被跳过
+	// 不再兼容旧格式：解析失败时该文件被跳过
 	if entries, _ := LoadTrackerFile(home, "old"); len(entries) != 0 {
 		t.Fatalf("旧格式应被跳过，得到 %+v", entries)
 	}
@@ -82,7 +82,7 @@ func TestAddToDefaultTracker(t *testing.T) {
 		t.Fatalf("默认 Tracker 应有 display_name，得到 %q", infos[0].DisplayName)
 	}
 
-	// 同 app_id 再添加 → 合并平台，不新增条目
+	// 同 app_id 再添加时合并平台，不新增条目
 	if err := AddToTracker(home, DefaultTrackerID, TrackerEntry{AppID: "x", Platforms: []string{"macos", "windows"}}); err != nil {
 		t.Fatal(err)
 	}

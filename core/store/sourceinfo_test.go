@@ -27,7 +27,7 @@ func TestSourceInfoFilesDispatch(t *testing.T) {
 		t.Errorf("list 形态解析错误: %+v", list)
 	}
 
-	// 形态不匹配必须报错，而不是静默当成空
+	// 形态不匹配必须报错，静默当成空会让整个源同步出一条空规则集
 	for _, bad := range []string{
 		`{"source_id":"s","files":["a.toml"]}`,
 		`{"source_id":"s","type":"list","files":{"a.toml":"1"}}`,
@@ -67,9 +67,9 @@ func TestValidateSourceFilesList(t *testing.T) {
 	}
 }
 
-// rules 里含路径的 key 与 _source.json：剔除 + warn（Q3）。
-// 路径是「删除未列出文件」能安全执行的前提——否则一个子源的目录可以成为
-// 另一个子源目录的祖先，后者扫描未列出文件时会删掉前者的 marker。
+// rules 里含路径的 key 与 _source.json：剔除 + warn（Q3）
+// 路径是"删除未列出文件"能安全执行的前提，否则一个子源的目录可以成为
+// 另一个子源目录的祖先，后者扫描未列出文件时会删掉前者的 marker
 func TestValidateSourceFilesRules(t *testing.T) {
 	var s SourceInfo
 	raw := `{"source_id":"S","files":{"ok.toml":"1","sub/b.toml":"2","_source.json":"3","..":"4","a\\b.toml":"5"}}`

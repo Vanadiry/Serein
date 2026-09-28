@@ -31,8 +31,8 @@ func flat(n int) []byte {
 
 // flat(n) 的元素总数是 n+1（n 个子元素 + 根 <r>），根元素也计入配额
 
-// 深度超限必须返回错误，而不是继续递归。
-// 实测（修复前）深度 100 万 / 7MB 输入 → fatal error: stack overflow，整进程死。
+// 深度超限必须返回错误，继续递归会 stack overflow
+// 实测修复前深度 100 万、7MB 输入会 fatal error: stack overflow，整进程死
 func TestParseXMLDepthLimit(t *testing.T) {
 	old := xmlMaxDepth
 	xmlMaxDepth = 256
@@ -65,7 +65,7 @@ func TestParseXMLRejectsHostileDepth(t *testing.T) {
 	}
 }
 
-// 节点数超限必须返回错误（62 倍堆放大：8MB 输入 → 478MB 堆）
+// 节点数超限必须返回错误，8MB 输入放大成 478MB 堆
 func TestParseXMLNodeLimit(t *testing.T) {
 	old := xmlMaxNodes
 	xmlMaxNodes = 1000

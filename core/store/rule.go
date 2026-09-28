@@ -56,9 +56,9 @@ func ParseRuleStatus(s []string) (RuleStatus, bool) {
 	return st, false
 }
 
-// Position 在 TOML 中可为 []any（层级数组）、[][]any（多路径）、
-// string（正则）或 map[string]any（html_selector）。
-// 解析后存为 any，由 checker 运行时判断。
+// Position 在 TOML 中可为 []any（层级数组）、[][]any（多路径）
+// string（正则）或 map[string]any（html_selector）
+// 解析后存为 any，由 checker 运行时判断
 type Position = any
 
 // PlatConfig 单个平台的最终配置
@@ -103,7 +103,7 @@ type Rule struct {
 	SourceID      string                               // 所属规则源 source_id
 	Config        PlatConfig                           // 共享配置（[config] 基字段）
 	Platforms     map[string]PlatConfig                // 各平台最终配置（解析时已与 Config 合并）
-	PreRequests   map[string]map[string]PreRequestStep // id → platform(空串=通用) → step
+	PreRequests   map[string]map[string]PreRequestStep // 键为 id，值为 platform 到 step 的映射，platform 为空串时通用
 }
 
 // 解析
@@ -154,7 +154,7 @@ func LoadRules(home string) (map[string]Rule, []RuleIssue, error) {
 }
 
 // RulesFingerprint 计算 rules/ 目录的轻量指纹（路径+大小+mtime）
-// 用于判断是否需要重新解析规则，避免每次访问都全量读盘。
+// 用于判断是否需要重新解析规则，避免每次访问都全量读盘
 func RulesFingerprint(home string) string {
 	ruleDir := filepath.Join(home, "rules")
 	h := fnv.New64a()
@@ -370,8 +370,8 @@ func parsePreRequests(rule *Rule, raw map[string]any, label string, issues *[]Ru
 	return nil
 }
 
-// decodeSection 校验未知字段并解码为强类型。未知字段随返回值交给调用方决定如何处理；
-// 类型错误返回 error。
+// decodeSection 校验未知字段并解码为强类型。未知字段随返回值交给调用方决定如何处理
+// 类型错误返回 error
 func decodeSection[T any](raw map[string]any, section string) (T, []string, error) {
 	var result T
 	unknown := unknownKeys(raw, reflect.TypeOf((*T)(nil)).Elem())
@@ -385,7 +385,7 @@ func decodeSection[T any](raw map[string]any, section string) (T, []string, erro
 	return result, unknown, nil
 }
 
-// unknownKeys 返回 raw 中不在结构体 toml tag 内的字段名。
+// unknownKeys 返回 raw 中不在结构体 toml tag 内的字段名
 func unknownKeys(raw map[string]any, typ reflect.Type) []string {
 	known := knownTOMLFields(typ)
 	var unknown []string
@@ -398,7 +398,7 @@ func unknownKeys(raw map[string]any, typ reflect.Type) []string {
 	return unknown
 }
 
-// knownTOMLFields 收集结构体各字段的 toml tag 名。
+// knownTOMLFields 收集结构体各字段的 toml tag 名
 func knownTOMLFields(typ reflect.Type) map[string]bool {
 	fields := make(map[string]bool)
 	for typ.Kind() == reflect.Ptr {
@@ -417,7 +417,7 @@ func knownTOMLFields(typ reflect.Type) map[string]bool {
 	return fields
 }
 
-// 合并
+// 两项合并，避免同一规则重复报
 
 // MergedConfig 返回某平台的最终配置。Platforms 在解析时已与共享 [config] 合并好
 func (r Rule) MergedConfig(os string) PlatConfig {
@@ -427,16 +427,16 @@ func (r Rule) MergedConfig(os string) PlatConfig {
 	return r.Config
 }
 
-// Validate 语义校验（解析后调用）：平台、type、github 必填、url scheme、position 与正则。
-// 返回的 Message 不含文件名，由调用方补前缀。
+// Validate 语义校验（解析后调用）：平台、type、github 必填、url scheme、position 与正则
+// 返回的 Message 不含文件名，由调用方补前缀
 func (r Rule) Validate() []RuleIssue {
 	var issues []RuleIssue
 	if len(r.Info.Platforms) == 0 {
 		issues = append(issues, RuleIssue{Level: "error", Message: "info: 至少需要一个平台"})
 	}
-	// official_website 会被前端直接送进 openUrl。new URL() 对 "javascript:..." 不抛错，
-	// 浏览器分支一旦无校验就会执行规则里带来的脚本（core/store/rule.schema.json 不存在，
-	// 只能在这里校验）。协议相对 //host 交由 normalizeURL / 前端补全，不算非法。
+	// official_website 会被前端直接送进 openUrl，而 new URL() 对 "javascript:..." 不抛错
+	// 浏览器分支一旦无校验就会执行规则里带来的脚本，只能在这里校验，rule.schema.json 不存在
+	// 协议相对 //host 交由 normalizeURL 与前端补全，不算非法
 	if w := strings.TrimSpace(r.Info.OfficialWebsite); w != "" {
 		if level, msg := checkURLScheme("info: official_website", w, true); level != "" {
 			issues = append(issues, RuleIssue{Level: level, Message: msg})
@@ -456,16 +456,14 @@ func (r Rule) Validate() []RuleIssue {
 	return issues
 }
 
-// checkURLScheme 校验一个 URL 字段的协议。
-//
-// allowRelative 按字段的消费方区分，不能一刀切：
-//   - config 的 url / v_url / d_url 是**服务端取数的目标**，必须是绝对 http(s)，
-//     否则 http.NewRequest 直接失败——无 scheme、协议相对都要报出来。
-//   - official_website 是**前端链接**，会被 absoluteUrl() 相对 origin 补全，
-//     所以无 scheme 与 //host 都是合法的。
-//
-// 两边共同的一条：javascript: 之类必须 error —— new URL() 对它不抛错，
-// 前端 openUrl 若无白名单就会执行规则里带来的脚本。
+// checkURLScheme 校验一个 URL 字段的协议
+// allowRelative 按字段的消费方区分，不能一刀切
+//   - config 的 url / v_url / d_url 供服务端取数，必须是绝对 http(s)
+//     否则 http.NewRequest 直接失败，无 scheme、协议相对都要报出来
+//   - official_website 供前端点击，会被 absoluteUrl() 相对 origin 补全
+//     无 scheme 与 //host 在这里都合法
+//   - javascript: 之类两边都必须 error。new URL() 对它不抛错
+//     前端 openUrl 若无白名单就会执行规则里带来的脚本
 func checkURLScheme(field, u string, allowRelative bool) (level, msg string) {
 	if u == "" {
 		return "", "" // 字段未设置
@@ -490,21 +488,21 @@ func checkURLScheme(field, u string, allowRelative bool) (level, msg string) {
 	return "warn", field + " 不是 http(s) 链接"
 }
 
-// githubSlugRe github owner/repo 的合法字符集。会被拼进 API 路径，
+// githubSlugRe github owner/repo 的合法字符集。会被拼进 API 路径
 // 不校验就能通过 ? & 等字符重塑查询串
 var githubSlugRe = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 
-// validParserTypes 合法的解析器类型。type / v_type / d_type 都必须落在这个集合里。
+// validParserTypes 合法的解析器类型。type / v_type / d_type 都必须落在这个集合里
 // 拼写错误（如 v_type = "jsno"）过去能通过全部校验，直到运行时才炸成一个
-// 字面量 "<nil>" 的"版本号"。core/store/rule.schema.json 并不存在，
-// 所以这个 enum 由代码定义并在规则检查时校验。
+// 字面量 "<nil>" 的"版本号"
+// rule.schema.json 并不存在，所以这个 enum 由代码定义并在规则检查时校验
 var validParserTypes = map[string]bool{
 	"json": true, "xml": true, "regex": true,
 	"html_selector": true, "github": true, "direct": true,
 }
 
-// IsValidParserType 报告 t 是否为受支持的解析器类型。
-// 规则检查与运行时检查共用这一份定义，避免两处枚举漂移。
+// IsValidParserType 报告 t 是否为受支持的解析器类型
+// 规则检查与运行时检查共用这一份定义，避免两处枚举漂移
 func IsValidParserType(t string) bool { return validParserTypes[t] }
 
 func validatePlatConfig(name string, c PlatConfig) []RuleIssue {
@@ -539,9 +537,9 @@ func validatePlatConfig(name string, c PlatConfig) []RuleIssue {
 		if c.Repo == "" {
 			add("error", "github 规则缺少 repo")
 		}
-		// owner/repo 会被拼进 API 路径，字符集必须收紧：
-		// owner = "a?per_page=100&" 就能重塑查询串。
-		// 与 source_id 的既有约束（sync.go）同类。
+		// owner/repo 会被拼进 API 路径，字符集必须收紧
+		// owner = "a?per_page=100&" 就能重塑查询串
+		// 与 source_id 的既有约束同类，见 sync.go
 		for _, f := range []struct{ name, val string }{
 			{"owner", c.Owner}, {"repo", c.Repo},
 		} {
@@ -578,7 +576,7 @@ func parserTypeList() string {
 	return strings.Join(names, " | ")
 }
 
-// configuredFields 本配置里作者显式配了哪些字段（零值不算「配了」）
+// configuredFields 本配置里作者显式配了哪些字段（零值不算"配了"）
 func configuredFields(c PlatConfig) map[string]bool {
 	m := map[string]bool{}
 	for f, v := range map[string]string{
@@ -610,18 +608,13 @@ func configuredFields(c PlatConfig) map[string]bool {
 	return m
 }
 
-// deadFields 返回在给定 (type, v_type, d_type) 下**不会被读取**的字段 → 原因。
-// 只列出作者确实配了的字段。
-//
-// 依据实际读取点，而不是「文档里有没有写」：
-//   - core/checker/checker.go:128-186  RunPlatformCheck
-//   - core/checker/github.go:35-117    CheckGitHub / pickLatestRelease
-//   - core/checker/runner.go:166-168   runGitHubCheck 的 direct 分支
-//
-// 两个容易搞错的地方：
-//   - github 的 d_position 不是路径定位，而是 asset 文件名正则（github.go:93），
-//     所以它在 github 下是活的，不能按「路径类字段」一律判死。
-//   - baseurl 只在下载侧、且 d_type != direct 时用于 JoinURL（checker.go:181）。
+// deadFields 返回在给定 (type, v_type, d_type) 下不会被读取的字段与原因
+// 只列出作者确实配了的字段
+// 依据实际读取点，不依据文档：RunPlatformCheck、CheckGitHub
+// pickLatestRelease、runGitHubCheck 的 direct 分支
+// 两个例外
+//   - github 的 d_position 是 asset 文件名正则而非路径定位，不能按路径类字段判死
+//   - baseurl 只在下载侧、且 d_type 不为 direct 时用于 JoinURL
 func deadFields(c PlatConfig, vType, dType string) map[string]string {
 	set := configuredFields(c)
 	dead := map[string]string{}
@@ -669,9 +662,9 @@ func deadFields(c PlatConfig, vType, dType string) map[string]string {
 	return dead
 }
 
-// validateDeadFields 报出「配了但当前 type 下不生效」的字段。
-// 报 warn 而非 error：属于规则的整洁度问题，不影响检查能否进行，
-// 且规则集里数量极少（332 个平台配置中 2 处）。
+// validateDeadFields 报出"配了但当前 type 下不生效"的字段
+// 报 warn 而非 error：属于规则的整洁度问题，不影响检查能否进行
+// 且规则集里数量极少（332 个平台配置中 2 处）
 func validateDeadFields(name string, c PlatConfig, vType, dType string) []RuleIssue {
 	dead := deadFields(c, vType, dType)
 	keys := make([]string, 0, len(dead))
@@ -751,7 +744,7 @@ func validatePosition(name, field string, pos any, typ string) []RuleIssue {
 	return issues
 }
 
-// checkPositionRegex 校验 json/xml 数组 position 中 `name~正则` 段的正则
+// checkPositionRegex 校验 json/xml 数组 position 中 name~正则 段的正则
 func checkPositionRegex(arr []any, add func(string)) {
 	for _, v := range arr {
 		switch x := v.(type) {
@@ -786,7 +779,7 @@ func (r Rule) PreRequestChain(os string) []PreRequestStep {
 	return chain
 }
 
-// SourceNames 返回 rules/ 下子规则源的 source_id → 名称映射（一次遍历）
+// SourceNames 返回 rules/ 下子规则源的 source_id 到名称的映射，一次遍历得出
 func SourceNames(home string) map[string]string {
 	summaries, err := ListSourceInfos(home)
 	if err != nil {
@@ -799,8 +792,8 @@ func SourceNames(home string) map[string]string {
 	return m
 }
 
-// ListSourceInfos 遍历 rules/ 下所有 _source.json，跳过 type=list。
-// 返回子规则源（type=rules）的元信息。
+// ListSourceInfos 遍历 rules/ 下所有 _source.json，跳过 type=list
+// 返回子规则源（type=rules）的元信息
 func ListSourceInfos(home string) ([]SourceSummary, error) {
 	ruleDir := filepath.Join(home, "rules")
 	var result []SourceSummary
@@ -845,7 +838,7 @@ type SourceSummary struct {
 	AppCount    int    `json:"app_count"`
 }
 
-// findNearestSourceID 从 .toml 文件向上查找最近的 _source.json 所在目录，返回目录名。
+// findNearestSourceID 从 .toml 文件向上查找最近的 _source.json 所在目录，返回目录名
 func findNearestSourceID(ruleDir, tomlPath string) string {
 	dir := filepath.Dir(tomlPath)
 	for {

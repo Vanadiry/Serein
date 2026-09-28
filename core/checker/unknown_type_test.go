@@ -7,13 +7,13 @@ import (
 	"testing"
 )
 
-// 核心回归：未知提取类型不得产出字面量 "<nil>" 作为版本号。
+// 核心回归：未知提取类型不得产出字面量 "<nil>" 作为版本号
 // 旧实现 extractValue 的 default 分支返回 (nil, nil)，调用方 toString(nil)
 // 得到 "<nil>"，被当成合法版本号写进 CheckPlatform，并最终持久化进
-// user/software.json。全程无任何错误。
+// user/software.json。全程无任何错误
 func TestUnknownTypeNeverYieldsLiteralNil(t *testing.T) {
-	// URL 指向一个必然失败的地址：前置校验必须早于任何网络请求，
-	// 否则拿到的是网络错误而不是「未知类型」，真实原因被掩盖。
+	// URL 指向一个必然失败的地址：前置校验必须早于任何网络请求
+	// 否则拿到的是网络错误而非"未知类型"，真实原因被掩盖
 	cfg := PlatformCheckConfig{
 		OS:             "windows",
 		Type:           "jsno", // 拼写错误
@@ -38,7 +38,7 @@ func TestUnknownTypeNeverYieldsLiteralNil(t *testing.T) {
 	}
 	t.Logf("拒绝: %v", err)
 
-	// 经 newCheckPlatform 组装后，Error 字段必须被填上（而不是记成检查成功）
+	// 经 newCheckPlatform 组装后，Error 字段必须被填上，记成检查成功会吞掉根因
 	cp := newCheckPlatform(cfg, pr, err)
 	if cp.Error == "" {
 		t.Error("cp.Error 为空，该平台会被记成检查成功")
@@ -71,7 +71,8 @@ func TestToStringNilIsEmpty(t *testing.T) {
 	}
 }
 
-// github / direct 误入 extractValue 时必须报错，而不是静默返回 nil
+// github / direct 误入 extractValue 时必须报错，静默返回 nil 会变成
+// toString(nil) 的字面量 "<nil>"
 func TestExtractValueRejectsNonExtractableTypes(t *testing.T) {
 	for _, typ := range []string{"github", "direct"} {
 		if _, err := extractValue(nil, typ, nil, "", ""); err == nil {
@@ -80,8 +81,8 @@ func TestExtractValueRejectsNonExtractableTypes(t *testing.T) {
 	}
 }
 
-// 直通模式不补协议：//host 与无协议地址原样透出，交给浏览器 / 外部下载器处理。
-// 真正需要绝对地址的只有 Go 的 http.Client，由取数前显式做（httpx.ResolveScheme）。
+// 直通模式不补协议：//host 与无协议地址原样透出，交给浏览器 / 外部下载器处理
+// 真正需要绝对地址的只有 Go 的 http.Client，由取数前显式做（httpx.ResolveScheme）
 func TestResolveDirectURLPassesSchemeThrough(t *testing.T) {
 	cases := []struct{ durl, version, want string }{
 		{"//cdn.example.com/f.zip", "", "//cdn.example.com/f.zip"},

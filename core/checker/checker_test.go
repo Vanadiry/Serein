@@ -77,7 +77,7 @@ func TestExtractValue(t *testing.T) {
 	} else if !strings.Contains(err.Error(), "nope") {
 		t.Errorf("错误信息应包含出错的类型: %v", err)
 	}
-	// github / direct 不经由本函数取值，误用要报错而不是静默返回 nil
+	// github / direct 不经由本函数取值，误用要报错而非静默返回 nil
 	for _, typ := range []string{"github", "direct"} {
 		if _, err := extractValue(nil, typ, nil, "", ""); err == nil {
 			t.Errorf("%s 不应经由 extractValue 取值", typ)
@@ -108,7 +108,7 @@ func TestNewPlatformCheckConfig(t *testing.T) {
 	}
 }
 
-// 拉取动态配置时会在运行时改写前后缀，而检查任务正并发读 —— 不得数据竞争
+// 拉取动态配置时会在运行时改写前后缀，而检查任务正并发读，不得数据竞争
 func TestSetAffixesConcurrent(t *testing.T) {
 	oldP, oldS := versionPrefixes.Load(), versionSuffixes.Load()
 	t.Cleanup(func() {

@@ -21,7 +21,7 @@ func TestFileLockMutualExclusion(t *testing.T) {
 		t.Errorf("锁路径 = %q", first.Path())
 	}
 
-	// 已被占用：应在 timeout 内失败并给出可读原因，而不是阻塞
+	// 已被占用：应在 timeout 内失败并给出可读原因，一直阻塞会让进度遮罩挂死
 	start := time.Now()
 	if _, err := AcquireFileLock(ctx, home, 200*time.Millisecond, 10*time.Millisecond); err == nil {
 		t.Fatal("锁被占用时第二次加锁应失败")
@@ -59,7 +59,7 @@ func TestFileLockRespectsContext(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	// timeout 给足 5s：若实现忽略 ctx，这里会等满 5s 才对
+	// timeout 给足 5s，若实现忽略 ctx 这里会等满 5s 才返回
 	_, err = AcquireFileLock(ctx, home, 5*time.Second, 10*time.Millisecond)
 	if err == nil {
 		t.Fatal("ctx 已取消时不应取得锁")

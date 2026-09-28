@@ -20,11 +20,10 @@ type PlatformResult struct {
 	Warnings      []string // 非致命的异常（不影响结果可用性）
 }
 
-// 「配了却取不到」必须报错。判定依据是「本次是否尝试提取该字段」——
-// 规则没要求某个字段（position 为 nil）不算失败；要求了却拿到空值才算。
-//
-// direct 模式没有「提取」这回事：值就是配置里的字面量，所以它恒算尝试过，
-// 为空即配置缺失。隐式取值的 github 不走这里，由 runGitHubCheck 负责。
+// "配了却取不到"必须报错。判定依据是"本次是否尝试提取该字段"
+// 规则没要求某个字段（position 为 nil）不算失败；要求了却拿到空值才算
+// direct 模式没有"提取"这回事：值就是配置里的字面量，所以它恒算尝试过
+// 为空即配置缺失。隐式取值的 github 不走这里，由 runGitHubCheck 负责
 func vAttempted(vType string, vPos any) bool {
 	if vType == "direct" {
 		return true
@@ -39,8 +38,8 @@ func dAttempted(dType string, dPos any) bool {
 	return dPos != nil
 }
 
-// URLEmpty 判断下载链接是否为空。URL 可能是 string / []string / []any / nil。
-// 导出供 server 侧（directCheckResponse）对 msvsix / openvsix 用同一套判定。
+// URLEmpty 判断下载链接是否为空。URL 可能是 string / []string / []any / nil
+// 导出供 server 侧（directCheckResponse）对 msvsix / openvsix 用同一套判定
 func URLEmpty(u any) bool { return urlEmpty(u) }
 
 func urlEmpty(u any) bool {
@@ -77,8 +76,8 @@ func (pr *PlatformResult) Warn(msg string) {
 	pr.Warnings = append(pr.Warnings, msg)
 }
 
-// 前后缀列表。拉取动态配置时会在运行时被 Set* 改写，而检查任务正并发读，
-// 所以走 atomic.Pointer 整体替换 —— 裸切片赋值会被并发读写判定为数据竞争。
+// 前后缀列表。拉取动态配置时会在运行时被 Set* 改写，而检查任务正并发读
+// 所以走 atomic.Pointer 整体替换，裸切片赋值会被判定为数据竞争
 var (
 	versionPrefixes atomic.Pointer[[]string]
 	versionSuffixes atomic.Pointer[[]string]
@@ -90,8 +89,8 @@ func affixes(in []string) *[]string {
 	return &cp
 }
 
-// list 读出当前的前后缀列表。atomic.Pointer 的零值是 nil，
-// 未调用过 Set* 时 Load() 返回 nil 指针，解引用会 panic。
+// list 读出当前的前后缀列表。atomic.Pointer 的零值是 nil
+// 未调用过 Set* 时 Load() 返回 nil 指针，解引用会 panic
 func list(p *atomic.Pointer[[]string]) []string {
 	if v := p.Load(); v != nil {
 		return *v
@@ -152,9 +151,9 @@ func RunPlatformCheck(ctx context.Context, cfg PlatformCheckConfig, client *http
 		dType = cfg.DType
 	}
 
-	// 前置校验解析器类型，必须早于任何网络请求：否则未知类型会先发一次请求，
-	// 拿到的是网络错误（请求成功后才炸出 "<nil>" 版本号），
-	// 真实原因被掩盖，还白白浪费一次往返。
+	// 前置校验解析器类型，必须早于任何网络请求：否则未知类型会先发一次请求
+	// 拿到的是网络错误（请求成功后才炸出 "<nil>" 版本号）
+	// 真实原因被掩盖，还白白浪费一次往返
 	if err := checkParserTypes(vType, dType); err != nil {
 		return vr, err
 	}
@@ -193,16 +192,17 @@ func RunPlatformCheck(ctx context.Context, cfg PlatformCheckConfig, client *http
 		vr.URL = httpx.JoinURL(cfg.BaseURL, toString(dl))
 	}
 
-	// 尝试过却取不到 → 报错。宁可整个平台判为失败，也不要给出「有更新」却装不上：
-	// 前者列表里不显示版本号、没有下载按钮；后者用户会以为有更新并去确认。
+	// 尝试过却取不到时报错
+	// 平台判失败时用户知道要重试，"有更新"却装不上最难查
+	// 前者列表里不显示版本号、没有下载按钮；后者用户会以为有更新并去确认
 	if err := checkCompleteness(vr, vType, cfg.VPosition, dType, cfg.DPosition); err != nil {
 		return vr, err
 	}
 	return vr, nil
 }
 
-// checkCompleteness 判定「尝试过却取不到」的字段。规则没要求某个字段
-// （position 为 nil）不算失败——那种情况是配置只关心另一半。
+// checkCompleteness 判定"尝试过却取不到"的字段。规则没要求某个字段
+// （position 为 nil）不算失败，那种情况是配置只关心另一半
 func checkCompleteness(vr PlatformResult, vType string, vPos any, dType string, dPos any) error {
 	if vAttempted(vType, vPos) && strings.TrimSpace(vr.LatestVersion) == "" {
 		return fmt.Errorf("未取到版本号：%s 没能取到内容", vType)
@@ -213,8 +213,8 @@ func checkCompleteness(vr PlatformResult, vType string, vPos any, dType string, 
 	return nil
 }
 
-// resolveDirectURL 直通模式：d_url 含 {version} 时替换；版本号为空则报错。
-// 不补协议：//host 原样透出，浏览器与外部下载器都认，Go 客户端由调用方取数前解析。
+// resolveDirectURL 直通模式：d_url 含 {version} 时替换；版本号为空则报错
+// 不补协议：//host 原样透出，浏览器与外部下载器都认，Go 客户端由调用方取数前解析
 func resolveDirectURL(durl, version string) (string, error) {
 	if !strings.Contains(durl, "{version}") {
 		return durl, nil
@@ -225,11 +225,10 @@ func resolveDirectURL(durl, version string) (string, error) {
 	return strings.ReplaceAll(durl, "{version}", version), nil
 }
 
-// extractValue 根据 type 从响应体中提取一个值（版本号或下载链接）。
-// join 为空 → 单路径；非空 → 多路径拼接。
-//
+// extractValue 根据 type 从响应体中提取一个值（版本号或下载链接）
+// join 为空走单路径，非空走多路径拼接
 // 未知类型必须报错，不能返回 (nil, nil)：那会让调用方的 toString(nil) 产出字面量
-// "<nil>"，被当成合法版本号写进结果并最终持久化进 user/software.json。
+// "<nil>"，被当成合法版本号写进结果并最终持久化进 user/software.json
 func extractValue(body []byte, typ string, pos any, join, baseURL string) (any, error) {
 	switch typ {
 	case "json":
@@ -241,7 +240,7 @@ func extractValue(body []byte, typ string, pos any, join, baseURL string) (any, 
 	case "html_selector":
 		return extractSelectorValue(body, pos, baseURL)
 	case "github", "direct":
-		// 这两类不经由本函数取值：github 由 CheckGitHub 处理，
+		// 这两类不经由本函数取值：github 由 CheckGitHub 处理
 		// direct 的"值"就是配置里的字面量（见 RunPlatformCheck）
 		return nil, fmt.Errorf("提取类型 %q 不经由 extractValue 取值", typ)
 	default:

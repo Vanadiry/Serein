@@ -105,7 +105,7 @@ func (s *Server) handleCheckConfirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// body 里除 app_id 外的都是「平台 → 版本号」
+	// body 里除 app_id 外的键为平台名、值为版本号
 	versions := make(map[string]string, len(body))
 	for k, v := range body {
 		if k == "app_id" {
@@ -152,8 +152,8 @@ func (s *Server) syncCachedCurrent(appID string, versions map[string]string) {
 		if !ok {
 			continue
 		}
-		// 复制后整体换入，绝不原地修改：已发布的表可能正被 JSON 编码读取，
-		// 而 Go 对 map 的并发读写是 fatal error（无法 recover）
+		// 复制后整体换入，绝不原地修改
+		// 已发布的表可能正被 JSON 编码读取，Go 对 map 的并发读写是 fatal error
 		cp := cloneCheckPlatforms(r.Platforms)
 		if cp == nil {
 			cp = make(map[string]checker.CheckPlatform)
@@ -170,13 +170,13 @@ func (s *Server) syncCachedCurrent(appID string, versions map[string]string) {
 
 // 异步检查（后台 goroutine，通过 SSE 推送进度）
 
-// checkMaxErrors 单次检查返回的错误条数上限。超出后只累加计数，
-// 由 done 事件里的 overflow 告知前端「还有更多」，避免超长响应。
+// checkMaxErrors 单次检查返回的错误条数上限。超出后只累加计数
+// 由 done 事件里的 overflow 告知前端"还有更多"，避免超长响应
 // 声明为 var 以便测试覆盖
 var checkMaxErrors = 2000
 
-// CheckError 一次检查里的一条错误。随 done 事件返回给前端一次性展示，
-// 不写入结果缓存——缓存存的是版本号与下载链接，不是错误。
+// CheckError 一次检查里的一条错误。随 done 事件返回给前端一次性展示
+// 不写入结果缓存，缓存存的是版本号与下载链接而非错误
 type CheckError struct {
 	Tracker string `json:"tracker,omitempty"` // 所属 Tracker，前端按它分组
 	AppID   string `json:"app_id,omitempty"`
@@ -185,8 +185,8 @@ type CheckError struct {
 	Message string `json:"message"`
 }
 
-// checkErrs 收集一次检查的错误。四种 scope 共用 runCheckAllAsync，
-// 所以收集逻辑只有这一份。
+// checkErrs 收集一次检查的错误，四种 scope 共用 runCheckAllAsync
+// 所以收集逻辑只有这一份
 type checkErrs struct {
 	mu       sync.Mutex
 	items    []CheckError
@@ -222,8 +222,8 @@ func (c *checkErrs) snapshot() ([]CheckError, int) {
 	return c.items, c.overflow
 }
 
-// recordResultErrors 把一次取数结果里的错误与告警收进收集器。
-// 直接遍历内存里的 results（不是结果缓存），所以天然只含本次的错误。
+// recordResultErrors 把一次取数结果里的错误与告警收进收集器
+// 直接遍历内存里的 results 而非结果缓存，所以天然只含本次的错误
 func recordResultErrors(ce *checkErrs, tracker string, results []checker.CheckResponse) {
 	for _, r := range results {
 		for os, cp := range r.Platforms {
@@ -242,11 +242,9 @@ type checkJob struct {
 	name string
 }
 
-// loadUserData 读「已确认安装到哪个版本」。
-//
-// 出错不中断：software.json 坏了不该让检查、搜索、列表整个打不开，用户还能把
-// 留档文件手工改回来。LoadUserData 出错时也会返回可用的空数据，并且已经把问题
-// 通过事件总线推给前端了，这里不用再报一遍。
+// loadUserData 读"已确认安装到哪个版本"
+// 出错不中断，software.json 坏了不该让检查、搜索、列表整个打不开，用户还能把留档文件手工改回来
+// LoadUserData 出错时也会返回可用的空数据，并且已经把问题通过事件总线推给前端，这里不用再报一遍
 func (s *Server) loadUserData() store.UserData {
 	ud, _ := s.loadUserDataErr()
 	return ud
@@ -258,11 +256,10 @@ func (s *Server) loadUserDataErr() (store.UserData, error) {
 	return store.LoadUserData(s.home)
 }
 
-// confirmVersion 确认或修改某个 app 的版本号，返回该 app 确认后的平台版本。
-//
-// 整段 load-modify-save 都在写锁里。两个并发确认各自加载、各自保存，后写的会
-// 用自己那份旧快照覆盖掉先写的那份——先确认的版本就永久丢了。UI 上「确认更新」
-// 和「手动改版本」是两个入口，很容易连着点。
+// confirmVersion 确认或修改某个 app 的版本号，返回该 app 确认后的平台版本
+// 整段 load-modify-save 都在写锁里
+// 两个并发确认各自加载、各自保存，后写的会用自己那份旧快照覆盖掉先写的那份，先确认的版本就永久丢了
+// UI 上"确认更新"和"手动改版本"是两个入口，相邻点击会触发并发
 func (s *Server) confirmVersion(appID string, versions map[string]string) (map[string]string, error) {
 	s.userMu.Lock()
 	defer s.userMu.Unlock()
@@ -320,11 +317,9 @@ func (s *Server) buildCheckJobs(ctx context.Context, entries []store.TrackerEntr
 					if errors.Is(err, context.Canceled) {
 						return jobs, conc // 用户取消了，别再往下堆任务
 					}
-					// 预请求失败就不能拿规则里的原始 URL 去检查：那不是真正的版本页。
-					// 请求它多半拿到一个错误页，解析器会从里面抠出一个版本号（比如
-					// "v2.1.0 not found" 里的 2.1.0）当成成功结果，用户点一下
-					// 「确认这个更新」，错的值就写进 software.json，之后这个应用
-					// 再也不会提示更新了。宁可这次不查。
+					// 原始 URL 并非版本页，请求它多半拿到一个错误页
+					// 解析器会从错误页里抠出版本号当成成功结果，用户确认后错值就写进了 software.json
+					// 之后这个应用再也不会提示更新，所以跳过比给出错误结果好
 					report(CheckError{Name: jobName, Message: fmt.Sprintf("%s 前置请求失败，已跳过 %s: %v", jobName, os, err)})
 					continue
 				}
@@ -379,8 +374,8 @@ func directCheckResponse(ctx context.Context, checkFn func(context.Context, stri
 	if err != nil {
 		return checker.CheckResponse{}, err
 	}
-	// 与其它取值路径同一标准：尝试过却取不到就报错。
-	// openvsx 的 files.download 缺失时 URL 会是空串，此前一路静默。
+	// 与其它取值路径同一标准：尝试过却取不到就报错
+	// openvsx 的 files.download 缺失时 URL 会是空串，此前一路静默
 	if strings.TrimSpace(pr.LatestVersion) == "" {
 		return checker.CheckResponse{}, fmt.Errorf("%s: 未取到版本号", typ)
 	}
@@ -587,8 +582,8 @@ func (s *Server) handleCheckResult(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"results": s.getCheckResults(trackerID)})
 }
 
-// 检查结果缓存：按 Tracker（或 direct 的 type）分桶，内层按 app_id；随进程释放。
-// 不变式：桶内的 Platforms 表发布后不再原地修改，读写两侧都做深拷贝。
+// 检查结果缓存：按 Tracker（或 direct 的 type）分桶，内层按 app_id；随进程释放
+// 不变式：桶内的 Platforms 表发布后不再原地修改，读写两侧都做深拷贝
 
 func (s *Server) setCheckResults(key string, results []checker.CheckResponse) {
 	m := make(map[string]checker.CheckResponse, len(results))
@@ -706,8 +701,8 @@ func (s *Server) buildCheckList(trackerIDs []string, idFilter map[string][]strin
 }
 
 func (s *Server) runCheckAllAsync(list []checkAllTracker, p *progress.Progress, savePartial, replace bool) {
-	// 错误随 done 事件一次性返回：收集器只是本次调用的局部状态，
-	// 不注册、不出接口、不写入结果缓存。
+	// 错误随 done 事件一次性返回：收集器只是本次调用的局部状态
+	// 不注册、不出接口、不写入结果缓存
 	ce := &checkErrs{}
 	defer func() {
 		items, overflow := ce.snapshot()
@@ -750,9 +745,9 @@ func (s *Server) runCheckAllAsync(list []checkAllTracker, p *progress.Progress, 
 			jobs, _ := s.buildCheckJobs(ctx, t.entries, report)
 			results = s.runAppJobs(ctx, jobs, conc, record, report)
 		}
-		// per-platform 错误与告警在此收集，**不能挂在提交阶段**：
-		// 取消时提交不执行，挂在那里会一条都收不上。遍历的是内存里的 results，
-		// 不是结果缓存，所以天然只含本次的错误。
+		// per-platform 错误与告警在此收集，不能挂在提交阶段
+		// 取消时提交不执行，挂在那里会一条都收不上。遍历的是内存里的 results
+		// 遍历的是内存里的 results 而非结果缓存，所以天然只含本次的错误
 		recordResultErrors(ce, t.name, results)
 
 		// savePartial：指定范围检查时，取消也保留已完成的部分；全部检查时不覆盖未完成的桶
@@ -769,13 +764,13 @@ func (s *Server) runCheckAllAsync(list []checkAllTracker, p *progress.Progress, 
 					s.setCheckResult(t.id, r)
 				}
 			case len(merged) == 0:
-				// 跑了但一个结果都没有：规则全被过滤（removed / 变量缺失 / 无可用平台）、
-				// 或全部整条目失败。此时整桶替换成空 = 未检查的 app 看起来像「无更新」，
-				// 而实际是「没查到」。保留旧结果，错误由本次的汇总弹窗报出。
+				// 跑了但一个结果都没有：规则全被过滤（removed / 变量缺失 / 无可用平台）
+				// 或全部整条目失败。此时整桶替换成空 = 未检查的 app 看起来像"无更新"
+				// 而实际是"没查到"。保留旧结果，错误由本次的汇总弹窗报出
 				log.LogfWarn("[check] %s 未产出任何结果，保留原缓存", t.id)
 			case savePartial && ctx.Err() != nil:
-				// 取消：只 upsert 已完成的部分，其余 app 保留历史结果。
-				// 整桶替换会把未检查的 150 个 app 一起清掉，侧栏全部回退成「有更新」。
+				// 取消：只 upsert 已完成的部分，其余 app 保留历史结果
+				// 整桶替换会把未检查的 150 个 app 一起清掉，侧栏全部回退成"有更新"
 				for _, r := range merged {
 					s.setCheckResult(t.id, r)
 				}

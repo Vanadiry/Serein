@@ -1,4 +1,4 @@
-// 正则解析器：对 HTTP 响应全文跑正则，捕获组取值。
+// 正则解析器：对 HTTP 响应全文跑正则，捕获组取值
 package checker
 
 import "fmt"

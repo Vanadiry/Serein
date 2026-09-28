@@ -13,10 +13,9 @@ import (
 	"github.com/vanadiry/serein/core/progress"
 )
 
-// goSafe 必须兜住 panic：net/http 的 recover 只覆盖「处理请求的那个 goroutine」，
-// handler 自己 spawn 出来的后台任务 panic 一次就是整个进程静默退出，连日志都没有。
-//
-// 这个测试跑在测试进程里，panic 一旦逃出去整个测试就崩，所以它同时就是回归证明。
+// goSafe 必须兜住 panic：net/http 的 recover 只覆盖"处理请求的那个 goroutine"
+// handler 自己 spawn 出来的后台任务 panic 一次就是整个进程静默退出，连日志都没有
+// 这个测试跑在测试进程里，panic 一旦逃出去整个测试就崩，所以它同时就是回归证明
 func TestGoSafeRecovers(t *testing.T) {
 	p := progress.NewProgress(1)
 	done := make(chan struct{})
@@ -76,7 +75,7 @@ func TestGoSafeNilProgress(t *testing.T) {
 	}
 }
 
-// panic 后要推事件，用户看到的应该是「任务异常终止」而不是窗口静默消失
+// panic 后要推事件，用户看到的应该是"任务异常终止"而非窗口静默消失
 func TestGoSafeEmitsEvent(t *testing.T) {
 	ch := events.Subscribe()
 	defer events.Unsubscribe(ch)
@@ -132,7 +131,7 @@ func TestRunConcurrentWorkerPanicIsolated(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 	if len(errs) != 1 || !strings.Contains(errs[0], "panic") {
-		t.Errorf("panic 的条目应被记为错误而不是静默消失: %v", errs)
+		t.Errorf("panic 的条目要记成错误，不能静默消失: %v", errs)
 	}
 }
 

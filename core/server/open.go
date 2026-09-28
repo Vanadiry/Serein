@@ -10,11 +10,10 @@ import (
 	"strings"
 )
 
-// parseHTTPURL 只做校验，不改写输入。
-//
+// parseHTTPURL 只做校验，不改写输入
 // 协议相对地址（//host/x）原样放行：它的消费方是浏览器与外部下载器，两者都认
 // //host，无需在此补协议。真正需要绝对地址的是 Go 的 http.Client，那一步由调用方
-// 在取数前显式做（见 file.go 的 httpx.ResolveScheme）——校验层不替它猜。
+// 在取数前显式做（见 file.go 的 httpx.ResolveScheme），校验层不替它猜
 func parseHTTPURL(raw string) (string, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -47,11 +46,10 @@ func OpenBrowser(url string) {
 	startDetached(c)
 }
 
-// startDetached 启动一个短命子进程并回收它。
-//
+// startDetached 启动一个短命子进程并回收它
 // Start 之后必须 Wait：否则子进程退出后一直挂在进程表里成为僵尸，直到父进程
-// 自身结束。Serein 是长时间运行的，而 open / 下载器这类调用很频繁（点链接、
-// 下载回退、错误页都会走到），不回收会持续累积。
+// 自身结束
+// Serein 长时间运行，open 与下载器调用频繁（点链接、下载回退、错误页都会走到），不回收会持续累积
 func startDetached(c *exec.Cmd) error {
 	if err := c.Start(); err != nil {
 		return err

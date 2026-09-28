@@ -1,5 +1,5 @@
-// 通用步进引擎，JSON 和 XML 共用。
-// 支持对象 key、数组下标、正负索引、= 精确筛选、~ 正则筛选。
+// 通用步进引擎，JSON 和 XML 共用
+// 支持对象 key、数组下标、正负索引、= 精确筛选、~ 正则筛选
 package checker
 
 import (
@@ -8,8 +8,8 @@ import (
 	"strings"
 )
 
-// Step 在数据树中按 position 数组逐层步进，返回最终值。
-// 支持 JSON（encoding/json 解出的 any）和 XML（转换后同构的树）。
+// Step 在数据树中按 position 数组逐层步进，返回最终值
+// 支持 JSON（encoding/json 解出的 any）和 XML（转换后同构的树）
 func Step(root any, position []any) (any, error) {
 	cur := root
 	for i, step := range position {
@@ -38,7 +38,7 @@ func stepOne(cur any, step any) (any, error) {
 }
 
 func stepString(cur any, s string) (any, error) {
-	// 含 = 或 ~ → 数组筛选
+	// 含 = 或 ~ 时走数组筛选
 	if idx := strings.IndexByte(s, '='); idx >= 0 {
 		key, val := s[:idx], s[idx+1:]
 		return filterArray(cur, key, val, false)
@@ -112,7 +112,7 @@ func filterArray(cur any, key, val string, useRegex bool) (any, error) {
 	return nil, fmt.Errorf("no match for filter %q", key)
 }
 
-// StepMulti 多路径拼接模式：逐条取值后用 join 拼接。
+// StepMulti 多路径拼接模式：逐条取值后用 join 拼接
 func StepMulti(root any, paths [][]any, join string) (string, error) {
 	var parts []string
 	for _, path := range paths {
@@ -125,8 +125,8 @@ func StepMulti(root any, paths [][]any, join string) (string, error) {
 	return strings.Join(parts, join), nil
 }
 
-// toString 把步进结果转成字符串。nil 返回空串而不是 fmt.Sprintf("%v", nil) 的
-// 字面量 "<nil>"——后者会被当成合法版本号一路写进 user/software.json。
+// toString 把步进结果转成字符串，nil 返回空串
+// 返回 fmt.Sprintf("%v", nil) 会得到字面量 "<nil>"，它会被当成合法版本号写进 user/software.json
 func toString(v any) string {
 	if v == nil {
 		return ""

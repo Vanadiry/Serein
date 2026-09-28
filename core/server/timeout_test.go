@@ -8,8 +8,8 @@ import (
 	"time"
 )
 
-// 零值 http.Server 的三项超时都是「无限制」，慢速滴灌 header 的连接
-// 可永久占用 goroutine 与 fd，而本服务无鉴权、没有限流手段可用。
+// 零值 http.Server 的三项超时都是"无限制"，慢速滴灌 header 的连接
+// 可永久占用 goroutine 与 fd，而本服务无鉴权、没有限流手段可用
 func TestServerTimeoutsAreSet(t *testing.T) {
 	srv := newHTTPServer(http.NewServeMux())
 	if srv.ReadHeaderTimeout <= 0 {
@@ -21,7 +21,7 @@ func TestServerTimeoutsAreSet(t *testing.T) {
 	if srv.IdleTimeout <= 0 {
 		t.Error("IdleTimeout 未设置：空闲 keep-alive 连接不会被回收")
 	}
-	// IdleTimeout 为 0 时会回落到 ReadTimeout，两者都 0 即彻底无限制
+	// IdleTimeout 为 0 时会回落到 ReadTimeout，两者都为 0 即无任何上限
 	if srv.IdleTimeout == 0 && srv.ReadTimeout == 0 {
 		t.Error("IdleTimeout 与 ReadTimeout 同时为 0，等于没有任何连接超时")
 	}
@@ -34,15 +34,15 @@ func TestServerTimeoutsAreSet(t *testing.T) {
 	}
 }
 
-// 真实 slowloris：只发一半 header 然后停住，服务端必须在 ReadHeaderTimeout 内断开。
-// 修复前该连接会一直挂着，占住一个 goroutine 与 fd。
+// 真实 slowloris：只发一半 header 然后停住，服务端必须在 ReadHeaderTimeout 内断开
+// 修复前该连接会一直挂着，占住一个 goroutine 与 fd
 func TestSlowlorisConnectionIsClosed(t *testing.T) {
 	old := readHeaderTimeout
 	readHeaderTimeout = 300 * time.Millisecond
 	t.Cleanup(func() { readHeaderTimeout = old })
 
 	srv := newHTTPServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Error("请求不该被处理完——header 根本没发全")
+		t.Error("header 没有发全，请求不该被完全处理")
 	}))
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -62,7 +62,7 @@ func TestSlowlorisConnectionIsClosed(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// 服务端应主动断开 → 读回 EOF / connection reset
+	// 服务端主动断开时读回 EOF 或 connection reset
 	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	start := time.Now()
 	br := bufio.NewReader(conn)

@@ -59,7 +59,7 @@ func isBlockedIP(ip net.IP) bool {
 	return false
 }
 
-// resolveAndCheck 解析 host，并确保其所有 IP 都不是内网/回环地址
+// resolveAndCheck 解析 host，并确保其所有 IP 均非内网/回环地址
 func resolveAndCheck(host string) ([]net.IP, error) {
 	if ip := net.ParseIP(host); ip != nil {
 		if isBlockedIP(ip) {
@@ -101,8 +101,8 @@ func blockPrivate(rawURL string) error { return BlockPrivate(rawURL) }
 func safeDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
 	d := net.Dialer{Timeout: 15 * time.Second}
 	if proxyURL != nil {
-		// 走代理时拨号目标是代理本身（常为 127.0.0.1），这一层无从校验目标。
-		// 目标校验在 RoundTrip 层做（guardTransport），与是否配了代理无关。
+		// 走代理时拨号目标是代理本身（常为 127.0.0.1），这一层无从校验目标
+		// 目标校验在 RoundTrip 层做（guardTransport），与是否配了代理无关
 		return d.DialContext(ctx, network, addr)
 	}
 	host, port, err := net.SplitHostPort(addr)

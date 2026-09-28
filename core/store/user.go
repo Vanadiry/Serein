@@ -15,19 +15,15 @@ import (
 	"github.com/vanadiry/serein/core/log"
 )
 
-// UserData 用户追踪数据：app_id → 平台 → 版本号
+// UserData 用户追踪数据，按应用、平台、版本号三层组织
 type UserData map[string]map[string]string
 
 const userDataFile = "software.json"
 
-// LoadUserData 读取「已确认安装到哪个版本」。
-//
+// LoadUserData 读取"已确认安装到哪个版本"
 // 无论是否出错都返回一个可用的非 nil map。这份数据一旦被整份丢弃，所有应用会同时
-// 显示成「有更新」——用户以为全部过期，实际上只是文件读不出来。宁可显示旧版本号，
-// 也不能凭空造出几百个假更新。
-//
-// 无法解析时把原文件改名留档（而不是删掉或就地覆写），好让人手动找回；只是个别键
-// 坏了则跳过那些键、保留其余，不让一个手滑的条目清空全部记录。
+// 显示成"有更新"，用户以为全部过期，实际上只是文件读不出来
+// 整份无法解析时把原文件改名留档以便手动找回；个别键坏了则跳过那些键、保留其余
 func LoadUserData(home string) (UserData, error) {
 	path := filepath.Join(home, "user", userDataFile)
 	ud := make(UserData)
@@ -43,7 +39,7 @@ func LoadUserData(home string) (UserData, error) {
 
 	info, _ := f.Stat()
 	if info.Size() == 0 {
-		return ud, nil // 空文件 → 视为「还没确认过任何版本」
+		return ud, nil // 空文件视为"还没确认过任何版本"
 	}
 
 	var top map[string]json.RawMessage
@@ -88,12 +84,10 @@ func LoadUserData(home string) (UserData, error) {
 	return ud, nil
 }
 
-// reportBroken 报告已确认版本数据整体不可用。
-//
-// 走事件总线而不是某个接口的响应：这不是任何一次用户操作造成的，是后端自己
-// 的数据文件坏了。走响应的话只有恰好读到它的那个请求能通知到，而且各接口还要
-// 各自携带。用常驻事件是因为这份数据一坏，所有应用会同时显示成「有更新」，
-// 用户不看到就会以为全部软件过期了。
+// reportBroken 报告已确认版本数据整体不可用
+// 走事件总线而非某个接口的响应，并非任何一次用户操作造成的，是后端自己的数据文件坏了
+// 走响应的话只有恰好读到它的那个请求能通知到，而且各接口都要各自携带
+// 用常驻事件是因为这份数据一坏，所有应用会同时显示成"有更新"，用户不看到就会以为全部软件过期了
 func reportBroken(msg string) {
 	log.LogfError("[user] %s", msg)
 	events.EmitSticky("error", "[user]", msg)
@@ -118,7 +112,7 @@ func quarantineUserData(path string) (string, error) {
 	return "", fmt.Errorf("留档文件名连续冲突")
 }
 
-// SaveUserData 写入已确认版本号。数据在调用前已在内存里拼好，直接覆盖写。
+// SaveUserData 写入已确认版本号。数据在调用前已在内存里拼好，直接覆盖写
 func SaveUserData(home string, ud UserData) error {
 	path := filepath.Join(home, "user", userDataFile)
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {

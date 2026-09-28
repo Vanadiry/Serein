@@ -40,8 +40,8 @@ func CheckStatus(resp *http.Response) error {
 	return fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
 }
 
-// Request 发起 GET 请求，带响应大小限制，并缓存结果。
-// SSRF 校验在 RoundTrip 层统一做（见 guardTransport），这里不再重复。
+// Request 发起 GET 请求，带响应大小限制，并缓存结果
+// SSRF 校验在 RoundTrip 层统一做（见 guardTransport），这里不再重复
 func Request(ctx context.Context, client *http.Client, rawURL, ua string, headers map[string]string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {

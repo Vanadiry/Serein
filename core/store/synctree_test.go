@@ -76,7 +76,7 @@ func TestWalkSourceBuildsTree(t *testing.T) {
 	}
 }
 
-// 子源 source_id 与目录名不一致 → 记失败且不认领（否则无法确定落盘位置）
+// 子源 source_id 与目录名不一致时记失败且不认领，否则无法确定落盘位置
 func TestWalkSourceRejectsIDMismatch(t *testing.T) {
 	home := t.TempDir()
 	up := filepath.Join(home, "up")
@@ -102,7 +102,7 @@ func TestWalkSourceRejectsIDMismatch(t *testing.T) {
 	}
 }
 
-// list 型但子源全都没抓到 → 不是叶子（否则会拿一个空 manifest 去覆盖整棵树）
+// list 型但子源全都没抓到时不视为叶子，否则会拿空 manifest 覆盖整棵树
 func TestFlattenLeavesListWithoutChildren(t *testing.T) {
 	n := &sourceNode{info: &SourceInfo{ID: "T", Type: "list"}}
 	if leaves := flattenLeaves(n); leaves != nil {
@@ -113,7 +113,7 @@ func TestFlattenLeavesListWithoutChildren(t *testing.T) {
 	}
 }
 
-// 顶层源串行 → ID 认领按配置顺序，先声明的赢
+// 顶层源串行，ID 认领按配置顺序，先声明的赢
 func TestIDClaimerFirstWins(t *testing.T) {
 	c := &idClaimer{ids: make(map[string]bool)}
 	if !c.claim("a") {
@@ -127,7 +127,7 @@ func TestIDClaimerFirstWins(t *testing.T) {
 	}
 }
 
-// 端到端：本地源树 → 落盘 → 二次同步全部跳过
+// 端到端：本地源树落盘后，二次同步全部跳过
 func TestSyncLocalSourceTreeEndToEnd(t *testing.T) {
 	home := t.TempDir()
 	up := filepath.Join(home, "up")
@@ -174,7 +174,7 @@ func TestSyncLocalSourceTreeEndToEnd(t *testing.T) {
 		t.Errorf("a 的 marker token 表 = %v", got)
 	}
 
-	// 二次同步：token 未变 → 全部跳过，零下载
+	// 二次同步时 token 未变，全部跳过且零下载
 	var reloaded2 bool
 	p2 := progress.NewProgress(0)
 	SyncAllSourcesAsync(home, sources, 4, p2, func() { reloaded2 = true })
@@ -190,7 +190,7 @@ func TestSyncLocalSourceTreeEndToEnd(t *testing.T) {
 		t.Error("无更新时不应回调 onDone")
 	}
 
-	// 改一个文件的 token → 只有那一个源需要更新，且只下载一个文件
+	// 改一个文件的 token 时只有那一个源需要更新，且只下载一个文件
 	writeJSON(t, filepath.Join(up, "a", sourceFileName),
 		SourceInfo{ID: "a", Files: map[string]string{"x.toml": "2", "y.toml": "1"}})
 	writeFixture(t, filepath.Join(up, "a", "x.toml"), "X2")
@@ -217,7 +217,7 @@ func TestSyncLocalSourceTreeEndToEnd(t *testing.T) {
 	}
 }
 
-// 上游删掉一个文件 → 整树换入后应消失，且不计入下载数
+// 上游删掉一个文件时，整树换入后应消失且不计入下载数
 func TestSyncRemovesDeletedFile(t *testing.T) {
 	home := t.TempDir()
 	up := filepath.Join(home, "up")
@@ -275,9 +275,9 @@ type doneEvent struct {
 	cancelled                                   bool
 }
 
-// collectDone 消费 progress 通道直到关闭，取出**第一个** done 事件。
-// SyncAllSourcesAsync 先发一个带完整计数的 done，defer p.Close() 又发一个裸的
-// {"step":"done","cancelled":…}；前端在第一个就关闭连接，所以这里也只取第一个。
+// collectDone 消费 progress 通道直到关闭，取出第一个 done 事件
+// SyncAllSourcesAsync 先发一个带完整计数的 done，defer p.Close() 又发一个裸的 done
+// 前端在第一个就关闭连接，所以这里也只取第一个
 func collectDone(p *progress.Progress, d *doneEvent) {
 	for line := range p.Channel {
 		var m struct {
@@ -386,8 +386,8 @@ func TestDownloadLeavesCancelDoesNotDeadlock(t *testing.T) {
 	}
 }
 
-// #3 回归：上游返回空 files 而本地已有规则文件时，必须拒绝提交而不是把规则清光。
-// 触发条件很常见——上游 manifest 被截断、临时故障、站点正在重建。
+// #3 回归：上游返回空 files 而本地已有规则文件时，必须拒绝提交而非把规则清光
+// 触发条件常见：上游 manifest 被截断、临时故障、站点正在重建
 func TestSyncRejectsEmptyManifest(t *testing.T) {
 	home := t.TempDir()
 	up := filepath.Join(home, "up")
@@ -477,7 +477,7 @@ func TestPruneOrphanSubSources(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(rulesDir, "T", "usermanual"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	// 先手工补一个「上游已删但本地还在」的孤儿子源
+	// 先手工补一个"上游已删但本地还在"的孤儿子源
 	writeJSON(t, filepath.Join(rulesDir, "T", "orphan", sourceFileName),
 		SourceInfo{ID: "orphan", Files: map[string]string{"o.toml": "1"}})
 	writeFixture(t, filepath.Join(rulesDir, "T", "orphan", "o.toml"), "O")
@@ -498,8 +498,8 @@ func TestPruneOrphanSubSources(t *testing.T) {
 	}
 }
 
-// 门禁 1：本轮有子源抓取失败时，不变量 C 一律不执行——
-// 无法区分「上游删掉了它」与「这次没抓到」
+// 门禁 1：本轮有子源抓取失败时，不变量 C 一律不执行
+// 无法区分"上游删掉了它"与"这次没抓到"
 func TestPruneSkippedWhenWalkFailed(t *testing.T) {
 	home := t.TempDir()
 	rulesDir := filepath.Join(home, "rules")
@@ -519,7 +519,7 @@ func TestPruneSkippedWhenWalkFailed(t *testing.T) {
 	SyncAllSourcesAsync(home, sources, 2, p1, nil)
 	collectDone(p1, &doneEvent{})
 
-	// 上游删掉 flaky，同时把它的 marker 弄坏 → 抓取失败
+	// 上游删掉 flaky 且弄坏它的 marker 时抓取失败
 	os.Remove(filepath.Join(up, "flaky", sourceFileName))
 	writeJSON(t, filepath.Join(up, sourceFileName),
 		SourceInfo{ID: "T", Type: "list", SubSources: []string{"keep/_source.json", "flaky/_source.json"}})
@@ -536,13 +536,13 @@ func TestPruneSkippedWhenWalkFailed(t *testing.T) {
 	if len(d.failures) == 0 {
 		t.Fatal("本应有子源抓取失败")
 	}
-	// 门禁 1：flaky 已从上游消失，但不得因为「没抓到」就当成孤儿删掉
+	// 门禁 1：flaky 已从上游消失，但不得因为"没抓到"就当成孤儿删掉
 	if _, err := os.Stat(filepath.Join(rulesDir, "T", "flaky", "f.toml")); err != nil {
 		t.Errorf("门禁 1 未生效，flaky 被当成孤儿删除: %v", err)
 	}
 }
 
-// 不变量 D：manifest 声明的文件数超上限 → 整个源被拒绝，不得逐条同步
+// 不变量 D：manifest 声明的文件数超上限时整个源被拒绝，不得逐条同步
 func TestValidateRejectsTooManyFiles(t *testing.T) {
 	old := maxFilesPerSource
 	maxFilesPerSource = 5
@@ -582,7 +582,7 @@ func TestValidateRejectsTooManyFiles(t *testing.T) {
 	}
 }
 
-// 不变量 D：本轮下载体积超上限 → 放弃该源并保留本地现有规则
+// 不变量 D：本轮下载体积超上限时放弃该源，保留本地现有规则
 func TestDownloadBudgetAbandonsSource(t *testing.T) {
 	home := t.TempDir()
 	up := filepath.Join(home, "up")
@@ -605,7 +605,7 @@ func TestDownloadBudgetAbandonsSource(t *testing.T) {
 		t.Fatalf("首次同步未落盘: %v", err)
 	}
 
-	// 全部 token 变新 → 本轮需重下；此时才调低预算，触发超限
+	// 全部 token 变新时本轮需重下，此时才调低预算以触发超限
 	old := maxSourceBytes
 	maxSourceBytes = 64 // 每个测试文件 40 字节，第 3 个就超
 	t.Cleanup(func() { maxSourceBytes = old })
@@ -631,7 +631,7 @@ func TestDownloadBudgetAbandonsSource(t *testing.T) {
 	if !found {
 		t.Errorf("失败原因应说明超限: %+v", d.failures)
 	}
-	// 放弃该源 → marker 不推进，本地内容原样保留
+	// 放弃该源时 marker 不推进，本地内容原样保留
 	if got := loadLocalFileTokens(filepath.Join(rulesDir, "T", "a")); got["f0.toml"] != "1" {
 		t.Errorf("marker 被推进: %v", got)
 	}

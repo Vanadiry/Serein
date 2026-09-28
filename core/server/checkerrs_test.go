@@ -64,7 +64,7 @@ func TestCheckErrorsRideOnDoneEvent(t *testing.T) {
 			t.Errorf("缺少错误内容: %v", m)
 		}
 	}
-	// 断线重连靠的就是这条：payload 必须在
+	// 断线重连靠的就是这条，payload 必须带上错误列表
 	if !strings.Contains(raw, "errors") {
 		t.Error("错误列表不在结束事件里，重连就拿不到了")
 	}
@@ -91,7 +91,7 @@ func TestCheckErrsScopedTracker(t *testing.T) {
 	}
 }
 
-// 四种 scope 共用同一个收集器：并发 add 不丢不乱
+// 四种 scope 共用同一个收集器：并发 add 不丢且不乱序
 func TestCheckErrsConcurrent(t *testing.T) {
 	ce := &checkErrs{}
 	var wg sync.WaitGroup
@@ -134,7 +134,7 @@ func TestCheckErrsLimitAndEmpty(t *testing.T) {
 	}
 }
 
-// msvsix / openvsix 走 directCheckResponse，同样要判定「取到了没有」
+// msvsix / openvsix 走 directCheckResponse，同样要判定"取到了没有"
 func TestDirectCheckResponseRejectsEmpty(t *testing.T) {
 	ok := func(ctx context.Context, appID string, c *http.Client) (checker.PlatformResult, error) {
 		return checker.PlatformResult{LatestVersion: "1.0", URL: "https://x/1.0.vsix"}, nil

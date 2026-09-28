@@ -1,9 +1,8 @@
-// 跨进程文件锁：同一 SEREIN_HOME 下的多个实例（桌面壳 + go run）并发写 rules/ 时的互斥。
-//
-// 为什么必须有：规则提交若是 rename 换入，临界区只有两次系统调用，接近原子，
-// 两个实例并发时基本是「一个失败、另一个赢」。改成按文件原地写之后，临界区
-// 放大成 N 次写 + M 次删，可以交错出「文件已被 A 删除、marker 却由 B 写成
-// 声称该文件已最新」的永久缺失——下次同步据此跳过，该规则再也不会回来。
+// 跨进程文件锁：同一 SEREIN_HOME 下的多个实例（桌面壳 + go run）并发写 rules/ 时的互斥
+// 为什么必须有：规则提交若是 rename 换入，临界区只有两次系统调用，接近原子
+// 两个实例并发时会出现"一个失败、另一个赢"。改成按文件原地写之后，临界区
+// 放大成 N 次写 + M 次删，可以交错出"文件已被 A 删除、marker 却由 B 写成
+// 声称该文件已最新"的永久缺失，下次同步据此跳过，该规则再也不会回来
 package store
 
 import (
@@ -23,10 +22,10 @@ type FileLock struct {
 	path string
 }
 
-// AcquireFileLock 取得 home 上的排他锁。
-// 先立即尝试；已被占用则按 retry 间隔重试至 timeout。ctx 取消或超时即放弃，
-// 不会阻塞调用方——同步是后台任务，阻塞会让进度遮罩一直挂着且无任何提示。
-// 锁文件不删除：删掉它等于放弃互斥。进程退出时 flock 由内核自动释放。
+// AcquireFileLock 取得 home 上的排他锁
+// 先立即尝试；已被占用则按 retry 间隔重试至 timeout。ctx 取消或超时即放弃
+// 不会阻塞调用方（同步是后台任务，阻塞会让进度遮罩一直挂着且无任何提示）
+// 锁文件不删除：删掉它等于放弃互斥。进程退出时 flock 由内核自动释放
 func AcquireFileLock(ctx context.Context, home string, timeout, retry time.Duration) (*FileLock, error) {
 	if retry <= 0 {
 		retry = 100 * time.Millisecond
@@ -63,7 +62,7 @@ func AcquireFileLock(ctx context.Context, home string, timeout, retry time.Durat
 	}
 }
 
-// Release 释放锁。可重复调用。
+// Release 释放锁。可重复调用
 func (l *FileLock) Release() error {
 	if l == nil || l.f == nil {
 		return nil

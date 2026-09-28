@@ -13,8 +13,8 @@ import (
 	"github.com/vanadiry/serein/core/store"
 )
 
-// countZombies 数当前有多少僵尸进程。Start 之后不 Wait 回收时，
-// 每下载一次就留下一个，直到 Serein 自己退出。
+// countZombies 数当前有多少僵尸进程。Start 之后不 Wait 回收时
+// 每下载一次就留下一个，直到 Serein 自己退出
 func countZombies(t *testing.T) int {
 	t.Helper()
 	out, err := exec.Command("ps", "-axo", "stat=").Output()
@@ -30,11 +30,10 @@ func countZombies(t *testing.T) int {
 	return n
 }
 
-// 连续下载后不应留下僵尸进程。
-//
+// 连续下载后不应留下僵尸进程
 // 只测自定义下载器这条路径：未识别的下载器会回退到 OpenBrowser，而 OpenBrowser
-// 在 macOS 上是 `open <url>`，测试里跑它会真的用默认浏览器打开测试 URL。
-// OpenBrowser 用的同一个 startDetached 在下面单独测。
+// 在 macOS 上是 open <url>，测试里跑它会真的用默认浏览器打开测试 URL
+// OpenBrowser 用的同一个 startDetached 在下面单独测
 func TestDownloadDoesNotLeakZombies(t *testing.T) {
 	exe, err := exec.LookPath("true")
 	if err != nil {

@@ -78,7 +78,7 @@ func decodeTrackerFile(path string) (trackerMeta, []TrackerEntry, error) {
 	return meta, a.Trackers, nil
 }
 
-// LoadAllTrackerInfo 扫描 tracker/ 下所有 .toml，返回文件元信息列表。
+// LoadAllTrackerInfo 扫描 tracker/ 下所有 .toml，返回文件元信息列表
 func LoadAllTrackerInfo(home string) ([]TrackerInfo, error) {
 	dir := filepath.Join(home, "tracker")
 	entries, err := os.ReadDir(dir)
@@ -119,12 +119,12 @@ func LoadAllTrackerInfo(home string) ([]TrackerInfo, error) {
 	return list, nil
 }
 
-// LoadTracker 扫描 tracker/ 下所有 .toml，合并所有 [[tracker]] 条目。
+// LoadTracker 扫描 tracker/ 下所有 .toml，合并所有 [[tracker]] 条目
 func LoadTracker(home string) ([]TrackerEntry, error) {
 	return loadTrackerFiles(home, "")
 }
 
-// LoadTrackerFile 加载指定 tracker 文件（按文件名，不含 .toml 后缀）。
+// LoadTrackerFile 加载指定 tracker 文件（按文件名，不含 .toml 后缀）
 func LoadTrackerFile(home, name string) ([]TrackerEntry, error) {
 	return loadTrackerFiles(home, name)
 }
@@ -177,7 +177,7 @@ func trackerPath(home, name string) (string, error) {
 	return p, nil
 }
 
-// GetTrackerType 返回 tracker 文件的 type（默认 "app"）。
+// GetTrackerType 返回 tracker 文件的 type（默认 "app"）
 func GetTrackerType(home, name string) string {
 	path, err := trackerPath(home, name)
 	if err != nil {
@@ -193,7 +193,7 @@ func GetTrackerType(home, name string) string {
 	return meta.Type
 }
 
-// TrackerExists 检查 tracker 文件（按文件名）是否存在。
+// TrackerExists 检查 tracker 文件（按文件名）是否存在
 func TrackerExists(home, name string) bool {
 	path, err := trackerPath(home, name)
 	if err != nil {
@@ -203,7 +203,7 @@ func TrackerExists(home, name string) bool {
 	return statErr == nil
 }
 
-// CreateTrackerFile 创建 tracker 文件，写入默认模板。
+// CreateTrackerFile 创建 tracker 文件，写入默认模板
 func CreateTrackerFile(home, name string) error {
 	path, err := trackerPath(home, name)
 	if err != nil {
@@ -212,8 +212,8 @@ func CreateTrackerFile(home, name string) error {
 	return os.WriteFile(path, []byte(DefaultTrackerTOML), 0644)
 }
 
-// AddToTracker 追加 [[tracker]] 条目到指定 tracker 文件，保留 display_name。
-// 若 app_id 已存在则合并平台（去重追加），否则新增条目。
+// AddToTracker 追加 [[tracker]] 条目到指定 tracker 文件，保留 display_name
+// app_id 已存在时合并平台，不存在时新增条目
 func AddToTracker(home, name string, entry TrackerEntry) error {
 	path, err := trackerPath(home, name)
 	if err != nil {
@@ -263,7 +263,7 @@ func AddToTracker(home, name string, entry TrackerEntry) error {
 	return encodeTOML(path, tf)
 }
 
-// PlatformsFor 返回 tracker 条目实际生效的平台列表。
+// PlatformsFor 返回 tracker 条目实际生效的平台列表
 func PlatformsFor(entry TrackerEntry, cfgPlatforms []string) []string {
 	if len(entry.Platforms) > 0 {
 		return entry.Platforms

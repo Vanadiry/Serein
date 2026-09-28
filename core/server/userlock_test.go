@@ -81,7 +81,7 @@ func TestConcurrentConfirmSameApp(t *testing.T) {
 	}
 }
 
-// 读和写必须互斥：读到写了一半的文件会被误判成损坏而留档，
+// 读和写必须互斥：读到写了一半的文件会被误判成损坏而留档
 // 写方的数据就跟着进了 .corrupt- 文件，正式路径反而空了
 func TestReadDuringWriteDoesNotQuarantine(t *testing.T) {
 	home := t.TempDir()

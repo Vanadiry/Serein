@@ -1,4 +1,4 @@
-// HTML CSS 选择器解析器：CSS 选择器定位元素，可选 regex 提取文本，可选 attr 取属性。
+// HTML CSS 选择器解析器：CSS 选择器定位元素，可选 regex 提取文本，可选 attr 取属性
 package checker
 
 import (

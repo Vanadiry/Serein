@@ -8,8 +8,8 @@ import (
 	"github.com/vanadiry/serein/core/log"
 )
 
-// 目录与配置文件的权限。config.toml 里有 GitHub token，
-// 只需保证，仅当前用户可读，Windows 上权限位简直是个笑话，那不是能靠代码解决的
+// 目录与配置文件的权限，config.toml 里有 GitHub token，只需保证仅当前用户可读
+// Windows 上权限位不解决问题，代码在那里没有意义
 const (
 	dirPerm  os.FileMode = 0700
 	filePerm os.FileMode = 0600

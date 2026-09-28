@@ -1,4 +1,4 @@
-// 检查运行器：整合规则、用户数据、Checker，组装统一的 API 返回格式。
+// 检查运行器：整合规则、用户数据、Checker，组装统一的 API 返回格式
 package checker
 
 import (
@@ -69,12 +69,12 @@ type CheckPlatform struct {
 	DownloadViaProxy bool   `json:"download_via_proxy,omitempty"`
 	DownloadName     string `json:"download_name,omitempty"`
 	ProxyURL         any    `json:"proxy_url,omitempty"`
-	// Warnings 非致命异常（取不到正式版、asset 解析失败等）。与 Error 分开：
-	// Error 会让 hasUpdate / checkedAny 判定为「没结果」，Warnings 不会
+	// Warnings 非致命异常，取不到正式版、asset 解析失败等
+	// 与 Error 分开是因为 Error 会让 hasUpdate 与 checkedAny 判定为"没结果"，Warnings 不会
 	Warnings []string `json:"warnings,omitempty"`
 }
 
-// RunCheck 对一个软件执行检查，返回统一的 CheckResponse。
+// RunCheck 对一个软件执行检查，返回统一的 CheckResponse
 func RunCheck(ctx context.Context, req CheckRequest) (CheckResponse, error) {
 	resp := CheckResponse{
 		AppID:           req.AppID,

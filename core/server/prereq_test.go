@@ -46,14 +46,13 @@ func newPreReqServer(t *testing.T, home string) *Server {
 	return s
 }
 
-// 预请求失败时绝不能拿规则里的原始 URL 去检查。
-//
-// 那不是真正的版本页：请求它多半拿到一个错误页，解析器会从里面抠出一个版本号
-// （比如 "v2.1.0 not found" 里的 2.1.0）当成成功结果。用户点一下「确认这个更新」，
-// 错的值就写进 software.json，之后这个应用再也不会提示更新。
+// 预请求失败时绝不能拿规则里的原始 URL 去检查
+// 那并非版本页，请求它多半拿到一个错误页，解析器会从里面抠出一个版本号
+// （比如 "v2.1.0 not found" 里的 2.1.0）当成成功结果。用户点一下"确认这个更新"
+// 错的值就写进 software.json，之后这个应用再也不会提示更新
 func TestPreRequestFailureSkipsPlatform(t *testing.T) {
 	home := t.TempDir()
-	// 原始 URL 是一个"看起来很合理"的地址——正是它最危险的地方
+	// 原始 URL 是一个语法合法的地址，错误页也能通过 HTTP 200 返回
 	writePreRequestRule(t, home, "test.app", "https://example.com/fallback-not-a-real-page")
 
 	s := newPreReqServer(t, home)

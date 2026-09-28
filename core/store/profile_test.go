@@ -21,13 +21,13 @@ func TestLoadProfile(t *testing.T) {
 		t.Fatalf("profile=%+v", got)
 	}
 
-	// 损坏的 JSON → 应返回错误（不再静默吞掉）
+	// 损坏的 JSON 应返回错误，不再静默吞掉
 	os.WriteFile(p, []byte(`{"version":1,`), 0644)
 	if _, err := LoadProfile(home); err == nil {
 		t.Fatal("损坏的 profile.json 应返回错误")
 	}
 
-	// 文件缺失 → 返回错误
+	// 文件缺失时返回错误
 	os.Remove(p)
 	if _, err := LoadProfile(home); err == nil {
 		t.Fatal("缺失的 profile.json 应返回错误")

@@ -86,8 +86,8 @@ func TestProgressRemovedAfterRetain(t *testing.T) {
 	t.Fatal("超过保留时长后应从注册表移除")
 }
 
-// 核心回归：缓冲区被塞满时 Close 仍必须把 done 送达。
-// 丢���的后果是前端永远等不到 done，进度遮罩永久卡住。
+// 核心回归：缓冲区被塞满时 Close 仍必须把 done 送达
+// 丢���的后果是前端永远等不到 done，进度遮罩永久卡住
 func TestCloseDeliversDoneWhenBufferFull(t *testing.T) {
 	p := NewProgress(0)
 	// 不消费，把 64 槽缓冲区填满
@@ -116,7 +116,7 @@ func TestCloseDeliversDoneWhenBufferFull(t *testing.T) {
 	}
 }
 
-// 进行中的任务不补发：客户端会从缓冲区拿到后续所有帧，
+// 进行中的任务不补发：客户端会从缓冲区拿到后续所有帧
 // 补发会让同一帧被消费两次（进度计数翻倍）
 func TestReplayEmptyWhileRunning(t *testing.T) {
 	p := NewProgress(3)

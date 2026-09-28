@@ -6,10 +6,9 @@ import (
 	"strings"
 )
 
-// URLScheme 返回 raw 的协议名（小写、不含冒号）；没有协议时返回 ""。
-// 按 scheme 语法逐字符判断，而不是「第一个冒号之前」——否则 "https://x" 的
-// scheme 冒号会被误当成路径里的冒号。判据与浏览器一致：
-// new URL(raw, base).protocol 对同一字符串必须给出同一个协议名。
+// URLScheme 返回 raw 的协议名（小写、不含冒号）；没有协议时返回 ""
+// 按 scheme 语法逐字符判断，取"第一个冒号之前"的话会把 scheme 的冒号误当成路径里的冒号
+// 判据与浏览器一致，new URL(raw, base).protocol 对同一字符串必须给出同一个协议名
 func URLScheme(raw string) string {
 	i := strings.IndexByte(raw, ':')
 	if i <= 0 {
@@ -27,12 +26,11 @@ func URLScheme(raw string) string {
 	return strings.ToLower(raw[:i])
 }
 
-// ResolveScheme 保证输出可交给 http.Client / 外部下载器：没有协议时补 https。
-//
-// 与 URLScheme 配套——那是「判断」，这是「补齐」，两者分开是为了让调用方
-// 显式决定何时补：把 URL 交给浏览器时不需要补（浏览器自己认 //host），
-// 交给 Go 的 http.Client 时必须补（否则报 unsupported protocol scheme）。
-// 已带协议的地址原样返回，因此 javascript: 之类仍会带着协议交给上层拒绝。
+// ResolveScheme 保证输出可交给 http.Client 与外部下载器，没有协议时补 https
+// 与 URLScheme 配套，那是判断而这里是补齐，分开是为了让调用方
+// 显式决定何时补：把 URL 交给浏览器时不需要补（浏览器自己认 //host）
+// 交给 Go 的 http.Client 时必须补（否则报 unsupported protocol scheme）
+// 已带协议的地址原样返回，因此 javascript: 之类仍会带着协议交给上层拒绝
 func ResolveScheme(raw string) string {
 	raw = strings.TrimSpace(raw)
 	if raw == "" || URLScheme(raw) != "" {

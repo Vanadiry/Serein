@@ -1,5 +1,5 @@
-// GitHub Release 解析器。一次 /releases 请求，返回最新（非预发布）版本。
-// 复用 JSON 步进引擎：[0, "tag_name"] 为最新。
+// GitHub Release 解析器。一次 /releases 请求，返回最新（非预发布）版本
+// 复用 JSON 步进引擎：[0, "tag_name"] 为最新
 package checker
 
 import (
@@ -30,7 +30,7 @@ type GitHubConfig struct {
 	Label           string // 事件标题里的标识，为空时回退 owner/repo
 }
 
-// CheckGitHub 请求 /releases，返回最新非预发布版本及其下载链接。
+// CheckGitHub 请求 /releases，返回最新非预发布版本及其下载链接
 func CheckGitHub(ctx context.Context, cfg GitHubConfig, client *http.Client) (PlatformResult, error) {
 	perPage := cfg.PerPage
 	if perPage <= 0 {
@@ -62,11 +62,11 @@ func CheckGitHub(ctx context.Context, cfg GitHubConfig, client *http.Client) (Pl
 	return pickLatestRelease(root, arr, cfg, perPage)
 }
 
-// pickLatestRelease 从已解析的 releases 数组里选出目标 release 并取出版本号与下载链接。
-// 与 HTTP 无关，便于单测（githubAPI 是硬编码常量，没法指向测试服务）。
-//
-// warn 收集到 PlatformResult.Warnings，由 server 归入本次检查的错误列表；不走事件总线
-// ——那是程序运行期的问题通道，不该混进某一次 task 的产出。必须是局部状态：本函数会被并发调用。
+// pickLatestRelease 从已解析的 releases 数组里选出目标 release，取出版本号与下载链接
+// 与 HTTP 无关，便于单测，githubAPI 是硬编码常量，没法指向测试服务
+// warn 收集到 PlatformResult.Warnings，由 server 归入本次检查的错误列表
+// 不走事件总线，那是程序运行期的问题通道，不该混进某一次 task 的产出
+// 必须是局部状态，本函数会被并发调用
 func pickLatestRelease(root any, arr []any, cfg GitHubConfig, perPage int) (PlatformResult, error) {
 	var warns []string
 	collect := func(msg string) {
@@ -96,8 +96,8 @@ func pickLatestRelease(root any, arr []any, cfg GitHubConfig, perPage int) (Plat
 	}
 
 	if !latestFound {
-		// 版本号与下载链接同时取不到，根因只有一个（没有可用的 release），
-		// 所以合并成一条错误，而不是拆成「未取到版本」+「未取到链接」两条。
+		// 版本号与下载链接同时取不到时根因唯一，即没有可用的 release
+		// 拆成"未取到版本"与"未取到链接"两条会让用户以为是两个问题
 		reason := "仓库没有任何 release"
 		if len(arr) > 0 {
 			if cfg.AllowPrerelease {
@@ -110,8 +110,8 @@ func pickLatestRelease(root any, arr []any, cfg GitHubConfig, perPage int) (Plat
 		return latest, fmt.Errorf("未找到可用的 release：%s", reason)
 	}
 
-	// 取到版本号但没有下载链接：同样算失败。否则 UI 会显示「有更新」，
-	// 用户点确认后版本落盘，软件却永远装不上，且没有任何提示。
+	// 取到版本号但没有下载链接：同样算失败。否则 UI 会显示"有更新"
+	// 用户点确认后版本落盘，软件却永远装不上，且没有任何提示
 	if urlEmpty(latest.URL) {
 		why := "d_position 的正则没有匹配到任何 asset"
 		if cfg.DPosition == nil {

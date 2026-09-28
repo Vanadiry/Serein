@@ -180,7 +180,7 @@ func TestLoadUserDataSkipsBadKeysOnly(t *testing.T) {
 	if len(ud) != 3 {
 		t.Errorf("应保留 3 个 app, 实际 %d: %v", len(ud), ud)
 	}
-	// 坏文件不应被留档——它大部分是好的，就地继续用
+	// 坏文件不应被留档，它大部分是好的，就地继续用
 	for _, name := range listUserDir(t, home) {
 		if strings.HasPrefix(name, "software.json.corrupt-") {
 			t.Errorf("个别键坏掉不该留档: %s", name)
@@ -200,8 +200,8 @@ func drainEvents(ch chan []byte) {
 	}
 }
 
-// 坏文件必须推事件：用户看到的现象是「所有软件都有更新」，不告诉他原因
-// 就会以为全部过期了。走常驻事件，且只推一次。
+// 坏文件必须推事件，用户看到的现象是"所有软件都有更新"
+// 不告诉他原因就会以为全部过期了。走常驻事件，且只推一次
 func TestLoadUserDataEmitsEvent(t *testing.T) {
 	home := t.TempDir()
 	writeSoftware(t, home, `{"a":`)
@@ -240,7 +240,7 @@ func TestLoadUserDataEmitsEvent(t *testing.T) {
 	}
 }
 
-// 数据正常时不推事件，否则用户会一直看到「注意」
+// 数据正常时不推事件，否则用户会一直看到"注意"
 func TestLoadUserDataNoEventWhenOK(t *testing.T) {
 	home := t.TempDir()
 	writeSoftware(t, home, `{"a": {"windows": "1.0"}}`)

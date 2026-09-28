@@ -1,5 +1,5 @@
-// JSON 解析器：position 为层级数组，复用通用步进引擎。
-// 支持单路径和多路径拼接（v_join/d_join）。
+// JSON 解析器：position 为层级数组，复用通用步进引擎
+// 支持单路径和多路径拼接（v_join/d_join）
 package checker
 
 import "fmt"
@@ -12,7 +12,7 @@ func extractJSONValue(body []byte, pos any, join string) (any, error) {
 	return stepJSON(root, pos, join)
 }
 
-// stepJSON 对已解析的 JSON 树执行步进（供 GitHub checker 复用）。
+// stepJSON 对已解析的 JSON 树执行步进（供 GitHub checker 复用）
 func stepJSON(root any, pos any, join string) (any, error) {
 	if join != "" {
 		paths, ok := pos.([]any)

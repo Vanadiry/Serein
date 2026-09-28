@@ -54,8 +54,7 @@ url = "https://x"
 	}
 }
 
-// rule_source_dev 只支持本地路径：远端地址会因子源 URL 拼接方式而静默失效，
-// 与其事后看到难懂的报错，不如直接拒绝
+// rule_source_dev 只支持本地路径：远端地址会因子源 URL 拼接方式而静默失效，因此直接拒绝
 func TestValidateDevSourceRejectsRemote(t *testing.T) {
 	for _, p := range []string{
 		"http://example.com/_source.json",
