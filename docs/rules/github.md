@@ -52,3 +52,11 @@ d_position = [0, "assets", "name~exe", "browser_download_url"]
 - 不需要 `url`，由 `owner/repo` 自动拼接
 - `per_page` 可选，拼接为 `/releases?per_page=N`
 - `allow_prerelease` 可选，默认 `false`。Serein 在此 type 下默认过滤预发布版，设为 `true` 则不过滤
+
+### 对于不标准的 Release
+
+有时，一些程序的 Release 将其他东西作为正式 Release 发布。  
+而 Serein 在提取 Release 时，并不会校验捕捉到的内容是否为“最新 Release”，这可能导致提取错误。
+
+因此，可以使用 [JSON 规则](json.md)请求 `https://api.github.com/repos/[owner]/[repo]/releases/latest` API。
+这会返回 GitHub 中记录的“最新 Release”。
