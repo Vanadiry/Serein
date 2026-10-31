@@ -47,8 +47,10 @@ API 拉取规则时，程序逐个下载 `{baseurl}/{files键}` 到 Serein 主�
 Serein 会将其与本地已记录的值比较，若不同，则视为又更新，会以远端覆盖。  
 版本字符串可以为任何内容，通常建议为任意哈希值，或者从 1 开始的递增数字。
 
-你可以使用 [SereinRulesList](https://github.com/Vanadiry/SereinRulesList) 仓库的 `update_files.py` 工具，来方便的更新版本字符串。  
+你可以使用 [SereinRulesList](https://github.com/Vanadiry/SereinRulesList) 仓库的 `tool_update_files.py` 工具，来方便地更新版本字符串。  
 它能够遍历仓库中所有 `_source.json`，按文件内容重算哈希并写回。
+
+另外，还提供了 `tool_gen_test_list.py` 工具，能够扫描规则仓库的所有规则表，并生成包含全部平台的测试用 Tracker，方便检查。
 
 ## 递归解析
 

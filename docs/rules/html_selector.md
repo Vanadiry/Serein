@@ -13,7 +13,7 @@ baseurl = "https://example.com"
 
 [config.macos]
 url = "https://example.com/download"
-v_position = { selector = ".version", regex = "(\\d+\\.\\d+\\.\\d+)" }
+v_position = { selector = ".version", regex = "(\\d+(?:\\.\\d+)*)" }
 d_position = { selector = ".mac-download", attr = "href" }
 ```
 

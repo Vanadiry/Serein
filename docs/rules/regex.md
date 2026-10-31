@@ -13,7 +13,7 @@ baseurl = "https://example.com"
 
 [config.windows]
 url = "https://example.com/download"
-v_position = "<b>(\\d+\\.\\d+\\.\\d+\\.\\d+)</b>"
+v_position = "<b>(\\d+(?:\\.\\d+)*)</b>"
 d_position = "<a href=\"(/example\\.zip)\""
 ```
 
@@ -30,3 +30,4 @@ d_position = "<a href=\"(/example\\.zip)\""
 
 - 正则必须包含一个捕获组 `()`，取第一个捕获组的值
 - 对于示例中 `v_position` 这样多个符合的结果，取第一个
+- 版本号推荐用 `\d+(?:\.\d+)*`，段数随上游变化

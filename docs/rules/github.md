@@ -16,10 +16,10 @@ per_page = 10 # 不写此项，默认为 3
 allow_prerelease = true # 可选，为 true 时不过滤 prerelease
 
 [config.macos]
-d_position = "darwin-arm64"
+d_position = "darwin-arm64$"
 
 [config.windows]
-d_position = "exe"
+d_position = "\\.exe$"
 ```
 
 对应 GitHub Release：
@@ -38,10 +38,10 @@ url = "https://api.github.com/repos/Vanadiry/Seshat/releases?per_page=10"
 v_position = [0, "tag_name"]
 
 [config.macos]
-d_position = [0, "assets", "name~darwin.*arm64", "browser_download_url"]
+d_position = [0, "assets", "name~darwin-arm64$", "browser_download_url"]
 
 [config.windows]
-d_position = [0, "assets", "name~exe", "browser_download_url"]
+d_position = [0, "assets", "name~\\.exe$", "browser_download_url"]
 ```
 
 ## 注意事项
