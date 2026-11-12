@@ -6,9 +6,9 @@
         "build": "pnpm run build:css && pnpm run build:js && pnpm run build:html"
     },
     "dependencies": {
-        "@tailwindcss/cli": "^4.3.3",
+        "@tailwindcss/cli": "^4.3.5",
         "html-minifier-terser": "^7.2.0",
-        "tailwindcss": "^4.3.3",
+        "tailwindcss": "^4.3.5",
         "terser": "^5.51.2"
     },
     "devDependencies": {
