@@ -1155,22 +1155,20 @@ function showProgressModal(title, cancel) {
 
     var card = document.createElement("div");
     card.className =
-        "bg-surface-alt border border-bord rounded-card p-6 w-[440px] max-w-[90vw] shadow-overlay transition-all duration-200";
+        "w-[440px] max-w-[90vw] flex flex-col items-center text-center transition-all duration-200";
     card.tabIndex = -1;
     card.style.outline = "none";
     card.style.opacity = "0";
     card.style.transform = "scale(.95)";
     card.innerHTML =
-        '<div class="flex items-center justify-between mb-4">' +
-        '<h3 id="prog-title" class="text-base font-bold text-text">' +
+        '<h3 id="prog-title" class="text-lg font-bold text-text mb-1">' +
         escapeHtml(title) +
         "</h3>" +
-        '<button id="prog-cancel" class="px-3 py-1 rounded-control border border-[rgba(255,0,0,.3)] bg-transparent text-[#dc2626] text-xs cursor-pointer hover:bg-[rgba(255,0,0,.1)]">终止</button>' +
-        "</div>" +
-        '<div class="bg-bg rounded-pill h-2 mb-3 overflow-hidden">' +
+        '<p id="prog-status" class="text-xs text-sub mb-3">准备中...</p>' +
+        '<div class="w-full bg-[rgba(128,128,128,.2)] rounded-pill h-2 overflow-hidden">' +
         '<div id="prog-bar" class="bg-accent h-full rounded-pill transition-all duration-300" style="width:0%"></div>' +
         "</div>" +
-        '<p id="prog-status" class="text-sub text-sm">准备中...</p>';
+        '<button id="prog-cancel" class="mt-5 h-10 px-5 rounded-control border border-[rgba(220,38,38,.45)] bg-transparent text-[#dc2626] text-sm cursor-pointer hover:bg-[rgba(220,38,38,.1)]">终止</button>';
     overlay.appendChild(card);
     document.body.appendChild(overlay);
     lockScroll();
@@ -1241,7 +1239,7 @@ function showProgressModal(title, cancel) {
                 if (status)
                     status.textContent = "终止请求无响应，任务可能仍在后台运行";
                 var actions = document.createElement("div");
-                actions.className = "mt-3 flex justify-end";
+                actions.className = "mt-3 flex justify-center";
                 var btn = document.createElement("button");
                 btn.textContent = "关闭";
                 btn.className =
