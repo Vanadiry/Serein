@@ -22,7 +22,9 @@
                     >
                         规则源
                     </div>
-                    <div class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
+                    <div
+                        class="flex-1 min-h-0 overflow-y-auto scrollbar-hidden"
+                    >
                         <nav
                             id="source-nav"
                             class="flex flex-col gap-0.5"
@@ -126,11 +128,7 @@
                 var gridHtml = rules.length
                     ? renderCards(rules)
                     : '<div class="col-span-full">' +
-                      emptyState(
-                          "暂无规则",
-                          "该规则源暂无可用规则",
-                          "center"
-                      ) +
+                      emptyState("暂无规则", "该规则源暂无可用规则", "center") +
                       "</div>";
                 if (isNew) {
                     grid.innerHTML = gridHtml;
@@ -271,7 +269,15 @@
                     .closest(".card-h")
                     .querySelectorAll(".rule-cb:checked");
                 const platforms = Array.from(cbs).map((cb) => cb.dataset.os);
-                await apiPost("/api/tracker/add", { app_id: appId, platforms });
+                try {
+                    await apiPost("/api/tracker/add", {
+                        app_id: appId,
+                        platforms
+                    });
+                } catch (e) {
+                    showRequestError(e);
+                    return;
+                }
                 btn.textContent = "✓";
                 btn.classList.add("text-ok");
             }

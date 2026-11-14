@@ -170,7 +170,12 @@
                             .getElementById("new-tracker-name")
                             .value.trim();
                         if (!name) return;
-                        await apiPost("/api/tracker/new", { id: name });
+                        try {
+                            await apiPost("/api/tracker/new", { id: name });
+                        } catch (e) {
+                            showRequestError(e);
+                            return;
+                        }
                         closeModal(document.querySelector(".fixed"));
                         loadTrackers();
                     };
@@ -652,7 +657,12 @@
                     if (p.latest_version) body[os] = p.latest_version;
                 }
                 console.log("[confirm]", appId, body);
-                await apiPost("/api/check/confirm", body);
+                try {
+                    await apiPost("/api/check/confirm", body);
+                } catch (e) {
+                    showRequestError(e);
+                    return;
+                }
                 delete checkResults[appId];
                 // 直接重新获取并渲染列表，不触发渐出渐入动画
                 const data =
@@ -698,7 +708,12 @@
                             .forEach((inp) => {
                                 body[inp.dataset.os] = inp.value.trim();
                             });
-                        await apiPost("/api/check/confirm", body);
+                        try {
+                            await apiPost("/api/check/confirm", body);
+                        } catch (e) {
+                            showRequestError(e);
+                            return;
+                        }
                         closeModal(modal);
                         delete checkResults[appId];
                         const detail =

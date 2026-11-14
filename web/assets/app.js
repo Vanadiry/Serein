@@ -104,7 +104,7 @@ function openUrl(url) {
         return;
     }
     if (isDesktop()) {
-        apiPost("/api/call/browser", { url: abs });
+        apiPost("/api/call/browser", { url: abs }).catch(showRequestError);
     } else {
         window.open(abs, "_blank");
     }
@@ -200,6 +200,18 @@ async function apiPost(path, body, signal) {
     });
     return _handleResponse(r);
 }
+// fetch 本身失败（后端未启动、连接中断）不会走到 _handleResponse，单独提示一次
+function showRequestError(e) {
+    var msg = (e && e.message) || "网络错误";
+    _makeToast(
+        "错误",
+        "请求失败：" + escapeHtml(String(msg)),
+        "bg-err",
+        "bg-err/80",
+        0
+    );
+}
+
 // 统一处理响应：非 2xx 弹一次错误提示
 async function _handleResponse(r) {
     var data = null;
@@ -329,7 +341,13 @@ function renderTopbar(current) {
 // 拉取规则（可从管理弹窗或别处调用）
 async function syncRules() {
     console.log("[sync]");
-    var res = await apiPost("/api/sync", { type: "rules" });
+    var res;
+    try {
+        res = await apiPost("/api/sync", { type: "rules" });
+    } catch (e) {
+        showRequestError(e);
+        return;
+    }
     if (!res || !res.task_id) {
         return;
     }
@@ -1115,7 +1133,13 @@ function showProgressModal(title, cancel) {
 // 检查进度。done 事件带本次检查的全部错误（见 core/server/check.go 的 checkErrs），
 // 一次性交给 onDone 展示——不逐条弹 toast，也不再从结果缓存里反推。
 async function asyncCheck(apiPath, body, onDone) {
-    var res = await apiPost(apiPath, body);
+    var res;
+    try {
+        res = await apiPost(apiPath, body);
+    } catch (e) {
+        showRequestError(e);
+        return;
+    }
     if (!res || !res.task_id) {
         if (onDone) onDone(false, [], 0, true); // 空选择：也要给一句提示
         return;
