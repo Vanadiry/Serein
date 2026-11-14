@@ -1149,7 +1149,7 @@ function showProgressModal(title, cancel) {
     var prevFocus = document.activeElement;
     var overlay = document.createElement("div");
     overlay.className =
-        "fixed inset-0 z-[200] bg-bg/40 backdrop-blur-xl flex items-center justify-center transition-opacity duration-200";
+        "fixed inset-0 z-[200] bg-scrim backdrop-blur-md flex items-center justify-center transition-opacity duration-200";
     overlay.style.opacity = "0";
     overlay.id = "progress-overlay";
 

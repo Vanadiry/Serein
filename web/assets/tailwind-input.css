@@ -18,6 +18,7 @@
     --c-warn: #e8a040;
     --c-err: #dc2626;
     --c-overlay: rgba(0, 0, 0, 0.6);
+    --c-scrim: rgba(0, 0, 0, 0.45);
     --c-toast-warn-bg: #451a03;
     --c-toast-ok-bg: #243624;
     --c-toast-err-bg: #3a1a1a;
@@ -43,6 +44,7 @@ html.light {
     --c-warn: #d88810;
     --c-err: #c62828;
     --c-overlay: rgba(0, 0, 0, 0.4);
+    --c-scrim: rgba(0, 0, 0, 0.18);
     --c-toast-warn-bg: #fef3c7;
     --c-toast-ok-bg: #e6f5e6;
     --c-toast-err-bg: #fee2e2;
@@ -67,6 +69,7 @@ html.light {
     --color-warn: var(--c-warn);
     --color-err: var(--c-err);
     --color-overlay: var(--c-overlay);
+    --color-scrim: var(--c-scrim);
     --color-toast-warn-bg: var(--c-toast-warn-bg);
     --color-toast-ok-bg: var(--c-toast-ok-bg);
     --color-toast-err-bg: var(--c-toast-err-bg);
