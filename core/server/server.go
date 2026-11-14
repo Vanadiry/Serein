@@ -15,6 +15,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -47,6 +48,9 @@ type Server struct {
 	// LoadUserData 读到解析不了的文件会把它改名留档，这时另一个请求若正在往同一路径写
 	// 数据会跟着进 .corrupt- 文件，正式路径反而空了
 	userMu sync.RWMutex
+
+	// syncRunning 保证同一时间只有一个规则同步任务，避免两个任务同时写规则目录
+	syncRunning atomic.Bool
 
 	// runPreRequests 便于测试替换，真实实现要联网
 	// 测试里指向 127.0.0.1 的地址会被 SSRF 防护正确拦掉，没法构造“预请求失败”这个场景

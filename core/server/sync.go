@@ -35,9 +35,14 @@ func (s *Server) syncRules(w http.ResponseWriter) {
 		writeJSON(w, http.StatusOK, map[string]string{"task_id": ""})
 		return
 	}
+	if !s.syncRunning.CompareAndSwap(false, true) {
+		writeError(w, http.StatusConflict, "已有规则同步任务正在运行")
+		return
+	}
 	log.Logf("[sync] %d sources", len(s.config.RuleSources))
 	p := progress.NewProgress(0)
 	goSafe("sync", p, func() {
+		defer s.syncRunning.Store(false)
 		store.SyncAllSourcesAsync(s.home, s.config.RuleSources, s.config.Download.Concurrency, p, s.reloadRules)
 	})
 	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID})
