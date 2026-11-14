@@ -8,11 +8,8 @@ node_modules/
 
 # Build
 build/
-web/assets/app.min.js
-web/index.html
-web/rules.html
-web/settings.html
-web/search.html
+web-dist/*
+!web-dist/.gitkeep
 
 # Tauri
 /src-tauri/target/

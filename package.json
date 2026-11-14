@@ -6,10 +6,11 @@
         "pnpm": ">=12"
     },
     "scripts": {
-        "build:css": "tailwindcss -i assets/tailwind-input.css -o ../web/assets/style.css --minify --cwd web_raw",
-        "build:js": "pnpm terser web_raw/assets/app.js -o web/assets/app.min.js -c -m",
+        "build:clean": "node scripts/clean-dist.js",
+        "build:css": "tailwindcss -i assets/tailwind-input.css -o ../web-dist/assets/style.css --minify --cwd web",
+        "build:js": "pnpm terser web/assets/app.js -o web-dist/assets/app.min.js -c -m",
         "build:html": "node scripts/minify-html.js",
-        "build": "pnpm run build:css && pnpm run build:js && pnpm run build:html"
+        "build": "pnpm run build:clean && pnpm run build:css && pnpm run build:js && pnpm run build:html"
     },
     "devDependencies": {
         "@swc/html": "^1.16.22",

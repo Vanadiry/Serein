@@ -53,8 +53,8 @@ JUNK_PATHS = [
     "build",
     "src-tauri/target",
     "src-tauri/gen/schemas",
-    "web/*.html",
-    "web/assets/app.min.js",
+    "web-dist/assets",
+    "web-dist/*.html",
 ]
 
 # Directories to skip

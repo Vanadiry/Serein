@@ -2,8 +2,8 @@ const fs = require("fs");
 const path = require("path");
 const { minify } = require("@swc/html");
 
-const SRC_DIR = path.join(__dirname, "../web_raw");
-const DEST_DIR = path.join(__dirname, "../web");
+const SRC_DIR = path.join(__dirname, "../web");
+const DEST_DIR = path.join(__dirname, "../web-dist");
 
 const FILES = ["index.html", "rules.html", "settings.html", "search.html"];
 
@@ -25,10 +25,22 @@ async function processFile(file) {
     fs.writeFileSync(destPath, code, "utf-8");
 }
 
+function copyStatic() {
+    const srcDir = path.join(SRC_DIR, "assets");
+    const destDir = path.join(DEST_DIR, "assets");
+    fs.mkdirSync(destDir, { recursive: true });
+    for (const file of fs.readdirSync(srcDir)) {
+        if (file.endsWith(".svg")) {
+            fs.copyFileSync(path.join(srcDir, file), path.join(destDir, file));
+        }
+    }
+}
+
 async function main() {
     for (const file of FILES) {
         await processFile(file);
     }
+    copyStatic();
 }
 
 main();

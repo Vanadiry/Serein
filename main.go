@@ -35,7 +35,7 @@ func sereinHome() string {
 }
 
 func startServer(home string, openBrowser bool) {
-	webFS, err := fs.Sub(webFiles, "web")
+	webFS, err := fs.Sub(webFiles, "web-dist")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Serein: %v\n", err)
 		os.Exit(1)
