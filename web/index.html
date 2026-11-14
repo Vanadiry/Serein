@@ -162,27 +162,37 @@
       <input id="new-tracker-name" class="input w-full mb-3" placeholder="Tracker 名称">
       <div class="flex gap-2">
         <button onclick="closeModal(this.closest('.fixed'))" class="flex-1 px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>
-        <button id="btn-create-tracker" class="flex-1 px-4 py-2 rounded-control bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">创建</button>
+        <button id="btn-create-tracker" class="flex-1 px-4 py-2 rounded-control bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90 disabled:opacity-50 disabled:cursor-default">创建</button>
       </div>`);
-                document.getElementById("btn-create-tracker").onclick =
-                    async () => {
-                        const name = document
-                            .getElementById("new-tracker-name")
-                            .value.trim();
-                        if (!name) return;
-                        var res;
-                        try {
-                            res = await apiPost("/api/tracker/new", {
-                                id: name
-                            });
-                        } catch (e) {
-                            showRequestError(e);
-                            return;
-                        }
-                        if (res && res.error) return;
-                        closeModal(document.querySelector(".fixed"));
-                        loadTrackers();
-                    };
+                var createBtn = document.getElementById("btn-create-tracker");
+                createBtn.onclick = async () => {
+                    if (createBtn.disabled) return;
+                    const name = document
+                        .getElementById("new-tracker-name")
+                        .value.trim();
+                    if (!name) return;
+                    var label = createBtn.textContent;
+                    createBtn.disabled = true;
+                    createBtn.textContent = "创建中…";
+                    var res;
+                    try {
+                        res = await apiPost("/api/tracker/new", {
+                            id: name
+                        });
+                    } catch (e) {
+                        createBtn.disabled = false;
+                        createBtn.textContent = label;
+                        showRequestError(e);
+                        return;
+                    }
+                    if (res && res.error) {
+                        createBtn.disabled = false;
+                        createBtn.textContent = label;
+                        return;
+                    }
+                    closeModal(document.querySelector(".fixed"));
+                    loadTrackers();
+                };
             };
 
             async function loadTrackers() {
@@ -690,7 +700,7 @@
       <div id="edit-platforms" class="flex flex-col gap-2 mb-4"></div>
       <div class="flex gap-2">
         <button onclick="closeModal(this.closest('.fixed'))" class="flex-1 px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>
-        <button id="btn-save-version" class="flex-1 px-4 py-2 rounded-control bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">保存</button>
+        <button id="btn-save-version" class="flex-1 px-4 py-2 rounded-control bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90 disabled:opacity-50 disabled:cursor-default">保存</button>
       </div>`);
                 const detail = await api("/api/tracker/list/" + currentTracker);
                 const entry = (detail || []).find((e) => e.app_id === appId);
@@ -708,36 +718,45 @@
                         return `<div class="flex items-center gap-2"><span class="text-sm text-sub w-16">${escapeHtml(os)}</span><input class="input flex-1" value="${escapeAttr(cur)}" data-os="${escapeAttr(os)}"></div>`;
                     })
                     .join("");
-                document.getElementById("btn-save-version").onclick =
-                    async () => {
-                        const body = { app_id: appId };
-                        document
-                            .querySelectorAll("#edit-platforms input")
-                            .forEach((inp) => {
-                                body[inp.dataset.os] = inp.value.trim();
-                            });
-                        var res;
-                        try {
-                            res = await apiPost("/api/check/confirm", body);
-                        } catch (e) {
-                            showRequestError(e);
-                            return;
-                        }
-                        if (res && res.error) return;
-                        closeModal(modal);
-                        delete checkResults[appId];
-                        const detail =
-                            (await api(
-                                "/api/tracker/list/" + currentTracker
-                            )) || [];
-                        const list = document.getElementById("software-list");
-                        if (!list.classList.contains("hidden")) {
-                            list.innerHTML = detail
-                                .map((d) => renderSoftwareRow(d))
-                                .join("");
-                        }
-                        loadTrackers();
-                    };
+                var saveBtn = document.getElementById("btn-save-version");
+                saveBtn.onclick = async () => {
+                    if (saveBtn.disabled) return;
+                    const body = { app_id: appId };
+                    document
+                        .querySelectorAll("#edit-platforms input")
+                        .forEach((inp) => {
+                            body[inp.dataset.os] = inp.value.trim();
+                        });
+                    var label = saveBtn.textContent;
+                    saveBtn.disabled = true;
+                    saveBtn.textContent = "保存中…";
+                    var res;
+                    try {
+                        res = await apiPost("/api/check/confirm", body);
+                    } catch (e) {
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = label;
+                        showRequestError(e);
+                        return;
+                    }
+                    if (res && res.error) {
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = label;
+                        return;
+                    }
+                    closeModal(modal);
+                    delete checkResults[appId];
+                    const detail =
+                        (await api("/api/tracker/list/" + currentTracker)) ||
+                        [];
+                    const list = document.getElementById("software-list");
+                    if (!list.classList.contains("hidden")) {
+                        list.innerHTML = detail
+                            .map((d) => renderSoftwareRow(d))
+                            .join("");
+                    }
+                    loadTrackers();
+                };
             }
 
             function cleanGitHubError(msg) {
