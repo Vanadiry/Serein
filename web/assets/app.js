@@ -1058,6 +1058,7 @@ function showModal(html, wide) {
         : "min-w-[400px] max-w-[520px]";
     el.innerHTML = `<div class="bg-surface-alt border border-bord rounded-card p-6 ${size} shadow-overlay transition-all duration-200" style="opacity:0;transform:scale(.95)">${html}</div>`;
     document.body.appendChild(el);
+    lockScroll();
     requestAnimationFrame(function () {
         el.style.opacity = "1";
         el.firstElementChild.style.opacity = "1";
@@ -1069,8 +1070,10 @@ function showModal(html, wide) {
 }
 
 function closeModal(el) {
-    if (!el) return;
+    if (!el || el._closing) return;
+    el._closing = true;
     var back = el._prevFocus;
+    unlockScroll();
     el.style.opacity = "0";
     if (el.firstElementChild) {
         el.firstElementChild.style.opacity = "0";
