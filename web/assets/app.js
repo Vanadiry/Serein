@@ -1041,6 +1041,23 @@ function refreshView(el, updateFn) {
     }, 80);
 }
 
+// 进度遮罩期间锁定页面滚动，避免滚轮穿透；多个遮罩叠加时用计数平衡
+var _scrollLocks = 0;
+var _prevBodyOverflow = "";
+
+function lockScroll() {
+    if (_scrollLocks++ === 0) {
+        _prevBodyOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+    }
+}
+
+function unlockScroll() {
+    if (_scrollLocks > 0 && --_scrollLocks === 0) {
+        document.body.style.overflow = _prevBodyOverflow;
+    }
+}
+
 // 进度弹窗（全屏遮罩，不可关闭）
 
 function showProgressModal(title, cancel) {
@@ -1068,6 +1085,7 @@ function showProgressModal(title, cancel) {
         '<p id="prog-status" class="text-sub text-sm">准备中...</p>';
     overlay.appendChild(card);
     document.body.appendChild(overlay);
+    lockScroll();
     requestAnimationFrame(function () {
         overlay.style.opacity = "1";
         card.style.opacity = "1";
@@ -1109,11 +1127,15 @@ function showProgressModal(title, cancel) {
         };
     }
 
+    var closed = false;
     function close() {
+        if (closed) return;
+        closed = true;
         if (cancelTimer) {
             clearTimeout(cancelTimer);
             cancelTimer = null;
         }
+        unlockScroll();
         overlay.style.opacity = "0";
         card.style.opacity = "0";
         card.style.transform = "scale(.95)";
