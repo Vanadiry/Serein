@@ -15,7 +15,7 @@ import (
 
 	"github.com/vanadiry/serein/core/httpx"
 
-	"github.com/BurntSushi/toml"
+	"github.com/pelletier/go-toml/v2"
 )
 
 // 基础类型
@@ -177,7 +177,11 @@ var ruleSections = map[string]bool{"info": true, "config": true, "pre_request": 
 
 func ParseRuleFile(path string, ruleValues map[string]map[string]string) (Rule, []RuleIssue, error) {
 	var raw map[string]any
-	if _, err := toml.DecodeFile(path, &raw); err != nil {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return Rule{}, nil, err
+	}
+	if err := toml.Unmarshal(data, &raw); err != nil {
 		return Rule{}, nil, err
 	}
 
@@ -379,7 +383,7 @@ func decodeSection[T any](raw map[string]any, section string) (T, []string, erro
 	if err := toml.NewEncoder(&buf).Encode(raw); err != nil {
 		return result, unknown, fmt.Errorf("%s: %w", section, err)
 	}
-	if _, err := toml.NewDecoder(&buf).Decode(&result); err != nil {
+	if err := toml.NewDecoder(&buf).Decode(&result); err != nil {
 		return result, unknown, fmt.Errorf("%s: %w", section, err)
 	}
 	return result, unknown, nil

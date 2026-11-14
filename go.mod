@@ -3,9 +3,9 @@ module github.com/vanadiry/serein
 go 1.27
 
 require (
-	github.com/BurntSushi/toml v1.6.0
 	github.com/PuerkitoBio/goquery v1.13.0
 	github.com/gorilla/websocket v1.5.3
+	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3
 )
 

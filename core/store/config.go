@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/BurntSushi/toml"
+	"github.com/pelletier/go-toml/v2"
 )
 
 type RuleSource struct {
@@ -88,7 +88,7 @@ func decodeTOML(path string, v any) error {
 		return err
 	}
 	defer f.Close()
-	_, err = toml.NewDecoder(f).Decode(v)
+	err = toml.NewDecoder(f).Decode(v)
 	return err
 }
 

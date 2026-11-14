@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/BurntSushi/toml"
+	"github.com/pelletier/go-toml/v2"
 )
 
 // DefaultTrackerID 默认 Tracker 的文件名（不含 .toml）
@@ -227,7 +227,7 @@ func AddToTracker(home, name string, entry TrackerEntry) error {
 		}
 	} else {
 		// 新文件：套用默认模板（含 display_name 等），避免生成裸文件
-		if _, decErr := toml.Decode(DefaultTrackerTOML, &tf); decErr != nil {
+		if decErr := toml.Unmarshal([]byte(DefaultTrackerTOML), &tf); decErr != nil {
 			return decErr
 		}
 		if name == DefaultTrackerID {
