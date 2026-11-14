@@ -976,8 +976,21 @@ function showModal(html, wide) {
     el.className =
         "fixed inset-0 z-[51] flex items-center justify-center bg-overlay transition-opacity duration-200";
     el.style.opacity = "0";
-    el.onclick = (e) => {
-        if (e.target === el) closeModal(el);
+    // 只有按下和松开都落在遮罩本身才关闭。
+    // 在弹窗内选中文本或拖到弹窗外面再松手时，click 的 target 也会是遮罩，
+    // 只看 target 会误关（链接弹窗里选链接时很容易触发）。
+    var downOnOverlay = false;
+    var upOnOverlay = false;
+    el.addEventListener("mousedown", function (e) {
+        downOnOverlay = e.target === el;
+    });
+    el.addEventListener("mouseup", function (e) {
+        upOnOverlay = e.target === el;
+    });
+    el.onclick = function (e) {
+        if (e.target === el && downOnOverlay && upOnOverlay) closeModal(el);
+        downOnOverlay = false;
+        upOnOverlay = false;
     };
     // 关闭后把焦点还给打开弹窗的元素
     el._prevFocus = document.activeElement;
