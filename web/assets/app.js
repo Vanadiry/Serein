@@ -1325,9 +1325,7 @@ async function asyncCheck(apiPath, body, onDone) {
         settled = true;
         evt.close();
         pm.close();
-        if (d.cancelled) {
-            _makeToast("已终止", "取消检查", "bg-warn", "bg-warn/80", 5);
-        }
+        // 终止提示统一由 showCheckDone 展示，这里不再额外弹一个
         onDone(!!d.cancelled, d.errors || [], d.overflow || 0, false, !!lost);
     }
 
