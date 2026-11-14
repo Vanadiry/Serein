@@ -958,6 +958,18 @@ function confirmDialog(msg, cb) {
     };
 }
 
+// 弹窗内可聚焦元素，用于 Tab 循环
+function modalFocusables(root) {
+    return Array.prototype.filter.call(
+        root.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        ),
+        function (n) {
+            return !n.disabled && n.getClientRects().length > 0;
+        }
+    );
+}
+
 // 弹窗
 function showModal(html, wide) {
     const el = document.createElement("div");
@@ -965,8 +977,29 @@ function showModal(html, wide) {
         "fixed inset-0 z-[51] flex items-center justify-center bg-overlay transition-opacity duration-200";
     el.style.opacity = "0";
     el.onclick = (e) => {
-        if (e.target === el) el.remove();
+        if (e.target === el) closeModal(el);
     };
+    // 关闭后把焦点还给打开弹窗的元素
+    el._prevFocus = document.activeElement;
+    el.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") {
+            e.preventDefault();
+            closeModal(el);
+            return;
+        }
+        if (e.key !== "Tab") return;
+        var items = modalFocusables(el);
+        if (!items.length) return;
+        var first = items[0];
+        var last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    });
     const size = wide
         ? "min-w-[560px] max-w-[780px]"
         : "min-w-[400px] max-w-[520px]";
@@ -976,12 +1009,15 @@ function showModal(html, wide) {
         el.style.opacity = "1";
         el.firstElementChild.style.opacity = "1";
         el.firstElementChild.style.transform = "scale(1)";
+        var items = modalFocusables(el);
+        if (items.length) items[0].focus();
     });
     return el;
 }
 
 function closeModal(el) {
     if (!el) return;
+    var back = el._prevFocus;
     el.style.opacity = "0";
     if (el.firstElementChild) {
         el.firstElementChild.style.opacity = "0";
@@ -990,6 +1026,7 @@ function closeModal(el) {
     setTimeout(function () {
         el.remove();
     }, 200);
+    if (back && typeof back.focus === "function") back.focus();
 }
 
 // 视图切换动画
