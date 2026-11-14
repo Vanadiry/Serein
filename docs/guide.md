@@ -146,6 +146,8 @@ Tracker 中的 `platforms` 优先级高于配置文件中的 `platforms`。
 
 如何编写 Tracker，请查看 [rules/vsix](rules/vsix.md)
 
+如果你使用 VSCodium，可以用 [tools](tools.md) 里列出脚本来方便的生成 Tracker。
+
 ## 备份
 
 主目录下共有 3 个子目录、1 个文件存放重要数据。
