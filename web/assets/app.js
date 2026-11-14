@@ -1152,10 +1152,13 @@ function startSyncProgress(taskId) {
         "拉取规则",
         API + "/api/progress/cancel/" + taskId
     );
+    var settled = false;
+    var reconnects = 0;
     var evt = new EventSource(API + "/api/progress/" + taskId);
     evt.onmessage = function (e) {
         var d = JSON.parse(e.data);
         if (d.step === "done") {
+            settled = true;
             evt.close();
             pm.close();
             var parts = [];
@@ -1240,10 +1243,23 @@ function startSyncProgress(taskId) {
             pm.setProgress(0, d.total);
         }
     };
+    // 与检查更新一致：EventSource 会自动重连，服务端也会保留一段时间的结果，
+    // 短暂断线不直接关闭弹窗；反复重连仍拿不到才收口，并明确提示任务可能仍在后台。
     evt.onerror = function () {
-        evt.close();
-        pm.close();
-        if (typeof loadSources === "function") loadSources();
+        if (settled) return;
+        if (++reconnects >= 8) {
+            settled = true;
+            evt.close();
+            pm.close();
+            _makeToast(
+                "错误",
+                "进度连接中断，规则拉取可能仍在后台继续",
+                "bg-err",
+                "bg-err/80",
+                0
+            );
+            if (typeof loadSources === "function") loadSources();
+        }
     };
 }
 
