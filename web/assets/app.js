@@ -1078,7 +1078,7 @@ function showModal(html, wide) {
     const size = wide
         ? "min-w-[560px] max-w-[780px]"
         : "min-w-[400px] max-w-[520px]";
-    el.innerHTML = `<div class="bg-surface-alt border border-bord rounded-card p-6 ${size} shadow-overlay transition-all duration-200" style="opacity:0;transform:scale(.95)">${html}</div>`;
+    el.innerHTML = `<div class="bg-surface-alt border border-bord rounded-card p-6 ${size} shadow-overlay transition-all duration-200 max-h-[85vh] overflow-y-auto" style="opacity:0;transform:scale(.95)">${html}</div>`;
     document.body.appendChild(el);
     lockScroll();
     requestAnimationFrame(function () {
