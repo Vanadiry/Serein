@@ -301,13 +301,28 @@ func keysOf(m map[string]string) []string {
 	return out
 }
 
-// 端到端：PPSSPP 的 android 把 type 覆盖成 html_selector 后，owner/repo 变成死字段
-// 这是真实规则集里唯一的两处死字段，用它守住判据不误报
+// 端到端：linux 把 type 覆盖成 html_selector 后，继承的 owner/repo 变成死字段
 func TestValidateRealWorldDeadFields(t *testing.T) {
-	p := filepath.Join(os.Getenv("HOME"),
-		".vSoft/Serein/rules/SereinRulesList_Official/v-github/PPSSPP.toml")
-	if _, err := os.Stat(p); err != nil {
-		t.Skip("本机没有规则集，跳过")
+	const rule = `[info]
+app_id = "serein-test"
+name = "Serein"
+platforms = ["linux"]
+
+[config]
+type = "github"
+owner = "Vanadiry"
+repo = "Serein"
+d_position = "unused"
+
+[config.linux]
+type = "html_selector"
+url = "https://github.com/Vanadiry/Serein/releases"
+d_position = { selector = "a[href$='.AppImage']", attr = "href" }
+v_position = { selector = "h1", regex = "v(\\d+(?:\\.\\d+)*)" }
+`
+	p := filepath.Join(t.TempDir(), "Serein.toml")
+	if err := os.WriteFile(p, []byte(rule), 0o644); err != nil {
+		t.Fatal(err)
 	}
 	_, issues, err := ParseRuleFile(p, nil)
 	if err != nil {
@@ -316,13 +331,13 @@ func TestValidateRealWorldDeadFields(t *testing.T) {
 	found := map[string]bool{}
 	for _, is := range issues {
 		t.Logf("  %s: %s", is.Level, is.Message)
-		if strings.Contains(is.Message, "config.android") &&
+		if strings.Contains(is.Message, "config.linux") &&
 			(strings.Contains(is.Message, "owner") || strings.Contains(is.Message, "repo")) {
 			found[is.Message] = true
 		}
 	}
 	if len(found) != 2 {
-		t.Errorf("应报出 android 的 owner/repo 两条死字段，实际 %d 条: %+v", len(found), issues)
+		t.Errorf("应报出 linux 的 owner/repo 两条死字段，实际 %d 条: %+v", len(found), issues)
 	}
 	// 整份规则集不该有别的死字段误报
 	warns := 0
