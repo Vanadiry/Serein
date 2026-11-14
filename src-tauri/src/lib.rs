@@ -24,6 +24,7 @@ pub fn run() {
             #[cfg(not(mobile))]
             setup_desktop(app)?;
 
+            #[cfg(target_os = "macos")]
             setup_menu(app)?;
             Ok(())
         })
@@ -56,7 +57,7 @@ fn split_error(raw: &str) -> (String, String) {
     let msg = body.join("\n");
     let msg = msg.trim();
     let msg = if msg.is_empty() {
-        "请检查配置或重启应用".to_string()
+        "后端未能启动".to_string()
     } else {
         msg.to_string()
     };
@@ -133,11 +134,7 @@ fn setup_desktop(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     let bin = match bin {
         Some(b) => b,
         None => {
-            error_page::show(
-                &win,
-                "找不到后端程序",
-                "Serein 后端 sidecar 缺失，请重新安装",
-            );
+            error_page::show(&win, "未找到后端程序", "Serein 后端程序缺失");
             return Ok(());
         }
     };
@@ -248,7 +245,7 @@ fn setup_desktop(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
 fn graceful_exit(handle: tauri::AppHandle) {
     SHUTTING_DOWN.store(true, Ordering::Relaxed);
     if let Some(w) = handle.get_webview_window("main") {
-        error_page::show(&w, "正在退出", "等待后端进程结束...");
+        error_page::show(&w, "正在退出", "等待后端进程结束");
     }
     #[cfg(not(mobile))]
     if let Some(child) = SIDECAR.lock().unwrap().take() {
@@ -270,6 +267,7 @@ fn graceful_exit(handle: tauri::AppHandle) {
     }
 }
 
+#[cfg(target_os = "macos")]
 fn setup_menu(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     use tauri::menu::{MenuBuilder, PredefinedMenuItem, SubmenuBuilder};
 
