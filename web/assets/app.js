@@ -948,8 +948,12 @@ function confirmDialog(msg, cb) {
             '<button id="btn-confirm-exec" class="flex-1 px-4 py-2 rounded-control bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">确认</button>' +
             "</div>"
     );
-    document.getElementById("btn-confirm-exec").onclick = function () {
-        closeModal(this.closest(".fixed"));
+    var confirmBtn = document.getElementById("btn-confirm-exec");
+    confirmBtn.onclick = function () {
+        // 弹窗有 200ms 淡出，淡出期间按钮仍可点击，避免双击重复执行
+        if (confirmBtn.disabled) return;
+        confirmBtn.disabled = true;
+        closeModal(confirmBtn.closest(".fixed"));
         cb();
     };
 }
