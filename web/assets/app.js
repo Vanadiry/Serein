@@ -1146,15 +1146,18 @@ function unlockScroll() {
 // 进度弹窗（全屏遮罩，不可关闭）
 
 function showProgressModal(title, cancel) {
+    var prevFocus = document.activeElement;
     var overlay = document.createElement("div");
     overlay.className =
-        "fixed inset-0 z-[200] bg-overlay flex items-center justify-center transition-opacity duration-200";
+        "fixed inset-0 z-[200] bg-bg/40 backdrop-blur-xl flex items-center justify-center transition-opacity duration-200";
     overlay.style.opacity = "0";
     overlay.id = "progress-overlay";
 
     var card = document.createElement("div");
     card.className =
         "bg-surface-alt border border-bord rounded-card p-6 w-[440px] max-w-[90vw] shadow-overlay transition-all duration-200";
+    card.tabIndex = -1;
+    card.style.outline = "none";
     card.style.opacity = "0";
     card.style.transform = "scale(.95)";
     card.innerHTML =
@@ -1171,10 +1174,46 @@ function showProgressModal(title, cancel) {
     overlay.appendChild(card);
     document.body.appendChild(overlay);
     lockScroll();
+
+    // 背景设为 inert：鼠标由遮罩拦截，键盘和辅助技术也进不去，
+    // 关闭时逐个还原，不影响本来就带 inert 的元素。
+    var inerted = [];
+    Array.prototype.forEach.call(document.body.children, function (node) {
+        if (node === overlay || !node.hasAttribute) return;
+        if (node.hasAttribute("inert")) return;
+        node.setAttribute("inert", "");
+        inerted.push(node);
+    });
+
+    // Tab 只在进度弹窗内循环；没有可聚焦元素时停在卡片上
+    overlay.addEventListener("keydown", function (e) {
+        if (e.key !== "Tab") return;
+        var items = modalFocusables(overlay);
+        if (!items.length) {
+            e.preventDefault();
+            card.focus();
+            return;
+        }
+        var first = items[0];
+        var last = items[items.length - 1];
+        if (
+            e.shiftKey &&
+            (document.activeElement === first ||
+                document.activeElement === card)
+        ) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    });
+
     requestAnimationFrame(function () {
         overlay.style.opacity = "1";
         card.style.opacity = "1";
         card.style.transform = "scale(1)";
+        card.focus({ preventScroll: true });
     });
 
     // 终止：cancel 为 URL 字符串（POST）或回调函数
@@ -1192,6 +1231,8 @@ function showProgressModal(title, cancel) {
                 title + " - 正在终止...";
             card.querySelector("#prog-status").textContent = "";
             card.querySelector("#prog-cancel").remove();
+            // 被移除的按钮会把焦点丢到 body，拉回卡片，Tab 循环才不会断
+            card.focus({ preventScroll: true });
             // 兜底：终止请求可能失败，任务也可能卡住不发 done，
             // 超时后给出明确状态并允许收起遮罩，避免永久阻断界面。
             cancelTimer = setTimeout(function () {
@@ -1220,6 +1261,9 @@ function showProgressModal(title, cancel) {
             clearTimeout(cancelTimer);
             cancelTimer = null;
         }
+        inerted.forEach(function (node) {
+            node.removeAttribute("inert");
+        });
         unlockScroll();
         overlay.style.opacity = "0";
         card.style.opacity = "0";
@@ -1227,6 +1271,9 @@ function showProgressModal(title, cancel) {
         setTimeout(function () {
             overlay.remove();
         }, 200);
+        if (prevFocus && typeof prevFocus.focus === "function") {
+            prevFocus.focus({ preventScroll: true });
+        }
     }
 
     return {
