@@ -863,18 +863,53 @@ function linkItem(it) {
     );
 }
 
-function copyLink(btn) {
-    var done = function () {
-        btn.textContent = "已复制";
+// 复制文本；失败时返回 rejected promise，由调用方提示，避免假装成功
+function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text);
+    }
+    // 非安全上下文（例如通过局域网 IP 访问）没有 Clipboard API，退回 execCommand
+    return new Promise(function (resolve, reject) {
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = false;
+        try {
+            ok = document.execCommand("copy");
+        } catch (e) {
+            ok = false;
+        }
+        ta.remove();
+        if (ok) resolve();
+        else reject(new Error("复制失败"));
+    });
+}
+
+// 复制按钮的通用反馈：成功「已复制」，失败「复制失败」，1.5 秒后还原
+function copyButton(btn, text) {
+    var original = btn.textContent;
+    var apply = function (label) {
+        btn.textContent = label;
         setTimeout(function () {
-            btn.textContent = "复制";
+            btn.textContent = original;
         }, 1500);
     };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(btn.dataset.url).then(done, done);
-    } else {
-        done();
-    }
+    copyToClipboard(text === undefined ? btn.dataset.url : text).then(
+        function () {
+            apply("已复制");
+        },
+        function () {
+            apply("复制失败");
+        }
+    );
+}
+
+function copyLink(btn) {
+    copyButton(btn);
 }
 
 // 纯文本提示
@@ -895,7 +930,7 @@ function externalUrlModal(url, opts) {
     var copyBtn =
         '<button data-url="' +
         urlAttr +
-        '" onclick="var s=this;navigator.clipboard.writeText(this.dataset.url);s.textContent=\'已复制\';setTimeout(function(){s.textContent=\'复制链接\'},1500)" class="flex-1 px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">复制链接</button>';
+        '" onclick="copyButton(this)" class="flex-1 px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">复制链接</button>';
     var openBtn =
         '<button data-url="' +
         urlAttr +

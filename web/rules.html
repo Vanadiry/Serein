@@ -296,7 +296,7 @@
                         "]";
                 }
                 snippet += "\n";
-                const done = function () {
+                const ok = function () {
                     btn.textContent = "已复制";
                     btn.classList.add("text-ok");
                     setTimeout(function () {
@@ -304,11 +304,15 @@
                         btn.classList.remove("text-ok");
                     }, 1500);
                 };
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(snippet).then(done, done);
-                } else {
-                    done();
-                }
+                const fail = function () {
+                    btn.textContent = "复制失败";
+                    btn.classList.add("text-err");
+                    setTimeout(function () {
+                        btn.textContent = "复制";
+                        btn.classList.remove("text-err");
+                    }, 1500);
+                };
+                copyToClipboard(snippet).then(ok, fail);
             }
 
             // 支持 /rules?source=<id>&rule=<app_id> 定位（来自全局搜索）
