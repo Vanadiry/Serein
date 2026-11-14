@@ -359,6 +359,11 @@ async function checkRuleErrors(dev) {
     var ld = showLoading(dev ? "校验规则 [Dev]" : "校验规则", "正在校验...");
     try {
         var res = await apiPost("/api/rules/check", { dev: !!dev });
+        if (res && res.error) {
+            // 错误已由 _handleResponse 提示，这里只把加载提示收掉
+            ld.done("", "err", 0, "校验失败");
+            return;
+        }
         var issues = (res && res.issues) || [];
         if (!issues.length) {
             ld.done("未发现规则错误", "ok");
@@ -704,7 +709,7 @@ async function downloadFile(url) {
     var ld = showLoading("下载", "正在发送到下载器...");
     try {
         var res = await apiPost("/api/call/downloader", { url: url });
-        var failed = !res || res.status === "error";
+        var failed = !res || !!res.error || res.status === "error";
         ld.done(
             res && res.message ? res.message : "",
             failed ? "err" : "ok",

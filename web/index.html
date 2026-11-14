@@ -170,12 +170,16 @@
                             .getElementById("new-tracker-name")
                             .value.trim();
                         if (!name) return;
+                        var res;
                         try {
-                            await apiPost("/api/tracker/new", { id: name });
+                            res = await apiPost("/api/tracker/new", {
+                                id: name
+                            });
                         } catch (e) {
                             showRequestError(e);
                             return;
                         }
+                        if (res && res.error) return;
                         closeModal(document.querySelector(".fixed"));
                         loadTrackers();
                     };
@@ -659,12 +663,14 @@
                     if (p.latest_version) body[os] = p.latest_version;
                 }
                 console.log("[confirm]", appId, body);
+                var res;
                 try {
-                    await apiPost("/api/check/confirm", body);
+                    res = await apiPost("/api/check/confirm", body);
                 } catch (e) {
                     showRequestError(e);
                     return;
                 }
+                if (res && res.error) return;
                 delete checkResults[appId];
                 // 直接重新获取并渲染列表，不触发渐出渐入动画
                 const data =
@@ -710,12 +716,14 @@
                             .forEach((inp) => {
                                 body[inp.dataset.os] = inp.value.trim();
                             });
+                        var res;
                         try {
-                            await apiPost("/api/check/confirm", body);
+                            res = await apiPost("/api/check/confirm", body);
                         } catch (e) {
                             showRequestError(e);
                             return;
                         }
+                        if (res && res.error) return;
                         closeModal(modal);
                         delete checkResults[appId];
                         const detail =
