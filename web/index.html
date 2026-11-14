@@ -718,6 +718,11 @@
                         return `<div class="flex items-center gap-2"><span class="text-sm text-sub w-16">${escapeHtml(os)}</span><input class="input flex-1" value="${escapeAttr(cur)}" data-os="${escapeAttr(os)}"></div>`;
                     })
                     .join("");
+                var firstInput = modal.querySelector("#edit-platforms input");
+                if (firstInput) {
+                    firstInput.focus();
+                    firstInput.select();
+                }
                 var saveBtn = modal.querySelector("#btn-save-version");
                 saveBtn.onclick = async () => {
                     if (saveBtn.disabled) return;

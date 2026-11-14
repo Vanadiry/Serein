@@ -821,7 +821,11 @@ function openLinksModal(appId, site) {
             notes.push("无下载地址：" + noLink.join("、"));
     }
 
-    var body = items.map(linkItem).join("");
+    var body = items
+        .map(function (it, i) {
+            return linkItem(it, i === 0);
+        })
+        .join("");
     body += notes
         .map(function (n) {
             return (
@@ -844,7 +848,7 @@ function openLinksModal(appId, site) {
     );
 }
 
-function linkItem(it) {
+function linkItem(it, autofocus) {
     var abs = escapeAttr(absoluteUrl(it.url));
     var cls =
         'class="px-2.5 py-1 rounded-chip border border-bord bg-transparent text-sub text-xs cursor-pointer hover:bg-active hover:text-text"';
@@ -857,7 +861,8 @@ function linkItem(it) {
         '<div class="flex gap-2">' +
         '<button data-url="' +
         abs +
-        '" onclick="copyLink(this)" ' +
+        (autofocus ? " data-autofocus" : "") +
+        ' onclick="copyLink(this)" ' +
         cls +
         ">复制</button>" +
         '<button data-url="' +
@@ -1085,8 +1090,13 @@ function showModal(html, wide) {
         el.style.opacity = "1";
         el.firstElementChild.style.opacity = "1";
         el.firstElementChild.style.transform = "scale(1)";
-        var items = modalFocusables(el);
-        if (items.length) items[0].focus();
+        var preferred = el.querySelector("[data-autofocus]");
+        if (preferred) {
+            preferred.focus();
+        } else {
+            var items = modalFocusables(el);
+            if (items.length) items[0].focus();
+        }
     });
     return el;
 }
