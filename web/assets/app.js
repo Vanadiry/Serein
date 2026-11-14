@@ -318,12 +318,18 @@ function renderTopbar(current) {
         document
             .getElementById("btn-sync")
             .addEventListener("click", function () {
-                confirmDialog("将从所有规则源同步最新的规则文件", syncRules);
+                confirmDialog("将从所有规则源同步最新的规则文件", syncRules, {
+                    title: "拉取规则",
+                    okText: "开始拉取"
+                });
             });
         document
             .getElementById("btn-sync-profile")
             .addEventListener("click", function () {
-                confirmDialog("将从远端拉取最新的动态配置", syncProfile);
+                confirmDialog("将从远端拉取最新的动态配置", syncProfile, {
+                    title: "动态配置",
+                    okText: "开始拉取"
+                });
             });
         document
             .getElementById("btn-rule-check")
@@ -978,14 +984,30 @@ function openExternalUrl(url) {
 }
 
 // 确认弹窗
-function confirmDialog(msg, cb) {
+// opts: { title, okText, danger }
+function confirmDialog(msg, cb, opts) {
+    opts = opts || {};
+    var title = opts.title
+        ? '<div class="text-base font-bold mb-2">' +
+          escapeHtml(opts.title) +
+          "</div>"
+        : "";
+    var okText = opts.okText || "确认";
+    var okClass = opts.danger
+        ? "bg-err hover:opacity-90"
+        : "bg-accent hover:opacity-90";
     showModal(
-        '<p class="text-sm mb-4 leading-relaxed">' +
+        title +
+            '<p class="text-sm mb-4 leading-relaxed">' +
             escapeHtml(msg) +
             "</p>" +
             '<div class="flex gap-2">' +
             '<button onclick="closeModal(this.closest(\'.fixed\'))" class="flex-1 px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>' +
-            '<button id="btn-confirm-exec" class="flex-1 px-4 py-2 rounded-control bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90">确认</button>' +
+            '<button id="btn-confirm-exec" class="flex-1 px-4 py-2 rounded-control text-white text-sm font-semibold cursor-pointer ' +
+            okClass +
+            '">' +
+            escapeHtml(okText) +
+            "</button>" +
             "</div>"
     );
     var confirmBtn = document.getElementById("btn-confirm-exec");

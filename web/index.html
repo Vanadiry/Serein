@@ -916,8 +916,10 @@
             // 统一检查入口：共用进度遮罩；confirmMsg 为真时先二次确认
             function runCheck(body, onDone, confirmMsg) {
                 if (confirmMsg) {
-                    confirmDialog(confirmMsg, () =>
-                        asyncCheck("/api/check", body, onDone)
+                    confirmDialog(
+                        confirmMsg,
+                        () => asyncCheck("/api/check", body, onDone),
+                        { title: "检查更新", okText: "开始检查" }
                     );
                 } else {
                     asyncCheck("/api/check", body, onDone);
