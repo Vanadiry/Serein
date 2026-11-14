@@ -1076,10 +1076,13 @@ function showProgressModal(title, cancel) {
 
     // 终止：cancel 为 URL 字符串（POST）或回调函数
     var cancelTimer = null;
+    var cancelling = false;
     if (cancel) {
         card.querySelector("#prog-cancel").onclick = function () {
             if (typeof cancel === "function") cancel();
             else fetch(cancel, { method: "POST" });
+            // 终止后服务端可能还会发一两条进度，不能再覆盖标题和状态
+            cancelling = true;
             var bar = card.querySelector("#prog-bar");
             bar.style.background = "var(--c-warn)";
             card.querySelector("#prog-title").textContent =
@@ -1122,11 +1125,14 @@ function showProgressModal(title, cancel) {
     return {
         setProgress: function (done, total) {
             var pct = total > 0 ? Math.round((done / total) * 100) : 0;
-            card.querySelector("#prog-title").textContent =
-                title + "（" + done + "/" + total + "）";
+            if (!cancelling) {
+                card.querySelector("#prog-title").textContent =
+                    title + "（" + done + "/" + total + "）";
+            }
             card.querySelector("#prog-bar").style.width = pct + "%";
         },
         setStatus: function (text) {
+            if (cancelling) return;
             card.querySelector("#prog-status").textContent = text || "";
         },
         close: close
