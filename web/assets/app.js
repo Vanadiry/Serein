@@ -1175,7 +1175,14 @@ async function asyncCheck(apiPath, body, onDone) {
     }
 
     evt.onmessage = function (e) {
-        var d = JSON.parse(e.data);
+        var d;
+        try {
+            d = JSON.parse(e.data);
+        } catch (err) {
+            console.warn("[progress] 无法解析进度消息", e.data);
+            finish({ cancelled: false, errors: [], overflow: 0 }, true);
+            return;
+        }
         if (d.step === "done") {
             finish(d);
             return;
@@ -1213,8 +1220,32 @@ function startSyncProgress(taskId) {
     var settled = false;
     var reconnects = 0;
     var evt = new EventSource(API + "/api/progress/" + taskId);
+
+    // 连接中断或消息无法解析：任务可能仍在后台，明确提示后收口
+    function finishLost() {
+        if (settled) return;
+        settled = true;
+        evt.close();
+        pm.close();
+        _makeToast(
+            "错误",
+            "进度连接中断，规则拉取可能仍在后台继续",
+            "bg-err",
+            "bg-err/80",
+            0
+        );
+        if (typeof loadSources === "function") loadSources();
+    }
+
     evt.onmessage = function (e) {
-        var d = JSON.parse(e.data);
+        var d;
+        try {
+            d = JSON.parse(e.data);
+        } catch (err) {
+            console.warn("[progress] 无法解析进度消息", e.data);
+            finishLost();
+            return;
+        }
         if (d.step === "done") {
             settled = true;
             evt.close();
@@ -1306,17 +1337,7 @@ function startSyncProgress(taskId) {
     evt.onerror = function () {
         if (settled) return;
         if (++reconnects >= 8) {
-            settled = true;
-            evt.close();
-            pm.close();
-            _makeToast(
-                "错误",
-                "进度连接中断，规则拉取可能仍在后台继续",
-                "bg-err",
-                "bg-err/80",
-                0
-            );
-            if (typeof loadSources === "function") loadSources();
+            finishLost();
         }
     };
 }
@@ -1340,7 +1361,13 @@ function startSyncProgress(taskId) {
     function connectEvents() {
         var es = new EventSource(API + "/api/events");
         es.onmessage = function (e) {
-            var d = JSON.parse(e.data);
+            var d;
+            try {
+                d = JSON.parse(e.data);
+            } catch (err) {
+                console.warn("[events] 无法解析事件消息", e.data);
+                return;
+            }
             // 已处理过的事件（含历史回放）不再弹出；跨翻页/刷新保留
             if (d.id) {
                 if (seen[d.id]) return;
