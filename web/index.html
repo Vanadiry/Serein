@@ -357,6 +357,8 @@
                     toggleTrackerSel(id);
                     return;
                 }
+                // 切换 Tracker 时回到顶部，避免沿用上一个 Tracker 的滚动位置
+                window.scrollTo(0, 0);
                 currentTracker = id;
                 currentTrackerType = _trackerTypes[id] || "app";
                 checkResults = {};
