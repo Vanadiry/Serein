@@ -1036,7 +1036,7 @@ function modalFocusables(root) {
 function showModal(html, wide) {
     const el = document.createElement("div");
     el.className =
-        "fixed inset-0 z-[51] flex items-center justify-center bg-overlay transition-opacity duration-200";
+        "fixed inset-0 z-[51] flex items-center justify-center bg-scrim-soft backdrop-blur-sm transition-opacity duration-200";
     el.style.opacity = "0";
     // 只有按下和松开都落在遮罩本身才关闭。
     // 在弹窗内选中文本或拖到弹窗外面再松手时，click 的 target 也会是遮罩，
