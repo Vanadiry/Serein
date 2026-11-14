@@ -3,7 +3,7 @@ name = "Serein"
 version = "2.2.0"
 description = "软件更新追踪器"
 authors = ["Vanadiry"]
-edition = "2021"
+edition = "2024"
 rust-version = "1.90"
 
 [lib]
