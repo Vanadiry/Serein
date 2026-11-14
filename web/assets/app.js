@@ -1151,6 +1151,9 @@ async function asyncCheck(apiPath, body, onDone) {
         return;
     }
     if (!res || !res.task_id) {
+        // 接口报错（例如已有检查任务在跑）已由 _handleResponse 提示，
+        // 不能再当成“没有可检查的内容”
+        if (res && res.error) return;
         if (onDone) onDone(false, [], 0, true); // 空选择：也要给一句提示
         return;
     }

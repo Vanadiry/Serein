@@ -52,6 +52,9 @@ type Server struct {
 	// syncRunning 保证同一时间只有一个规则同步任务，避免两个任务同时写规则目录
 	syncRunning atomic.Bool
 
+	// checkRunning 保证同一时间只有一个检查任务，避免重复请求上游
+	checkRunning atomic.Bool
+
 	// runPreRequests 便于测试替换，真实实现要联网
 	// 测试里指向 127.0.0.1 的地址会被 SSRF 防护正确拦掉，没法构造“预请求失败”这个场景
 	// 为 nil 时用 checker.RunPreRequests

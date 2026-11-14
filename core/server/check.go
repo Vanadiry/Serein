@@ -83,10 +83,17 @@ func (s *Server) startCheckList(w http.ResponseWriter, list []checkAllTracker, s
 		writeJSON(w, http.StatusOK, map[string]string{"task_id": "", "total": "0"})
 		return
 	}
+	if !s.checkRunning.CompareAndSwap(false, true) {
+		writeError(w, http.StatusConflict, "已有检查任务正在运行")
+		return
+	}
 	log.Logf("[check] %d trackers, %d apps (savePartial=%v, replace=%v)", len(list), total, savePartial, replace)
 	httpx.ClearURLCache()
 	p := progress.NewProgress(total)
-	goSafe("check", p, func() { s.runCheckAllAsync(list, p, savePartial, replace) })
+	goSafe("check", p, func() {
+		defer s.checkRunning.Store(false)
+		s.runCheckAllAsync(list, p, savePartial, replace)
+	})
 	writeJSON(w, http.StatusOK, map[string]string{"task_id": p.ID, "total": strconv.Itoa(total)})
 }
 
