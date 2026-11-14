@@ -63,6 +63,19 @@ fn split_error(raw: &str) -> (String, String) {
     (title, msg)
 }
 
+/// 把后端监听地址转成 WebView 可访问的 URL
+/// 绑定 0.0.0.0 或 [::] 时返回通配地址，需要换成回环地址
+fn navigation_url(addr: &str) -> Option<tauri::Url> {
+    let socket: std::net::SocketAddr = addr.trim().parse().ok()?;
+    let ip = if socket.ip().is_unspecified() {
+        std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST)
+    } else {
+        socket.ip()
+    };
+    let target = std::net::SocketAddr::new(ip, socket.port());
+    tauri::Url::parse(&format!("http://{}", target)).ok()
+}
+
 /// 桌面端：先建初始窗口，再拉起 Go sidecar，等通过 stdout 报告监听地址后导航
 #[cfg(not(mobile))]
 fn setup_desktop(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
@@ -173,9 +186,7 @@ fn setup_desktop(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
                         }
                         if let Some(addr) = line.strip_prefix("SEREIN_ADDR=") {
                             if let Some(w) = h.get_webview_window("main") {
-                                if let Ok(url) =
-                                    tauri::Url::parse(&format!("http://{}", addr.trim()))
-                                {
+                                if let Some(url) = navigation_url(addr) {
                                     let _ = w.navigate(url);
                                 }
                             }
