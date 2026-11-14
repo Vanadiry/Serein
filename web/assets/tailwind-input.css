@@ -203,3 +203,15 @@ html.light .icon-bg img {
 main > div:not(.hidden) {
     animation: fadeIn 0.15s ease;
 }
+
+/* 减少动效：弹窗、进度、视图切换与页面渐入都直接呈现，不做过渡 */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+    }
+}
