@@ -1053,6 +1053,7 @@ function showProgressModal(title, cancel) {
     });
 
     // 终止：cancel 为 URL 字符串（POST）或回调函数
+    var cancelTimer = null;
     if (cancel) {
         card.querySelector("#prog-cancel").onclick = function () {
             if (typeof cancel === "function") cancel();
@@ -1063,7 +1064,37 @@ function showProgressModal(title, cancel) {
                 title + " - 正在终止...";
             card.querySelector("#prog-status").textContent = "";
             card.querySelector("#prog-cancel").remove();
+            // 兜底：终止请求可能失败，任务也可能卡住不发 done，
+            // 超时后给出明确状态并允许收起遮罩，避免永久阻断界面。
+            cancelTimer = setTimeout(function () {
+                cancelTimer = null;
+                var status = card.querySelector("#prog-status");
+                if (status)
+                    status.textContent = "终止请求无响应，任务可能仍在后台运行";
+                var actions = document.createElement("div");
+                actions.className = "mt-3 flex justify-end";
+                var btn = document.createElement("button");
+                btn.textContent = "关闭";
+                btn.className =
+                    "px-3 py-1 rounded-control border border-bord bg-transparent text-sub text-xs cursor-pointer hover:bg-active hover:text-text";
+                btn.onclick = close;
+                actions.appendChild(btn);
+                card.appendChild(actions);
+            }, 15000);
         };
+    }
+
+    function close() {
+        if (cancelTimer) {
+            clearTimeout(cancelTimer);
+            cancelTimer = null;
+        }
+        overlay.style.opacity = "0";
+        card.style.opacity = "0";
+        card.style.transform = "scale(.95)";
+        setTimeout(function () {
+            overlay.remove();
+        }, 200);
     }
 
     return {
@@ -1076,14 +1107,7 @@ function showProgressModal(title, cancel) {
         setStatus: function (text) {
             card.querySelector("#prog-status").textContent = text || "";
         },
-        close: function () {
-            overlay.style.opacity = "0";
-            card.style.opacity = "0";
-            card.style.transform = "scale(.95)";
-            setTimeout(function () {
-                overlay.remove();
-            }, 200);
-        }
+        close: close
     };
 }
 
