@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"net/url"
@@ -83,13 +84,16 @@ func LoadConfig(home string) (Config, error) {
 }
 
 func decodeTOML(path string, v any) error {
-	f, err := os.Open(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	err = toml.NewDecoder(f).Decode(v)
-	return err
+	return toml.Unmarshal(trimBOM(data), v)
+}
+
+// trimBOM 去掉 UTF-8 BOM，部分编辑器（如 Windows 记事本）保存时会写入
+func trimBOM(data []byte) []byte {
+	return bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
 }
 
 func encodeTOML(path string, v any) error {

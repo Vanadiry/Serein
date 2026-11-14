@@ -129,3 +129,20 @@ func TestSourceNames(t *testing.T) {
 		t.Fatalf("findNearestSourceID = %q, want s1", id)
 	}
 }
+
+func TestParseRuleFileWithBOM(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "bom.toml")
+	body := "[info]\napp_id = \"bom\"\nname = \"BOM\"\n"
+	data := append([]byte{0xEF, 0xBB, 0xBF}, []byte(body)...)
+	if err := os.WriteFile(p, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rule, _, err := ParseRuleFile(p, nil)
+	if err != nil {
+		t.Fatalf("带 BOM 的规则应能解析: %v", err)
+	}
+	if rule.Info.AppID != "bom" || rule.Info.Name != "BOM" {
+		t.Fatalf("解析结果异常: %+v", rule.Info)
+	}
+}

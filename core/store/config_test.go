@@ -1,6 +1,26 @@
 package store
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestDecodeTOMLWithBOM(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	data := append([]byte{0xEF, 0xBB, 0xBF}, []byte(DefaultConfigTOML)...)
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var cfg Config
+	if err := decodeTOML(path, &cfg); err != nil {
+		t.Fatalf("带 BOM 的配置应能解析: %v", err)
+	}
+	if cfg.Serein.Host != "127.0.0.1" || cfg.Serein.Port != 12510 {
+		t.Fatalf("解析结果异常: %+v", cfg.Serein)
+	}
+}
 
 func TestFirstRunEnabled(t *testing.T) {
 	if !(SereinConfig{}).FirstRunEnabled() {

@@ -181,7 +181,7 @@ func ParseRuleFile(path string, ruleValues map[string]map[string]string) (Rule, 
 	if err != nil {
 		return Rule{}, nil, err
 	}
-	if err := toml.Unmarshal(data, &raw); err != nil {
+	if err := toml.Unmarshal(trimBOM(data), &raw); err != nil {
 		return Rule{}, nil, err
 	}
 
