@@ -1097,12 +1097,15 @@ async function asyncCheck(apiPath, body, onDone) {
         return;
     }
     var taskId = res.task_id;
-    var pm = showProgressModal("检查更新", API + "/api/progress/cancel/" + taskId);
+    var pm = showProgressModal(
+        "检查更新",
+        API + "/api/progress/cancel/" + taskId
+    );
     var settled = false;
     var reconnects = 0;
     var evt = new EventSource(API + "/api/progress/" + taskId);
 
-    function finish(d) {
+    function finish(d, lost) {
         if (settled) return;
         settled = true;
         evt.close();
@@ -1110,7 +1113,7 @@ async function asyncCheck(apiPath, body, onDone) {
         if (d.cancelled) {
             _makeToast("已终止", "取消检查", "bg-warn", "bg-warn/80", 5);
         }
-        onDone(!!d.cancelled, d.errors || [], d.overflow || 0, false);
+        onDone(!!d.cancelled, d.errors || [], d.overflow || 0, false, !!lost);
     }
 
     evt.onmessage = function (e) {
@@ -1128,11 +1131,12 @@ async function asyncCheck(apiPath, body, onDone) {
     // 连接断了不代表检查结束，绝不能在这里报“完成”。
     // EventSource 默认会自动重连，而服务端在任务结束后仍保留一段时间
     // （progressRetain），期间重连能从 Replay() 拿回同一条 done（含错误列表）。
-    // 所以这里只做兜底：反复重连仍拿不到才收口。
+    // 所以这里只做兜底：反复重连仍拿不到，就按“连接中断”收口，由调用方提示
+    // 任务可能仍在后台继续，不能显示成检查完成。
     evt.onerror = function () {
         if (settled) return;
         if (++reconnects >= 8) {
-            finish({ cancelled: false, errors: [], overflow: 0 });
+            finish({ cancelled: false, errors: [], overflow: 0 }, true);
         }
     };
 }
@@ -1144,7 +1148,10 @@ function startSyncProgress(taskId) {
         sourcesFailed = 0,
         filesTotal = 0,
         fileErrors = 0;
-    var pm = showProgressModal("拉取规则", API + "/api/progress/cancel/" + taskId);
+    var pm = showProgressModal(
+        "拉取规则",
+        API + "/api/progress/cancel/" + taskId
+    );
     var evt = new EventSource(API + "/api/progress/" + taskId);
     evt.onmessage = function (e) {
         var d = JSON.parse(e.data);

@@ -489,8 +489,8 @@
                 var ids = selectedTrackers.slice();
                 runCheck(
                     { scope: "trackers", tracker_ids: ids },
-                    function (cancelled, errs, overflow, empty) {
-                        showCheckDone(cancelled, errs, overflow, empty);
+                    function (cancelled, errs, overflow, empty, lost) {
+                        showCheckDone(cancelled, errs, overflow, empty, lost);
                         if (cancelled || empty) {
                             loadTrackers();
                             if (multiSelect) renderMultiList();
@@ -791,8 +791,8 @@
                 // 单条检查：共用进度遮罩，无需二次确认
                 runCheck(
                     { scope: "ids", ids: { [currentTracker]: [appId] } },
-                    function (cancelled, errs, overflow, empty) {
-                        showCheckDone(cancelled, errs, overflow, empty);
+                    function (cancelled, errs, overflow, empty, lost) {
+                        showCheckDone(cancelled, errs, overflow, empty, lost);
                         return finishCheckTracker(cancelled);
                     },
                     null
@@ -942,7 +942,17 @@
 
             // 统一的检查收口：四个入口共用，只负责把本次错误一次性展示出来。
             // cancelled 时也展示——已检查完那部分的错误是有意义的（Q4）。
-            function showCheckDone(cancelled, errs, overflow, empty) {
+            function showCheckDone(cancelled, errs, overflow, empty, lost) {
+                if (lost) {
+                    _makeToast(
+                        "错误",
+                        "进度连接中断，检查可能仍在后台继续",
+                        "bg-err",
+                        "bg-err/80",
+                        0
+                    );
+                    return;
+                }
                 if (empty) {
                     // 没有可检查的内容：给一句提示，而不是关掉确认框后什么都没有
                     showLoading("检查更新", "").done("没有可检查的内容");
@@ -1029,8 +1039,8 @@
                 console.log("[check] tracker:", currentTracker);
                 runCheck(
                     { scope: "trackers", tracker_ids: [currentTracker] },
-                    function (cancelled, errs, overflow, empty) {
-                        showCheckDone(cancelled, errs, overflow, empty);
+                    function (cancelled, errs, overflow, empty, lost) {
+                        showCheckDone(cancelled, errs, overflow, empty, lost);
                         return finishCheckTracker(cancelled);
                     },
                     "将检查当前 Tracker 中所有软件的更新"
@@ -1041,8 +1051,8 @@
                 console.log("[check] all");
                 runCheck(
                     { scope: "all" },
-                    function (cancelled, errs, overflow, empty) {
-                        showCheckDone(cancelled, errs, overflow, empty);
+                    function (cancelled, errs, overflow, empty, lost) {
+                        showCheckDone(cancelled, errs, overflow, empty, lost);
                         if (cancelled || empty) {
                             loadTrackers();
                             return;
