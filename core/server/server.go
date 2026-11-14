@@ -159,7 +159,7 @@ func (s *Server) registerRoutes() {
 					r.URL.Path = htmlPath
 				}
 			}
-			if s.serveAppJS(w, r.URL.Path) || s.serveIndexWithFirstRun(w, r.URL.Path) {
+			if s.serveAppJS(w, r.URL.Path) {
 				return
 			}
 			fileServer.ServeHTTP(w, r)
@@ -182,24 +182,6 @@ func (s *Server) serveAppJS(w http.ResponseWriter, path string) bool {
 	data = bytes.Replace(data, []byte(`"__DL__"`), []byte(dlDesc), 1)
 	data = bytes.Replace(data, []byte(`"__DL_TYPE__"`), []byte(`"`+dlType+`"`), 1)
 	w.Write(data)
-	return true
-}
-
-// serveIndexWithFirstRun 处理 / 与 /index.html：注入 first_run；返回是否已处理
-func (s *Server) serveIndexWithFirstRun(w http.ResponseWriter, path string) bool {
-	if path != "/" && path != "/index.html" {
-		return false
-	}
-	data, err := fs.ReadFile(s.webFS, "index.html")
-	if err != nil {
-		return false
-	}
-	firstRun := "true"
-	if !s.config.Serein.FirstRunEnabled() {
-		firstRun = "false"
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write(bytes.Replace(data, []byte(`__FIRST_RUN__`), []byte(firstRun), 1))
 	return true
 }
 

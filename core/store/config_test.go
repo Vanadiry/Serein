@@ -22,20 +22,6 @@ func TestDecodeTOMLWithBOM(t *testing.T) {
 	}
 }
 
-func TestFirstRunEnabled(t *testing.T) {
-	if !(SereinConfig{}).FirstRunEnabled() {
-		t.Fatal("未配置应默认开启")
-	}
-	f := false
-	if (SereinConfig{FirstRun: &f}).FirstRunEnabled() {
-		t.Fatal("显式 false 应关闭")
-	}
-	tr := true
-	if !(SereinConfig{FirstRun: &tr}).FirstRunEnabled() {
-		t.Fatal("显式 true 应开启")
-	}
-}
-
 func TestProxyURL(t *testing.T) {
 	if u := (Config{}).ProxyURL(); u != nil {
 		t.Fatalf("未配置应返回 nil，得到 %v", u)

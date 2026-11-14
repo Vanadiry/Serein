@@ -57,17 +57,13 @@ func TestHandleConfig(t *testing.T) {
 			t.Fatalf("code=%d body=%s", rec.Code, rec.Body)
 		}
 		var out struct {
-			Config   map[string]string `json:"config"`
-			FirstRun bool              `json:"first_run"`
+			Config map[string]string `json:"config"`
 		}
 		if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
 			t.Fatal(err)
 		}
 		if out.Config["下载器"] != c.want {
 			t.Errorf("downloader=%q 下载器=%q, want %q", c.dl, out.Config["下载器"], c.want)
-		}
-		if !out.FirstRun {
-			t.Errorf("默认 first_run 应为 true")
 		}
 	}
 }
@@ -354,27 +350,6 @@ func TestServeAppJS(t *testing.T) {
 	}
 	if s.serveAppJS(httptest.NewRecorder(), "/other.js") {
 		t.Fatal("其它路径不应处理")
-	}
-}
-
-func TestServeIndexWithFirstRun(t *testing.T) {
-	webFS := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("first=__FIRST_RUN__")}}
-	s := &Server{webFS: webFS, config: store.Config{}}
-
-	rec := httptest.NewRecorder()
-	if !s.serveIndexWithFirstRun(rec, "/") {
-		t.Fatal("应处理 /")
-	}
-	if got := rec.Body.String(); got != "first=true" {
-		t.Fatalf("默认 = %q", got)
-	}
-
-	f := false
-	s.config.Serein.FirstRun = &f
-	rec2 := httptest.NewRecorder()
-	s.serveIndexWithFirstRun(rec2, "/index.html")
-	if got := rec2.Body.String(); got != "first=false" {
-		t.Fatalf("关闭后 = %q", got)
 	}
 }
 

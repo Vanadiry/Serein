@@ -264,8 +264,6 @@ paths:
                       version_suffixes:
                         type: array
                         items: { type: string }
-                  first_run:
-                    type: boolean
                   rule_source_dev:
                     type: string
                     description: 本地规则目录，为空表示未启用。

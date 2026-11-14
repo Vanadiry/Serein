@@ -69,12 +69,6 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		kv["代理"] = "未配置"
 	}
 
-	if cfg.Serein.FirstRunEnabled() {
-		kv["起始页"] = "由前端控制"
-	} else {
-		kv["起始页"] = "已永久关闭"
-	}
-
 	p, err := store.LoadProfile(s.home)
 	profileData := map[string]any{}
 	if err == nil {
@@ -86,7 +80,6 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"config":          kv,
 		"profile":         profileData,
-		"first_run":       cfg.Serein.FirstRunEnabled(),
 		"rule_source_dev": cfg.Serein.RuleSourceDev,
 	})
 }

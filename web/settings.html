@@ -38,7 +38,7 @@
             ];
 
             var _configSections = [
-                { title: "服务器", keys: ["监听地址", "起始页"] },
+                { title: "服务器", keys: ["监听地址"] },
                 { title: "下载", keys: ["下载器", "并发数"] },
                 { title: "Tracker", keys: ["默认平台"] },
                 { title: "规则和配置", keys: ["规则源", "动态配置", "代理"] }
@@ -123,8 +123,6 @@
                 }
                 html +=
                     '<button onclick="saveSettings()" class="w-full mt-6 px-4 py-2.5 rounded-control bg-accent text-white text-sm font-semibold cursor-pointer border-0 hover:opacity-90 transition-all active:scale-[0.98]">保存设置</button>';
-                html +=
-                    '<button onclick="resetFirstRun()" class="w-full mt-3 px-4 py-2.5 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">重置起始页指引</button>';
                 document.getElementById("settings-form").innerHTML = html;
             }
 
@@ -154,11 +152,6 @@
                     }
                 }
                 document.getElementById("settings-sidebar").innerHTML = html;
-            }
-
-            function resetFirstRun() {
-                localStorage.removeItem("first_run_done");
-                location.href = "/";
             }
 
             function onPrefChange(key, value) {

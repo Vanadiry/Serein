@@ -52,13 +52,7 @@ type ProfileConfig struct {
 type SereinConfig struct {
 	Host          string `toml:"host"`
 	Port          int    `toml:"port"`
-	FirstRun      *bool  `toml:"first_run"`
 	RuleSourceDev string `toml:"rule_source_dev"` // 可选：本地开发规则源（_source.json 路径）
-}
-
-// FirstRunEnabled 是否展示首次运行指引；未配置时默认开启（显式 false 才关闭）
-func (c SereinConfig) FirstRunEnabled() bool {
-	return c.FirstRun == nil || *c.FirstRun
 }
 
 type TrackerConfig struct {
