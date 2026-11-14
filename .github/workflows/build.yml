@@ -11,7 +11,7 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       build: ${{ steps.tag.outputs.build }}
     steps:
@@ -37,11 +37,11 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: macos-latest
+          - os: macos-15
             target: aarch64-apple-darwin
             goarch: arm64
             label: macos
-          - os: windows-latest
+          - os: windows-2022
             target: x86_64-pc-windows-msvc
             goarch: amd64
             label: windows
@@ -53,8 +53,7 @@ jobs:
           go-version-file: go.mod
       - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
-          version: "12"
-          runtime: node@26
+          runtime: node@26.13.1
           install: false
           cache: true
       - uses: dtolnay/rust-toolchain@stable
@@ -65,7 +64,7 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libfuse2 libgtk-3-dev
 
-      - run: pnpm install
+      - run: pnpm install --frozen-lockfile
 
       - name: Build Tauri
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f # v1.0.0
@@ -101,7 +100,7 @@ jobs:
   server:
     needs: [check, test]
     if: needs.check.outputs.build == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -109,11 +108,10 @@ jobs:
           go-version-file: go.mod
       - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
-          version: "12"
-          runtime: node@26
+          runtime: node@26.13.1
           install: false
           cache: true
-      - run: pnpm install && pnpm run build
+      - run: pnpm install --frozen-lockfile && pnpm run build
 
       - name: Build Server
         run: |
@@ -137,7 +135,7 @@ jobs:
   release:
     needs: [test, build, server]
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
