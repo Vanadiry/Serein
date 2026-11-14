@@ -996,7 +996,7 @@ function confirmDialog(msg, cb, opts) {
     var okClass = opts.danger
         ? "bg-err hover:opacity-90"
         : "bg-accent hover:opacity-90";
-    showModal(
+    var el = showModal(
         title +
             '<p class="text-sm mb-4 leading-relaxed">' +
             escapeHtml(msg) +
@@ -1010,7 +1010,7 @@ function confirmDialog(msg, cb, opts) {
             "</button>" +
             "</div>"
     );
-    var confirmBtn = document.getElementById("btn-confirm-exec");
+    var confirmBtn = el.querySelector("#btn-confirm-exec");
     confirmBtn.onclick = function () {
         // 弹窗有 200ms 淡出，淡出期间按钮仍可点击，避免双击重复执行
         if (confirmBtn.disabled) return;

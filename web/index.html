@@ -157,18 +157,18 @@
             };
             updateCheckButtons();
             document.getElementById("btn-new-tracker").onclick = () => {
-                showModal(`
+                var modal = showModal(`
       <div class="text-base font-bold mb-4">新建 Tracker</div>
       <input id="new-tracker-name" class="input w-full mb-3" placeholder="Tracker 名称">
       <div class="flex gap-2">
         <button onclick="closeModal(this.closest('.fixed'))" class="flex-1 px-4 py-2 rounded-control border border-bord bg-transparent text-sub text-sm cursor-pointer hover:bg-active hover:text-text">取消</button>
         <button id="btn-create-tracker" class="flex-1 px-4 py-2 rounded-control bg-accent text-white text-sm font-semibold cursor-pointer hover:opacity-90 disabled:opacity-50 disabled:cursor-default">创建</button>
       </div>`);
-                var createBtn = document.getElementById("btn-create-tracker");
+                var createBtn = modal.querySelector("#btn-create-tracker");
                 createBtn.onclick = async () => {
                     if (createBtn.disabled) return;
-                    const name = document
-                        .getElementById("new-tracker-name")
+                    const name = modal
+                        .querySelector("#new-tracker-name")
                         .value.trim();
                     if (!name) return;
                     var label = createBtn.textContent;
@@ -190,7 +190,7 @@
                         createBtn.textContent = label;
                         return;
                     }
-                    closeModal(document.querySelector(".fixed"));
+                    closeModal(modal);
                     loadTrackers();
                 };
             };
@@ -708,7 +708,7 @@
                     entry && entry.current_version
                         ? Object.keys(entry.current_version)
                         : [];
-                document.getElementById("edit-platforms").innerHTML = platforms
+                modal.querySelector("#edit-platforms").innerHTML = platforms
                     .map((os) => {
                         const cur =
                             (entry &&
@@ -718,11 +718,11 @@
                         return `<div class="flex items-center gap-2"><span class="text-sm text-sub w-16">${escapeHtml(os)}</span><input class="input flex-1" value="${escapeAttr(cur)}" data-os="${escapeAttr(os)}"></div>`;
                     })
                     .join("");
-                var saveBtn = document.getElementById("btn-save-version");
+                var saveBtn = modal.querySelector("#btn-save-version");
                 saveBtn.onclick = async () => {
                     if (saveBtn.disabled) return;
                     const body = { app_id: appId };
-                    document
+                    modal
                         .querySelectorAll("#edit-platforms input")
                         .forEach((inp) => {
                             body[inp.dataset.os] = inp.value.trim();
