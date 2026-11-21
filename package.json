@@ -1,6 +1,6 @@
 {
     "private": true,
-    "packageManager": "pnpm@12.18.0",
+    "packageManager": "pnpm@12.21.0",
     "engines": {
         "node": "^20.19.0 || >=22.12.0",
         "pnpm": ">=12"
@@ -15,7 +15,7 @@
     "devDependencies": {
         "@swc/html": "^1.16.22",
         "@tailwindcss/cli": "^4.3.5",
-        "@tauri-apps/cli": "^2.12.4",
+        "@tauri-apps/cli": "^2.12.6",
         "tailwindcss": "^4.3.5",
         "terser": "^5.51.2"
     }
